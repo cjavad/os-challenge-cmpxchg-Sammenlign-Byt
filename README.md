@@ -14,6 +14,10 @@ TODO.
 ## Hash lookup
 
 Shared nmap'ed memory regions based on a BTreeMap using the start and end ranges (buckets)
-run dedicated processed to smartly cache computation without over computing.
+run dedicated processes to smartly cache computation without over computing.
 
-In principle implement a database using a bespoke data format for lookup. 
+In principle implement a database using a bespoke data format for lookup.
+
+## Generic utils we probably need
+
+- Generic allocation interface (To implement RC or Arena alloc)
