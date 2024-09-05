@@ -6,7 +6,7 @@ INCDIR = include
 SRCDIR = src
 LIBDIR = lib
 DEPDIR = dep
-OBJDIR = build
+OBJDIR = obj
 BINDIR = .
 
 # preprocessor flags
