@@ -14,7 +14,7 @@ PPFLAGS =
 # include flags
 IFLAGS = -I$(INCDIR)
 # compile flags
-CFLAGS = -msse -std=c11
+CFLAGS = -msse -masm=intel -std=c11
 # linker flags
 LFLAGS = -lpthread -lrt -lm -Wl,-rpath,lib
 
