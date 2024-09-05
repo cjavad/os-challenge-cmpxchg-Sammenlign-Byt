@@ -16,7 +16,7 @@ IFLAGS = -I$(INCDIR)
 # compile flags
 CFLAGS = -msse -masm=intel -std=c11
 # linker flags
-LFLAGS = -lpthread -lrt -lm -Wl,-rpath,lib
+LFLAGS = -lssl -lcrypto -lpthread -lrt -lm -Wl,-rpath,lib
 
 # build
 
