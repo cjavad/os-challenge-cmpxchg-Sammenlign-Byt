@@ -36,6 +36,8 @@ O_FILES := $(patsubst $(SRCDIR)/%.c, $(OBJDIR)/%.o, $(C_FILES))
 
 .PHONY: build release clean run lines
 
+all: .PHONY
+
 default:
 	make build
 
