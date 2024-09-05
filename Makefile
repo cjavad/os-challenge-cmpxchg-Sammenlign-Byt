@@ -36,7 +36,8 @@ O_FILES := $(patsubst $(SRCDIR)/%.c, $(OBJDIR)/%.o, $(C_FILES))
 
 .PHONY: build release clean run lines
 
-build: CFLAGS += -O2 -Wall -Wextra
+build: CFLAGS += -O2 -Wall -Wextra -ggdb
+build: LFLAGS += -ggdb
 build: PPFLAGS += -DDEBUG
 build: link
 
