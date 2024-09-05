@@ -57,7 +57,7 @@ run:
 	./$(BINDIR)/$(EXECUTABLE)
 
 lines:
-	@find $(SRCDIR) -type f -name "*.[chi]" | xargs wc -l | sort -n
+	@find $(SRCDIR) -type f -name "*.[chiS]" | xargs wc -l | sort -n
 
 # link
 link: $(O_FILES) $(D_FILES)
