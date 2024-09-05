@@ -1,3 +1,4 @@
 obj/
 dep/
 server
+compile_commands.json
