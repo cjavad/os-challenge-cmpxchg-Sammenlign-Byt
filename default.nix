@@ -10,6 +10,10 @@ pkgs.stdenv.mkDerivation {
     pkgs.gcc
   ];
 
+  nativeBuildInputs = [
+    pkgs.openssl
+  ];
+
   installPhase = ''
     mkdir -p $out/bin
     cp server $out/bin
