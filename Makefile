@@ -34,6 +34,8 @@ endif
 D_FILES := $(patsubst $(SRCDIR)/%.c, $(DEPDIR)/%.d, $(C_FILES))
 O_FILES := $(patsubst $(SRCDIR)/%.c, $(OBJDIR)/%.o, $(C_FILES))
 
+include $(D_FILES)
+
 .PHONY: build release clean run lines
 
 all:
