@@ -2,12 +2,12 @@
 CC = gcc
 EXECUTABLE = server
 
-INCDIR = include
-SRCDIR = src
-LIBDIR = lib
-DEPDIR = dep
-OBJDIR = obj
-BINDIR = .
+INCDIR := include
+SRCDIR := src
+LIBDIR := lib
+DEPDIR := dep
+OBJDIR := obj
+BINDIR := .
 
 # preprocessor flags
 PPFLAGS =
@@ -22,24 +22,23 @@ LFLAGS = -lssl -lcrypto -lpthread -lrt -lm -Wl,-rpath,lib
 
 C_FILES := $(shell find $(SRCDIR) -type f -name "*.c")
 
-ifneq (,$(findstring build,$(MAKECMDGOALS)))
-	DEPDIR := $(DEPDIR)/build
-	OBJDIR := $(OBJDIR)/build
-endif
 ifneq (,$(findstring release,$(MAKECMDGOALS)))
 	DEPDIR := $(DEPDIR)/release
 	OBJDIR := $(OBJDIR)/release
+else
+# (,$(findstring build,$(MAKECMDGOALS)))
+	DEPDIR := $(DEPDIR)/build
+	OBJDIR := $(OBJDIR)/build
 endif
 
 D_FILES := $(patsubst $(SRCDIR)/%.c, $(DEPDIR)/%.d, $(C_FILES))
 O_FILES := $(patsubst $(SRCDIR)/%.c, $(OBJDIR)/%.o, $(C_FILES))
 
-include $(D_FILES)
+all: build
 
 .PHONY: build release clean run lines
 
-all:
-	make build
+include $(D_FILES)
 
 build: CFLAGS += -O2 -Wall -Wextra -ggdb
 build: LFLAGS += -ggdb
