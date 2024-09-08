@@ -14,7 +14,7 @@ PPFLAGS =
 # include flags
 IFLAGS = -I$(INCDIR)
 # compile flags
-CFLAGS = -march=sandybridge -masm=intel -std=c11
+CFLAGS = -march=sandybridge -mtune=sandybridge -masm=intel -std=c11
 # linker flags
 LFLAGS = -lssl -lcrypto -lpthread -lrt -lm -Wl,-rpath,lib
 
