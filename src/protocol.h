@@ -13,13 +13,13 @@
 
 typedef struct {
     // Hash to be reversed
-    hash_u hash;
+    HashDigest hash;
     // Range of the input that the hash originates from.
     // 64-bit unsigned integers
     uint64_t start;
     uint64_t end;
     // Priority
-    uint8_t p;
+    uint8_t priority;
 } __attribute__((packed)) ProtocolRequest;
 
 typedef struct {

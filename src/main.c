@@ -4,14 +4,6 @@
 #include "hash.h"
 #include "protocol.h"
 #include "server.h"
-#include <x86intrin.h>
-
-void print_hash(const uint8_t hash[32]) {
-    for (int i = 0; i < 32; i++) {
-        printf("%02x", hash[i]);
-    }
-    printf("\n");
-}
 
 int main(int argc, char **argv) {
     SyncServer server;
@@ -50,8 +42,9 @@ int main(int argc, char **argv) {
         protocol_request_to_le(&req);
 
         printf("Got request with hash: ");
-        debug_print_hash(req.hash);
-        printf("\n Start: %lu, End: %lu\n", req.start, req.end);
+        print_hash(req.hash);
+        printf("\nStart: %lu, End: %lu, Priority %d\n", req.start, req.end,
+               req.priority);
 
         const size_t resp_size = sizeof(ProtocolResponse);
         ProtocolResponse resp;
@@ -82,4 +75,6 @@ int main(int argc, char **argv) {
     sync_server_close(&server);
 
     printf("Closed server\n");
+
+    return 0;
 }
