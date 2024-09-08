@@ -1,12 +1,8 @@
 #pragma once
 
-#include <netdb.h>
 #include <netinet/in.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <strings.h> // bzero()
 #include <sys/socket.h>
-#include <sys/types.h>
 #include <unistd.h> // read(), write(), close()
 
 typedef struct sockaddr netinet_socketaddr;

@@ -1,7 +1,5 @@
 #include "server.h"
 
-#include <strings.h>
-
 int sync_server_init(SyncServer* server, const int port) {
   bzero(server, sizeof(SyncServer));
   server->fd = socket(AF_INET, SOCK_STREAM, 0);

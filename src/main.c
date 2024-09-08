@@ -3,8 +3,15 @@
 
 #include "hash.h"
 #include "protocol.h"
-
 #include "server.h"
+#include <x86intrin.h>
+
+void print_hash(const uint8_t hash[32]) {
+    for (int i = 0; i < 32; i++) {
+        printf("%02x", hash[i]);
+    }
+    printf("\n");
+}
 
 int main(int argc, char **argv) {
     SyncServer server;
@@ -53,7 +60,7 @@ int main(int argc, char **argv) {
 
         resp.answer = reverse_hash(req.start, req.end, req.hash);
 
-        // Print asnwer before sending
+        // Print answer before sending
 
         printf("Answer: %lu\n", resp.answer);
 
