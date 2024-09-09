@@ -10,7 +10,6 @@ typedef uint8_t HashInput[8];
 
 void sha256_openssl(HashDigest hash, const HashInput data);
 void sha256_custom(HashDigest hash, const HashInput data);
-void sha256_wangkui0508(HashDigest hash, const HashInput data);
 
 void sprintf_hash(char *str, const HashDigest hash);
 void print_hash(const HashDigest hash);
@@ -24,7 +23,7 @@ void print_hash(const HashDigest hash);
             (func)(hash, (data));                                              \
         }                                                                      \
         uint64_t end = __rdtsc();                                              \
-        printf("%s: %lu cycles per - %lu cycles total for %lu iterations\n",   \
+        printf("%s: %lu ts count per - %lu ts count total for %lu iterations\n",   \
                #func, (end - start) / BENCHMARK_ITERATIONS, (end - start),     \
                (uint64_t)BENCHMARK_ITERATIONS);                                \
         printf("Hash: ");                                                      \
