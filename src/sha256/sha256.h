@@ -26,7 +26,7 @@ void print_hash(const HashDigest hash);
         uint64_t end = __rdtsc();                                              \
         printf("%s: %lu cycles per - %lu cycles total for %lu iterations\n",   \
                #func, (end - start) / BENCHMARK_ITERATIONS, (end - start),     \
-               BENCHMARK_ITERATIONS);                                          \
+               (uint64_t)BENCHMARK_ITERATIONS);                                \
         printf("Hash: ");                                                      \
         print_hash(hash);                                                      \
         printf("\n");                                                          \
