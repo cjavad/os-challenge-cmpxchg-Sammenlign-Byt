@@ -34,5 +34,4 @@ void print_hash(const HashDigest hash);
 
 #define BENCHMARK_ALL(data)                                                    \
     BENCHMARK_SHA256(sha256_openssl, (data))                                   \
-    BENCHMARK_SHA256(sha256_custom, (data))                                    \
-    BENCHMARK_SHA256(sha256_wangkui0508, (data))
+    BENCHMARK_SHA256(sha256_custom, (data))
