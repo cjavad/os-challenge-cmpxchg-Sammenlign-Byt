@@ -6,6 +6,11 @@
 #include "server.h"
 
 int main(int argc, char **argv) {
+
+    HashInput input = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01};
+    BENCHMARK_ALL(input)
+    return 0;
+
     SyncServer server;
     SyncServerConn conn;
 
