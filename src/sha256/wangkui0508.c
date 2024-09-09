@@ -644,6 +644,6 @@ void sha256_final(SHA256_CTX *ctx, BYTE hash[])
 void sha256_wangkui0508(HashDigest hash, const HashInput data) {
         SHA256_CTX ctx;
         sha256_init(&ctx);
-        sha256_update(&ctx, data, 32);
+        sha256_update(&ctx, data, 8);
         sha256_final(&ctx, hash);
 }
