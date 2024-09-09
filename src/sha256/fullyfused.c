@@ -89,38 +89,89 @@ void sha256_fullyfused(HashDigest hash, const HashInput data) {
         w[15] = 64;
     }
 
-    // optimization based on known 
-    w[16] = w[0] + s0(w[1]);
-    
-    w[17] = w[1] + s0(0x80000000) + s1(64);
-    
-    w[18] = 0x80000000 + s1(w[16]);
-    
-    w[19] = s1(w[17]);
-    w[20] = s1(w[18]);
-    w[21] = s1(w[19]);
+    // optimization based on known
+    uint32_t scra0 = w[0];
+    uint32_t scra1 = w[1];
 
-    w[22] = 64 + s1(w[20]);
-
-    w[23] = w[16] + s1(w[21]);
-    w[24] = w[17] + s1(w[22]);
-    w[25] = w[18] + s1(w[23]);
-    w[26] = w[19] + s1(w[24]);
-    w[27] = w[20] + s1(w[25]);
-    w[28] = w[21] + s1(w[26]);
-    w[29] = w[22] + s1(w[27]);
-
-    w[30] = s0(64) + w[23] + s1(w[28]);
-    
-    w[31] = 64 + s0(w[16]) + w[24] + s1(w[29]);
-
-
-    // compression loop
-    for (uint32_t i = 16; i < 32; i++) {
+    {
+        const uint32_t w0 = scra0;
+        const uint32_t w1 = scra1;
         const uint32_t temp2 = S0(a) + maj(a, b, c);
-        const uint32_t temp1 = h + S1(e) + ch(e, f, g) + k[i] + w[i];
-
+        const uint32_t w16 = w0 + s0(w1);
+        const uint32_t temp1 = h + S1(e) + ch(e, f, g) + k[16] + w16;
         h = g; g = f; f = e; e = d + temp1; d = c; c = b; b = a; a = temp1 + temp2;
+        w[16] = w16;
+        scra0 = w16;
+    }
+    {
+        const uint32_t w1 = scra1;
+        const uint32_t temp2 = S0(a) + maj(a, b, c);
+        const uint32_t w17 = w1 + s0(0x80000000) + s1(64);
+        const uint32_t temp1 = h + S1(e) + ch(e, f, g) + k[17] + w17;
+        h = g; g = f; f = e; e = d + temp1; d = c; c = b; b = a; a = temp1 + temp2;
+        w[17] = w17;
+        scra1 = w17;
+    }
+    {
+        const uint32_t w16 = scra0;
+        const uint32_t temp2 = S0(a) + maj(a, b, c);
+        const uint32_t w18 = 0x80000000 + s1(w16);
+        const uint32_t temp1 = h + S1(e) + ch(e, f, g) + k[18] + w18;
+        h = g; g = f; f = e; e = d + temp1; d = c; c = b; b = a; a = temp1 + temp2;
+        w[18] = w18;
+        scra0 = w18;
+    }
+    for (uint32_t i = 19; i < 22; i++) {
+        const uint32_t temp2 = S0(a) + maj(a, b, c);
+        const uint32_t wi = s1(scra1);
+        const uint32_t temp1 = h + S1(e) + ch(e, f, g) + k[i] + wi;
+        h = g; g = f; f = e; e = d + temp1; d = c; c = b; b = a; a = temp1 + temp2;
+        
+        w[i] = wi;
+        scra1 = scra0;
+        scra0 = wi;
+    }
+    {
+        const uint32_t temp2 = S0(a) + maj(a, b, c);
+        const uint32_t w22 = 64 + s1(scra1);
+        const uint32_t temp1 = h + S1(e) + ch(e, f, g) + k[22] + w22;
+        h = g; g = f; f = e; e = d + temp1; d = c; c = b; b = a; a = temp1 + temp2;
+        
+        w[22] = w22;
+        scra1 = scra0;
+        scra0 = w22;
+    }
+    for (uint32_t i = 23; i < 30; i++) {
+        const uint32_t w7 = w[i - 7];
+        const uint32_t temp2 = S0(a) + maj(a, b, c);
+        const uint32_t wi = s1(scra1) + w7;
+        const uint32_t temp1 = h + S1(e) + ch(e, f, g) + k[i] + wi;
+        h = g; g = f; f = e; e = d + temp1; d = c; c = b; b = a; a = temp1 + temp2;
+        
+        w[i] = wi;
+        scra1 = scra0;
+        scra0 = wi;
+    }
+    {
+        const uint32_t w23 = w[23];
+        const uint32_t temp2 = S0(a) + maj(a, b, c);
+        const uint32_t w30 = s0(64) + s1(scra1) + w23;
+        const uint32_t temp1 = h + S1(e) + ch(e, f, g) + k[30] + w30;
+        h = g; g = f; f = e; e = d + temp1; d = c; c = b; b = a; a = temp1 + temp2;
+        
+        w[30] = w30;
+        scra1 = scra0;
+        scra0 = w30;
+    }
+    {
+        const uint32_t w16 = w[16];
+        const uint32_t w24 = w[24];
+        const uint32_t temp2 = S0(a) + maj(a, b, c);
+        const uint32_t w31 = 64 + s1(scra1) + s0(w16) + w24;
+        const uint32_t temp1 = h + S1(e) + ch(e, f, g) + k[31] + w31;
+        h = g; g = f; f = e; e = d + temp1; d = c; c = b; b = a; a = temp1 + temp2;
+        
+        w[31] = w31;
     }
 
 	// loop rest
