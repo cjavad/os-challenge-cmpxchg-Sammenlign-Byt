@@ -11,6 +11,8 @@ typedef uint8_t HashInput[8];
 void sha256_openssl(HashDigest hash, const HashInput data);
 void sha256_custom(HashDigest hash, const HashInput data);
 void sha256_optim(HashDigest hash, const HashInput data);
+void sha256_fused(HashDigest hash, const HashInput data);
+void sha256_fullyfused(HashDigest hash, const HashInput data);
 
 void sprintf_hash(char *str, const HashDigest hash);
 void print_hash(const HashDigest hash);
@@ -35,4 +37,6 @@ void print_hash(const HashDigest hash);
 #define BENCHMARK_ALL(data)                                                    \
     BENCHMARK_SHA256(sha256_openssl, (data))                                   \
     BENCHMARK_SHA256(sha256_custom, (data))                                    \
-    BENCHMARK_SHA256(sha256_optim, (data))
+    BENCHMARK_SHA256(sha256_optim, (data))                                     \
+    BENCHMARK_SHA256(sha256_fused, (data))                                     \
+    BENCHMARK_SHA256(sha256_fullyfused, (data))
