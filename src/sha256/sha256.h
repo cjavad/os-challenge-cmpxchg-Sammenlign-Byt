@@ -4,6 +4,7 @@
 #include <x86intrin.h>
 
 #define SHA256_DIGEST_LENGTH 32
+#define SHA256_GCC_OPT_ATTR __attribute__((flatten, optimize("unroll-loops")))
 
 typedef uint8_t HashDigest[SHA256_DIGEST_LENGTH];
 typedef uint8_t HashInput[8];

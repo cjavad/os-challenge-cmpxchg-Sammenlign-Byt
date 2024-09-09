@@ -21,8 +21,8 @@ static uint32_t s0(uint32_t w) { return rotr(w, 7) ^ rotr(w, 18) ^ (w >> 3); }
 
 static uint32_t s1(uint32_t w) { return rotr(w, 17) ^ rotr(w, 19) ^ (w >> 10); }
 
-__attribute__((flatten, optimize("unroll-loops"))) void
-sha256_optim(HashDigest hash, const HashInput data) {
+SHA256_GCC_OPT_ATTR
+void sha256_optim(HashDigest hash, const HashInput data) {
     uint32_t w[64];
 
     // setting of initial block
