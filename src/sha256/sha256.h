@@ -16,23 +16,29 @@ void sprintf_hash(char *str, const HashDigest hash);
 void print_hash(const HashDigest hash);
 
 #define BENCHMARK_ITERATIONS 1000000
-#define BENCHMARK_SHA256(func, data)                                           \
+#define BENCHMARK_START                                                        \
+    uint64_t start, end;                                                       \
+    start = __rdtsc();
+#define BENCHMARK_END(name)                                                    \
+    end = __rdtsc();                                                           \
+    printf("%s: %lu ts count per - %lu ts count total for %lu iterations\n",   \
+           #name, (end - start) / BENCHMARK_ITERATIONS, (end - start),         \
+           (uint64_t)BENCHMARK_ITERATIONS);
+
+#define BENCHMARK_SHA256(func)                                                 \
     {                                                                          \
         HashDigest hash;                                                       \
-        uint64_t start = __rdtsc();                                            \
-        for (int i = 0; i < BENCHMARK_ITERATIONS; i++) {                       \
-            (func)(hash, (data));                                              \
+        BENCHMARK_START                                                        \
+        for (uint64_t i = 0; i < BENCHMARK_ITERATIONS; i++) {                  \
+            (func)(hash, (uint8_t *)&i);                                       \
         }                                                                      \
-        uint64_t end = __rdtsc();                                              \
-        printf("%s: %lu ts count per - %lu ts count total for %lu iterations\n",   \
-               #func, (end - start) / BENCHMARK_ITERATIONS, (end - start),     \
-               (uint64_t)BENCHMARK_ITERATIONS);                                \
+        BENCHMARK_END(func)                                                    \
         printf("Hash: ");                                                      \
         print_hash(hash);                                                      \
         printf("\n");                                                          \
     }
 
-#define BENCHMARK_ALL(data)                                                    \
-    BENCHMARK_SHA256(sha256_openssl, (data))                                   \
-    BENCHMARK_SHA256(sha256_custom, (data))                                    \
-    BENCHMARK_SHA256(sha256_optim, (data))
+#define BENCHMARK_SHA256_ALL                                                   \
+    BENCHMARK_SHA256(sha256_openssl)                                           \
+    BENCHMARK_SHA256(sha256_custom)                                            \
+    BENCHMARK_SHA256(sha256_optim)

@@ -13,37 +13,32 @@ static const uint32_t k[64] = {
     0x5b9cca4f, 0x682e6ff3, 0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208,
     0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2};
 
-
 static uint32_t rotr(uint32_t x, uint32_t n) {
     return (x >> n) | (x << (32 - n));
 }
 
-static uint32_t s0(uint32_t w) {
-    return rotr(w, 7) ^ rotr(w, 18) ^ (w >> 3);
-}
+static uint32_t s0(uint32_t w) { return rotr(w, 7) ^ rotr(w, 18) ^ (w >> 3); }
 
-static uint32_t s1(uint32_t w) {
-    return rotr(w, 17) ^ rotr(w, 19) ^ (w >> 10);
-}
+static uint32_t s1(uint32_t w) { return rotr(w, 17) ^ rotr(w, 19) ^ (w >> 10); }
 
-__attribute__((flatten))
-void sha256_optim(HashDigest hash, const HashInput data) {
+__attribute__((flatten, optimize("unroll-loops"))) void
+sha256_optim(HashDigest hash, const HashInput data) {
     uint32_t w[64];
 
     // setting of initial block
-    w[0] = __builtin_bswap32(((uint32_t*)data)[0]);
-    w[1] = __builtin_bswap32(((uint32_t*)data)[1]);
+    w[0] = __builtin_bswap32(((uint32_t *)data)[0]);
+    w[1] = __builtin_bswap32(((uint32_t *)data)[1]);
     w[2] = 0x80000000;
-    __builtin_memset(&w[3], 0, (15 - 3) * sizeof(uint32_t));    
+    __builtin_memset(&w[3], 0, (15 - 3) * sizeof(uint32_t));
     w[15] = 64;
 
-    // optimization based on known 
+    // optimization based on known
     w[16] = w[0] + s0(w[1]);
-    
+
     w[17] = w[1] + s0(0x80000000) + s1(64);
-    
+
     w[18] = 0x80000000 + s1(w[16]);
-    
+
     w[19] = s1(w[17]);
     w[20] = s1(w[18]);
     w[21] = s1(w[19]);
@@ -59,12 +54,12 @@ void sha256_optim(HashDigest hash, const HashInput data) {
     w[29] = w[22] + s1(w[27]);
 
     w[30] = s0(64) + w[23] + s1(w[28]);
-    
+
     w[31] = 64 + s0(w[16]) + w[24] + s1(w[29]);
 
     // loop rest
     for (uint32_t i = 32; i < 64; i++) {
-        w[i] = w[i - 16] + s0(w[i - 15]) + w[i - 7] + s1(w[i - 2]); 
+        w[i] = w[i - 16] + s0(w[i - 15]) + w[i - 7] + s1(w[i - 2]);
     }
 
     uint32_t a = 0x6a09e667;
@@ -95,12 +90,12 @@ void sha256_optim(HashDigest hash, const HashInput data) {
         a = temp1 + temp2;
     }
 
-    ((uint32_t*)hash)[0] = __builtin_bswap32(a + 0x6a09e667);
-    ((uint32_t*)hash)[1] = __builtin_bswap32(b + 0xbb67ae85);
-    ((uint32_t*)hash)[2] = __builtin_bswap32(c + 0x3c6ef372);
-    ((uint32_t*)hash)[3] = __builtin_bswap32(d + 0xa54ff53a);
-    ((uint32_t*)hash)[4] = __builtin_bswap32(e + 0x510e527f);
-    ((uint32_t*)hash)[5] = __builtin_bswap32(f + 0x9b05688c);
-    ((uint32_t*)hash)[6] = __builtin_bswap32(g + 0x1f83d9ab);
-    ((uint32_t*)hash)[7] = __builtin_bswap32(h + 0x5be0cd19);
+    ((uint32_t *)hash)[0] = __builtin_bswap32(a + 0x6a09e667);
+    ((uint32_t *)hash)[1] = __builtin_bswap32(b + 0xbb67ae85);
+    ((uint32_t *)hash)[2] = __builtin_bswap32(c + 0x3c6ef372);
+    ((uint32_t *)hash)[3] = __builtin_bswap32(d + 0xa54ff53a);
+    ((uint32_t *)hash)[4] = __builtin_bswap32(e + 0x510e527f);
+    ((uint32_t *)hash)[5] = __builtin_bswap32(f + 0x9b05688c);
+    ((uint32_t *)hash)[6] = __builtin_bswap32(g + 0x1f83d9ab);
+    ((uint32_t *)hash)[7] = __builtin_bswap32(h + 0x5be0cd19);
 }
