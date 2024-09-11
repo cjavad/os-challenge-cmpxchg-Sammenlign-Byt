@@ -27,23 +27,28 @@ void add_provide_buf(struct io_uring *ring, uint16_t bid, unsigned gid);
 int async_server_init(const Server *server, AsyncCtx *ctx, Client *client) {
     int ret = 0;
 
-    struct io_uring ring;
     struct io_uring_params params;
 
-    if ((ret = io_uring_queue_init_params(2048, &ring, &params)) < 0) {
+    bzero(ctx, sizeof(*ctx));
+    bzero(&params, sizeof(params));
+
+    if ((ret = io_uring_queue_init_params(2048, ctx, &params)) < 0) {
+        fprintf(stderr, "Failed to initialize io_uring params\n");
         return ret;
     }
 
     // check if IORING_FEAT_FAST_POLL is supported
     if (!(params.features & IORING_FEAT_FAST_POLL)) {
+        fprintf(stderr, "IORING_FEAT_FAST_POLL not supported\n");
         return -1;
     }
 
     // check if buffer selection is supported
-    struct io_uring_probe *probe = io_uring_get_probe_ring(&ring);
+    struct io_uring_probe *probe = io_uring_get_probe_ring(ctx);
 
     if (!probe ||
         !io_uring_opcode_supported(probe, IORING_OP_PROVIDE_BUFFERS)) {
+        fprintf(stderr, "IORING_OP_PROVIDE_BUFFERS not supported\n");
 
         return -1;
     }
@@ -51,33 +56,38 @@ int async_server_init(const Server *server, AsyncCtx *ctx, Client *client) {
     io_uring_free_probe(probe);
 
     // register buffers for buffer selection
-    struct io_uring_sqe *sqe = io_uring_get_sqe(&ring);
+    struct io_uring_sqe *sqe = io_uring_get_sqe(ctx);
 
     io_uring_prep_provide_buffers(sqe, IO_URING_BUFFERS, IOURING_BUFFER_SIZE,
                                   IOURING_BUFFER_COUNT, IOURING_GROUP_ID, 0);
 
-    io_uring_submit(&ring);
-
-    struct io_uring_cqe *cqe;
-
-    io_uring_wait_cqe(&ring, &cqe);
-
-    if ((ret = cqe->res) < 0) {
+    if ((ret = io_uring_submit(ctx)) < 0) {
+        fprintf(stderr, "Failed to submit provide buffers\n");
         return ret;
     }
 
-    io_uring_cqe_seen(&ring, cqe);
+    struct io_uring_cqe *cqe;
+
+    if ((ret = io_uring_wait_cqe(ctx, &cqe)) < 0) {
+        fprintf(stderr, "Failed to wait for provide buffers cqe\n");
+        return ret;
+    }
+
+    if ((ret = cqe->res) < 0) {
+        fprintf(stderr, "Failed to provide buffers\n");
+        return ret;
+    }
+
+    io_uring_cqe_seen(ctx, cqe);
 
     // add first accept SQE to monitor for new incoming connections
     socklen_t client_len = sizeof(client->addr);
-    add_accept(&ring, server->fd, (netinet_socketaddr *)&client->addr,
+    add_accept(ctx, server->fd, (netinet_socketaddr *)&client->addr,
                &client_len, 0);
-
-    // copy ring to ctx
-    memcpy(ctx, &ring, sizeof(ring));
 
     return ret;
 }
+
 int async_server_poll(const Server *server, AsyncCtx *ctx, Client *client) {
     io_uring_submit_and_wait(ctx, 1);
 

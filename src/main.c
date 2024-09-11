@@ -36,7 +36,6 @@ int main(int argc, char **argv) {
     printf("Listening on port 8080\n");
 
     AsyncCtx ctx;
-    bzero(&ctx, sizeof(AsyncCtx));
 
     if ((ret = async_server_init(&server, &ctx, &client)) < 0) {
         printf("Failed to initialize async server: %s\n", strerror(-ret));
