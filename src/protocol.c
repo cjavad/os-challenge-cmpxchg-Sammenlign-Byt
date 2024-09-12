@@ -3,12 +3,12 @@
 #include <stdio.h>
 
 void protocol_request_to_le(ProtocolRequest *req) {
-    req->start = htobe64(req->start);
-    req->end = htobe64(req->end);
+    req->start = __builtin_bswap64(req->start);
+    req->end = __builtin_bswap64(req->end);
 }
 
 void protocol_response_to_be(ProtocolResponse *resp) {
-    resp->answer = htobe64(resp->answer);
+    resp->answer = __builtin_bswap64(resp->answer);
 }
 void protocol_debug_print_request(const ProtocolRequest *req) {
     printf("Got request with hash: ");

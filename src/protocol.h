@@ -5,14 +5,6 @@
 
 #include <stdint.h>
 
-#ifndef __USE_MISC
-#define __USE_MISC
-#include <endian.h>
-#undef __USE_MISC
-#else
-#include <endian.h>
-#endif
-
 #include "hash.h"
 
 // The format over the wire is big endian but all values are generated in little

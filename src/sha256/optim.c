@@ -13,13 +13,13 @@ static const uint32_t k[64] = {
     0x5b9cca4f, 0x682e6ff3, 0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208,
     0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2};
 
-static uint32_t rotr(uint32_t x, uint32_t n) {
+static uint32_t rotr(const uint32_t x, const uint32_t n) {
     return (x >> n) | (x << (32 - n));
 }
 
-static uint32_t s0(uint32_t w) { return rotr(w, 7) ^ rotr(w, 18) ^ (w >> 3); }
+static uint32_t s0(const uint32_t w) { return rotr(w, 7) ^ rotr(w, 18) ^ (w >> 3); }
 
-static uint32_t s1(uint32_t w) { return rotr(w, 17) ^ rotr(w, 19) ^ (w >> 10); }
+static uint32_t s1(const uint32_t w) { return rotr(w, 17) ^ rotr(w, 19) ^ (w >> 10); }
 
 __attribute__((flatten))
 void sha256_optim(HashDigest hash, const HashInput data) {
