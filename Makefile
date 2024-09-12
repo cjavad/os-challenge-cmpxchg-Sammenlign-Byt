@@ -40,7 +40,7 @@ all: build
 
 include $(D_FILES)
 
-build: CFLAGS += -O2 -Wall -Wextra -ggdb -march=native
+build: CFLAGS += -O1 -Wall -Wextra -ggdb -march=native
 build: LFLAGS += -ggdb
 build: PPFLAGS += -DDEBUG
 build: link

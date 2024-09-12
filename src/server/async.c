@@ -16,13 +16,16 @@
 int IOURING_GROUP_ID = 0;
 uint8_t IO_URING_BUFFERS[IOURING_BUFFER_COUNT][IOURING_BUFFER_SIZE] = {0};
 
-void add_accept(struct io_uring *ring, int fd, struct sockaddr *client_addr,
+void add_accept(struct io_uring *ring, int32_t fd, struct sockaddr *client_addr,
                 socklen_t *client_len, unsigned flags);
-void add_socket_read(struct io_uring *ring, int fd, unsigned gid, size_t size,
-                     unsigned flags);
-void add_socket_write(struct io_uring *ring, int fd, uint16_t bid, size_t size,
-                      unsigned flags);
+void add_socket_read(struct io_uring *ring, int32_t fd, unsigned gid,
+                     size_t size, unsigned flags);
+void add_socket_write(struct io_uring *ring, int32_t fd, uint16_t bid,
+                      size_t size, unsigned flags);
 void add_provide_buf(struct io_uring *ring, uint16_t bid, unsigned gid);
+
+void add_futex_wait(struct io_uring *ring, uint32_t *futex_ptr, int32_t fd,
+                    uint16_t bid);
 
 int async_server_init(const Server *server, AsyncCtx *ctx, Client *client) {
     int ret = 0;
@@ -105,11 +108,13 @@ int async_server_poll(const Server *server, AsyncCtx *ctx, Client *client) {
 
         // Invalid operation.
         if (cqe->res < 0) {
-            return cqe->res;
+            fprintf(stderr, "cqe buffer error for type %d: %s\n", type,
+                    strerror(-cqe->res));
+        } else {
+            fprintf(stderr, "cqe buffer for type %d\n", type);
         }
 
         switch (type) {
-
         case ACCEPT:
             const int sock_conn_fd = cqe->res;
             // only read when there is no error, >= 0
@@ -140,21 +145,18 @@ int async_server_poll(const Server *server, AsyncCtx *ctx, Client *client) {
 
                 protocol_debug_print_request(&req);
 
-                ProtocolResponse resp;
-                bzero(&resp, sizeof(ProtocolResponse));
+                // Spawn a futex wait operation.
+                WorkerState *state = worker_create_shared_state();
+                uintptr_t state_ptr = (uintptr_t)state;
 
-                resp.answer = 0x1337;
+                // Store pointer to state in buffer.
+                memcpy(IO_URING_BUFFERS[bid], &state, sizeof(uintptr_t));
 
-                protocol_debug_print_response(&resp);
+                // Await futex before spawning worker thread.
+                add_futex_wait(ctx, &state->futex, data.fd, bid);
 
-                protocol_response_to_be(&resp);
-
-                // Copy response to buffer.
-                memcpy(IO_URING_BUFFERS[bid], &resp, PROTOCOL_RES_SIZE);
-
-                // bytes have been read into bufs, now add write to socket
-                // sqe
-                add_socket_write(ctx, data.fd, bid, PROTOCOL_RES_SIZE, 0);
+                // Spawn worker thread.
+                spawn_worker_thread(state);
             }
             break;
         case WRITE:
@@ -171,6 +173,33 @@ int async_server_poll(const Server *server, AsyncCtx *ctx, Client *client) {
             }
 
             break;
+
+        case FUTEX:
+            // Recover state from buffer.
+            WorkerState *state;
+            memcpy(&state, IO_URING_BUFFERS[data.bid], sizeof(uintptr_t));
+
+            // Copy state answer into response.
+            ProtocolResponse resp;
+            bzero(&resp, sizeof(ProtocolResponse));
+
+            resp.answer = state->answer;
+
+            // Cleanup state.
+            worker_destroy_shared_state(state);
+
+            protocol_debug_print_response(&resp);
+
+            protocol_response_to_be(&resp);
+
+            // Copy response to buffer.
+            memcpy(IO_URING_BUFFERS[data.bid], &resp, PROTOCOL_RES_SIZE);
+
+            // bytes have been read into bufs, now add write to socket
+            // sqe
+            add_socket_write(ctx, data.fd, data.bid, PROTOCOL_RES_SIZE, 0);
+
+            break;
         }
     }
 
@@ -184,7 +213,7 @@ int async_server_exit(const Server *server, AsyncCtx *ctx, Client *client) {
     return server_close(server);
 }
 
-void add_accept(struct io_uring *ring, const int fd,
+void add_accept(struct io_uring *ring, const int32_t fd,
                 struct sockaddr *client_addr, socklen_t *client_len,
                 const unsigned flags) {
     struct io_uring_sqe *sqe = io_uring_get_sqe(ring);
@@ -198,8 +227,9 @@ void add_accept(struct io_uring *ring, const int fd,
     memcpy(&sqe->user_data, &data, sizeof(data));
 }
 
-void add_socket_read(struct io_uring *ring, const int fd, const unsigned gid,
-                     const size_t size, const unsigned flags) {
+void add_socket_read(struct io_uring *ring, const int32_t fd,
+                     const unsigned gid, const size_t size,
+                     const unsigned flags) {
     struct io_uring_sqe *sqe = io_uring_get_sqe(ring);
     io_uring_prep_recv(sqe, fd, NULL, size, 0);
     io_uring_sqe_set_flags(sqe, flags);
@@ -212,8 +242,9 @@ void add_socket_read(struct io_uring *ring, const int fd, const unsigned gid,
     memcpy(&sqe->user_data, &data, sizeof(data));
 }
 
-void add_socket_write(struct io_uring *ring, const int fd, const uint16_t bid,
-                      const size_t size, const unsigned flags) {
+void add_socket_write(struct io_uring *ring, const int32_t fd,
+                      const uint16_t bid, const size_t size,
+                      const unsigned flags) {
     struct io_uring_sqe *sqe = io_uring_get_sqe(ring);
     io_uring_prep_send(sqe, fd, &IO_URING_BUFFERS[bid], size, 0);
     io_uring_sqe_set_flags(sqe, flags);
@@ -223,6 +254,7 @@ void add_socket_write(struct io_uring *ring, const int fd, const uint16_t bid,
         .type = WRITE,
         .bid = bid,
     };
+
     memcpy(&sqe->user_data, &data, sizeof(data));
 }
 
@@ -236,5 +268,56 @@ void add_provide_buf(struct io_uring *ring, const uint16_t bid,
         .fd = 0,
         .type = PROV_BUF,
     };
+    memcpy(&sqe->user_data, &data, sizeof(data));
+}
+
+#define assert(cond, msg)                                                      \
+    do {                                                                       \
+        if (!(cond)) {                                                         \
+            fprintf(stderr, "Assertion failed: %s\n", (msg));                  \
+            fprintf(stderr, "File: %s, Line: %d\n", __FILE__, __LINE__);       \
+            abort();                                                           \
+        }                                                                      \
+    } while (0)
+
+void add_futex_wait(struct io_uring *ring, uint32_t *futex_ptr,
+                    const int32_t fd, const uint16_t bid) {
+    struct io_uring_sqe *sqe = io_uring_get_sqe(ring);
+
+    io_uring_prep_futex_wait(sqe, futex_ptr, 0, FUTEX_BITSET_MATCH_ANY, FUTEX2_SIZE_U32, 0);
+
+    assert(!(sqe->len || sqe->futex_flags || sqe->buf_index ||
+               sqe->file_index),
+           "These values must be 0.");
+
+    uint64_t uaddr = sqe->addr;
+    uint64_t futex_val = sqe->addr2;
+    uint64_t futex_mask = sqe->addr3;
+    uint32_t flags = sqe->fd;
+    uint64_t futex_flags = futex2_to_flags(flags);
+
+    fprintf(stderr,
+            "uaddr: %lu, futex_val: %lu, futex_mask: %lu, flags: %u, "
+            "futex_flags: %lu\n",
+            uaddr, futex_val, futex_mask, flags, futex_flags);
+
+    // print flags & ~FUTEX2_VALID_MASK
+    fprintf(stderr, "flags & ~FUTEX2_VALID_MASK: %u\n",
+            flags & ~FUTEX2_VALID_MASK);
+
+    assert(!(flags & ~FUTEX2_VALID_MASK), "Flags must be valid.");
+
+    assert(futex_flags_valid(futex_flags), "Futex flags must be valid");
+
+    assert(futex_validate_input(futex_flags, futex_val) &&
+               futex_validate_input(futex_flags, futex_mask),
+           "Futex values must be valid.");
+
+    const AsyncData data = {
+        .fd = fd,
+        .type = FUTEX,
+        .bid = bid,
+    };
+
     memcpy(&sqe->user_data, &data, sizeof(data));
 }

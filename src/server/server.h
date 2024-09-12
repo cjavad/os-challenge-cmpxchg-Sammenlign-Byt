@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../protocol.h"
+#include "../thread/worker.h"
 #include <errno.h>
 #include <liburing.h>
 #include <netinet/in.h>
@@ -57,6 +58,7 @@ typedef enum {
     READ,
     WRITE,
     PROV_BUF,
+    FUTEX,
 } AsyncOperation;
 
 int async_server_init(const Server *server, AsyncCtx *ctx, Client *client);
