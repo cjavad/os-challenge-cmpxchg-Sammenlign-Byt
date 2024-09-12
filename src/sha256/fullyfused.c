@@ -42,7 +42,7 @@ static uint32_t S1(const uint32_t e) {
     return rotr(e, 6) ^ rotr(e, 11) ^ rotr(e, 25);
 }
 
-SHA256_GCC_OPT_ATTR
+__attribute__((flatten))
 void sha256_fullyfused(HashDigest hash, const HashInput data) {
     uint32_t w[64];
 
