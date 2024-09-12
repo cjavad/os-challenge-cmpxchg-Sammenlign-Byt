@@ -2,6 +2,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <linux/version.h>
 #include <netinet/in.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -50,8 +51,12 @@ int async_server_init(const Server *server, AsyncCtx *ctx, Client *client) {
     struct io_uring_probe *probe = io_uring_get_probe_ring(ctx);
 
     if (!probe ||
-        !io_uring_opcode_supported(probe, IORING_OP_PROVIDE_BUFFERS)) {
-        fprintf(stderr, "IORING_OP_PROVIDE_BUFFERS not supported\n");
+        !io_uring_opcode_supported(probe, IORING_OP_PROVIDE_BUFFERS) ||
+        !io_uring_opcode_supported(probe, IORING_OP_FUTEX_WAIT) ||
+        !io_uring_opcode_supported(probe, IORING_OP_READ) ||
+        !io_uring_opcode_supported(probe, IORING_OP_WRITE) ||
+        !io_uring_opcode_supported(probe, IORING_OP_ACCEPT)) {
+        fprintf(stderr, "Required features are not supported\n");
 
         return -1;
     }
@@ -284,10 +289,14 @@ void add_futex_wait(struct io_uring *ring, uint32_t *futex_ptr,
                     const int32_t fd, const uint16_t bid) {
     struct io_uring_sqe *sqe = io_uring_get_sqe(ring);
 
-    io_uring_prep_futex_wait(sqe, futex_ptr, 0, FUTEX_BITSET_MATCH_ANY, FUTEX2_SIZE_U32, 0);
+    io_uring_prep_futex_wait(sqe, futex_ptr, 0, FUTEX_BITSET_MATCH_ANY,
+                             FUTEX2_SIZE_U32, 0);
 
-    assert(!(sqe->len || sqe->futex_flags || sqe->buf_index ||
-               sqe->file_index),
+    assert(!(sqe->len
+#if LINUX_VERSION_MAJOR >= 5 && LINUX_VERSION_MINOR >= 10
+             || sqe->futex_flags
+#endif
+             || sqe->buf_index || sqe->file_index),
            "These values must be 0.");
 
     uint64_t uaddr = sqe->addr;
