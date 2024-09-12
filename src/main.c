@@ -14,7 +14,7 @@ int main(int argc, char **argv) {
 
     // BENCHMARK_START
     // uint64_t res = reverse_hash(0, 1610682842, hash);
-    // BENCHMARK_END(reverse)
+    // BENCHMARK_END(reverse, 1)
     // printf("Result: %lu\n", res);
 
     // return 0;
