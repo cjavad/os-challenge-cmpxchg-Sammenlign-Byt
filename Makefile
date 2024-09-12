@@ -25,6 +25,9 @@ C_FILES := $(shell find $(SRCDIR) -type f -name "*.c")
 ifneq (,$(findstring release,$(MAKECMDGOALS)))
 	DEPDIR := $(DEPDIR)/release
 	OBJDIR := $(OBJDIR)/release
+else ifneq (,$(findstring clean,$(MAKECMDGOALS)))
+	DEPDIR := $(DEPDIR)
+	OBJDIR := $(OBJDIR)
 else
 # (,$(findstring build,$(MAKECMDGOALS)))
 	DEPDIR := $(DEPDIR)/build
@@ -33,6 +36,11 @@ endif
 
 D_FILES := $(patsubst $(SRCDIR)/%.c, $(DEPDIR)/%.d, $(C_FILES))
 O_FILES := $(patsubst $(SRCDIR)/%.c, $(OBJDIR)/%.o, $(C_FILES))
+
+ifneq (,$(findstring clean,$(MAKECMDGOALS)))
+	D_FILES := 
+else
+endif
 
 all: build
 
@@ -50,7 +58,7 @@ release: PPFLAGS += -DRELEASE
 release: link
 
 clean:
-	@rm $(BINDIR)/$(EXECUTABLE)
+	@rm -f $(BINDIR)/$(EXECUTABLE)
 	@rm -rf $(OBJDIR)
 	@rm -rf $(DEPDIR)
 
