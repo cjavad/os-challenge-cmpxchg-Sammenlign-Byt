@@ -2,6 +2,7 @@
 
 #include <stdint.h>
 #include <x86intrin.h>
+#include <time.h>
 
 #define SHA256_INPUT_LENGTH 8
 #define SHA256_DIGEST_LENGTH 32
@@ -20,13 +21,18 @@ void sprintf_hash(char *str, const HashDigest hash);
 void print_hash(const HashDigest hash);
 
 #define BENCHMARK_START                                                        \
+    struct timespec st, et;                                                    \
     uint64_t start, end;                                                       \
+    clock_gettime(CLOCK_MONOTONIC, &st);                                       \
     start = __rdtsc();
 #define BENCHMARK_END(name, iterations)                                        \
     end = __rdtsc();                                                           \
-    printf("%s: %lu ts count per - %lu ts count total for %lu iterations\n",   \
-           #name, (end - start) / iterations, (end - start),                   \
-           (uint64_t)iterations);
+    clock_gettime(CLOCK_MONOTONIC, &et);                                       \
+    printf("[%s]\nEach: %lu ts, %lu ns\nTotal: %lu ts - %lu ns count total for "    \
+           "%lu iterations\n",                                                 \
+           #name, (end - start) / iterations,                                  \
+           (et.tv_nsec - st.tv_nsec) / iterations, (end - start),              \
+           (et.tv_nsec - st.tv_nsec), (uint64_t)iterations);
 
 #define SHA256_BENCHMARK_ITERATIONS 1000000
 #define BENCHMARK_SHA256(func)                                                 \
