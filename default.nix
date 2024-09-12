@@ -8,6 +8,7 @@ pkgs.stdenv.mkDerivation {
     pkgs.clang-tools
     pkgs.gnumake
     pkgs.gcc
+    pkgs.liburing
   ];
 
   nativeBuildInputs = [
