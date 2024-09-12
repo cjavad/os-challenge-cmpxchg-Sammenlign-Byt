@@ -1,11 +1,13 @@
 #pragma once
 
+#include "../protocol.h"
 #include "futex.h"
 #include <pthread.h>
 #include <stdint.h>
 
 typedef struct WorkerState {
-    uint64_t answer;
+    ProtocolRequest request;
+    ProtocolResponse response;
     uint32_t futex;
 } WorkerState;
 

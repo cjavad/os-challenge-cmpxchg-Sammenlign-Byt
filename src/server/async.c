@@ -143,19 +143,21 @@ int async_server_poll(const Server *server, AsyncCtx *ctx, Client *client) {
                 // connection closed or error
                 close(data.fd);
             } else {
-                // Parse request and generate response.
-                ProtocolRequest req;
-                memcpy(&req, IO_URING_BUFFERS[bid], PROTOCOL_REQ_SIZE);
-                protocol_request_to_le(&req);
+                // Allocate shared state to put request and to receive response.
+                WorkerState *state = worker_create_shared_state();
 
-                protocol_debug_print_request(&req);
+                // Put response from buffer into state.
+                memcpy(&state->request, IO_URING_BUFFERS[bid],
+                       PROTOCOL_REQ_SIZE);
+
+                protocol_request_to_le(&state->request);
+                protocol_debug_print_request(&state->request);
 
                 // Spawn a futex wait operation.
-                WorkerState *state = worker_create_shared_state();
                 uintptr_t state_ptr = (uintptr_t)state;
 
                 // Store pointer to state in buffer.
-                memcpy(IO_URING_BUFFERS[bid], &state, sizeof(uintptr_t));
+                memcpy(IO_URING_BUFFERS[bid], &state_ptr, sizeof(uintptr_t));
 
                 // Await futex before spawning worker thread.
                 add_futex_wait(ctx, &state->futex, data.fd, bid);
@@ -184,26 +186,17 @@ int async_server_poll(const Server *server, AsyncCtx *ctx, Client *client) {
             WorkerState *state;
             memcpy(&state, IO_URING_BUFFERS[data.bid], sizeof(uintptr_t));
 
-            // Copy state answer into response.
-            ProtocolResponse resp;
-            bzero(&resp, sizeof(ProtocolResponse));
-
-            resp.answer = state->answer;
-
-            // Cleanup state.
-            worker_destroy_shared_state(state);
-
-            protocol_debug_print_response(&resp);
-
-            protocol_response_to_be(&resp);
-
+            protocol_debug_print_response(&state->response);
+            protocol_response_to_be(&state->response);
             // Copy response to buffer.
-            memcpy(IO_URING_BUFFERS[data.bid], &resp, PROTOCOL_RES_SIZE);
+            memcpy(IO_URING_BUFFERS[data.bid], &state->response, PROTOCOL_RES_SIZE);
 
             // bytes have been read into bufs, now add write to socket
             // sqe
             add_socket_write(ctx, data.fd, data.bid, PROTOCOL_RES_SIZE, 0);
 
+            // Cleanup state.
+            worker_destroy_shared_state(state);
             break;
         }
     }
