@@ -57,6 +57,7 @@ void sha256_optim(HashDigest hash, const HashInput data) {
 
     w[31] = 64 + s0(w[16]) + w[24] + s1(w[29]);
 
+
     // loop rest
     for (uint32_t i = 32; i < 64; i++) {
         w[i] = w[i - 16] + s0(w[i - 15]) + w[i - 7] + s1(w[i - 2]);

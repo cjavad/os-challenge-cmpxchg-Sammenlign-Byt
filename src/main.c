@@ -1,11 +1,14 @@
 #include "hash.h"
 #include "server/server.h"
+#include "sha256/sha256.h"
+#include "sha256/x4/sha256x4.h"
 #include <stdio.h>
 
 int main(int argc, char **argv) {
     // return async_main();
 
     BENCHMARK_SHA256_ALL
+    BENCHMARK_SHA256X4_ALL
 
     HashDigest hash = {0x2d, 0xb8, 0xd6, 0xd0, 0x49, 0xb6, 0x1f, 0x55,
                        0xf0, 0x5a, 0xf9, 0x24, 0x1a, 0xf2, 0x45, 0x1f,
