@@ -38,7 +38,7 @@ void print_hash(const HashDigest hash);
         BENCHMARK_TIMESTAMP_DIFF(et, st) / iterations, (end - start),          \
         BENCHMARK_TIMESTAMP_DIFF(et, st), (uint64_t)iterations);
 
-#define SHA256_BENCHMARK_ITERATIONS 1000000
+#define SHA256_BENCHMARK_ITERATIONS 30000000
 #define BENCHMARK_SHA256(func)                                                 \
     {                                                                          \
         HashDigest hash;                                                       \

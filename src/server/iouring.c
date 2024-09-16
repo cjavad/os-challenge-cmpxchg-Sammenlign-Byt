@@ -14,6 +14,8 @@
 
 #include <liburing.h>
 
+#if USE_IO_URING
+
 int IOURING_GROUP_ID = 0;
 uint8_t IO_URING_BUFFERS[IOURING_BUFFER_COUNT][IOURING_BUFFER_SIZE] = {0};
 
@@ -189,7 +191,8 @@ int async_server_poll(const Server *server, AsyncCtx *ctx, Client *client) {
             protocol_debug_print_response(&state->response);
             protocol_response_to_be(&state->response);
             // Copy response to buffer.
-            memcpy(IO_URING_BUFFERS[data.bid], &state->response, PROTOCOL_RES_SIZE);
+            memcpy(IO_URING_BUFFERS[data.bid], &state->response,
+                   PROTOCOL_RES_SIZE);
 
             // bytes have been read into bufs, now add write to socket
             // sqe
@@ -323,3 +326,5 @@ void add_futex_wait(struct io_uring *ring, uint32_t *futex_ptr,
 
     memcpy(&sqe->user_data, &data, sizeof(data));
 }
+
+#endif
