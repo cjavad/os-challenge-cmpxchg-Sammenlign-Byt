@@ -8,8 +8,10 @@
 int main(int argc, char **argv) {
     // return async_main();
 
-    // BENCHMARK_SHA256_ALL
+    BENCHMARK_SHA256_ALL
     BENCHMARK_SHA256X4_ALL
+
+    return 0;
 
     int ret = 0;
     Server server;

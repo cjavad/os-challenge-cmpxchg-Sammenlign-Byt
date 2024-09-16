@@ -94,7 +94,7 @@ static const uint32_t d64[4] __attribute__((aligned(16))) = {
 };
 
 __attribute__((flatten)) void
-sha256x4_optim(uint8_t hash[SHA256_DIGEST_LENGTH * 4],
+sha256x4_fused(uint8_t hash[SHA256_DIGEST_LENGTH * 4],
                const uint8_t data[SHA256_INPUT_LENGTH * 4]) {
     __m128i w[64] __attribute__((aligned(16)));
 
@@ -217,22 +217,6 @@ sha256x4_optim(uint8_t hash[SHA256_DIGEST_LENGTH * 4],
         t1 = w31;
     }
 
-    for (uint32_t i = 32; i < 64; i++) {
-        __m128i wi16 = _mm_load_si128(&w[i - 16]),
-                wi15 = _mm_load_si128(&w[i - 15]),
-                wi7 = _mm_load_si128(&w[i - 7]), wi2 = t0;
-        t0 = t1;
-
-        __m128i ws1 = s1(wi2);
-        __m128i ws0 = s0(wi15);
-        __m128i wi =
-            _mm_add_epi32(_mm_add_epi32(wi16, wi7), _mm_add_epi32(ws0, ws1));
-        _mm_store_si128(&w[i], wi);
-        t1 = wi;
-    }
-
-	// RIP 8 registers, at least no stack
-    
     __m128i
         h0 = _mm_load_si128((__m128i*)&H[0]),
         h1 = _mm_load_si128((__m128i*)&H[4]);
@@ -247,7 +231,7 @@ sha256x4_optim(uint8_t hash[SHA256_DIGEST_LENGTH * 4],
 		g = _mm_shuffle_epi32(h1, 0b10101010),
 		h = _mm_shuffle_epi32(h1, 0b11111111);
 	
-	for (uint32_t i = 0; i < 64; i++) {
+	for (uint32_t i = 0; i < 32; i++) {
 		__m128i 
 			ki = _mm_castps_si128(_mm_broadcast_ss((float*)&k[i])),
 			wi = _mm_load_si128(&w[i]);
@@ -268,6 +252,43 @@ sha256x4_optim(uint8_t hash[SHA256_DIGEST_LENGTH * 4],
 		b = a;
 		a = _mm_add_epi32(temp1, temp2);
 	}
+
+    for (uint32_t i = 32; i < 64; i++) {
+        __m128i wi16 = _mm_load_si128(&w[i - 16]),
+                wi15 = _mm_load_si128(&w[i - 15]),
+                wi7 = _mm_load_si128(&w[i - 7]), wi2 = t0;
+        t0 = t1;
+
+        __m128i ws1 = s1(wi2);
+        __m128i ws0 = s0(wi15);
+        __m128i wi =
+            _mm_add_epi32(_mm_add_epi32(wi16, wi7), _mm_add_epi32(ws0, ws1));
+        _mm_store_si128(&w[i], wi);
+        t1 = wi;
+
+        __m128i 
+			ki = _mm_castps_si128(_mm_broadcast_ss((float*)&k[i]));
+		
+		__m128i 
+			temp2 = _mm_add_epi32(S0(a), maj(a, b, c)),
+			temp1 = _mm_add_epi32(
+				_mm_add_epi32(S1(e), ch(e, f, g)),
+				_mm_add_epi32(h, _mm_add_epi32(ki, wi))
+			);
+		
+		h = g;
+		g = f;
+		f = e;
+		e = _mm_add_epi32(d, temp1);
+		d = c;
+		c = b;
+		b = a;
+		a = _mm_add_epi32(temp1, temp2);
+    }
+
+	// RIP 8 registers, at least no stack
+    
+    
 
 	// TODO :: single broadcast/load + shuffle
 	// do after transpose for no shuffle ??? maybe, check perf
