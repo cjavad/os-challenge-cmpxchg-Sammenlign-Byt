@@ -23,6 +23,17 @@ static const uint32_t k[64] = {
     0x5b9cca4f, 0x682e6ff3, 0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208,
     0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2};
 
+static const uint32_t H[8] __attribute__((aligned(16))) = {
+	0x6a09e667,
+	0xbb67ae85,
+	0x3c6ef372,
+	0xa54ff53a,
+	0x510e527f,
+	0x9b05688c,
+	0x1f83d9ab,
+	0x5be0cd19
+};
+
 static __m128i rotr(const __m128i x, const uint32_t n) {
 	return _mm_or_si128(
 		_mm_srli_epi32(x, n),
@@ -103,17 +114,6 @@ static const uint32_t x80000000[4] __attribute__((aligned(16))) = {
 
 static const uint32_t d64[4] __attribute__((aligned(16))) = {
 	64, 64, 64, 64
-};
-
-static const uint32_t broadH[4 * 8] __attribute__((aligned(16))) = {
-	0x6a09e667, 0x6a09e667, 0x6a09e667, 0x6a09e667,
-	0xbb67ae85, 0xbb67ae85, 0xbb67ae85, 0xbb67ae85,
-	0x3c6ef372, 0x3c6ef372, 0x3c6ef372, 0x3c6ef372,
-	0xa54ff53a, 0xa54ff53a, 0xa54ff53a, 0xa54ff53a,
-	0x510e527f, 0x510e527f, 0x510e527f, 0x510e527f,
-	0x9b05688c, 0x9b05688c, 0x9b05688c, 0x9b05688c,
-	0x1f83d9ab, 0x1f83d9ab, 0x1f83d9ab, 0x1f83d9ab,
-	0x5be0cd19, 0x5be0cd19, 0x5be0cd19, 0x5be0cd19
 };
 
 __attribute__((flatten))
@@ -274,20 +274,20 @@ void sha256x4_optim(
 
 	// RIP 8 registers, at least no stack
 	__m128i
-		a = _mm_load_si128((__m128i*)&broadH[0]),
-		b = _mm_load_si128((__m128i*)&broadH[4]),
-		c = _mm_load_si128((__m128i*)&broadH[8]),
-		d = _mm_load_si128((__m128i*)&broadH[12]),
-		e = _mm_load_si128((__m128i*)&broadH[16]),
-		f = _mm_load_si128((__m128i*)&broadH[20]),
-		g = _mm_load_si128((__m128i*)&broadH[24]),
-		h = _mm_load_si128((__m128i*)&broadH[28]);
-
+		a = _mm_castps_si128(_mm_broadcast_ss((float*)&H[0])),
+		b = _mm_castps_si128(_mm_broadcast_ss((float*)&H[1])),
+		c = _mm_castps_si128(_mm_broadcast_ss((float*)&H[2])),
+		d = _mm_castps_si128(_mm_broadcast_ss((float*)&H[3])),
+		e = _mm_castps_si128(_mm_broadcast_ss((float*)&H[4])),
+		f = _mm_castps_si128(_mm_broadcast_ss((float*)&H[5])),
+		g = _mm_castps_si128(_mm_broadcast_ss((float*)&H[6])),
+		h = _mm_castps_si128(_mm_broadcast_ss((float*)&H[7]));
+	
 	for (uint32_t i = 0; i < 64; i++) {
 		__m128i 
 			ki = _mm_castps_si128(_mm_broadcast_ss((float*)&k[i])),
 			wi = _mm_load_si128(&w[i]);
-
+		
 		__m128i 
 			temp2 = _mm_add_epi32(S0(a), maj(a, b, c)),
 			temp1 = _mm_add_epi32(
@@ -305,14 +305,17 @@ void sha256x4_optim(
 		a = _mm_add_epi32(temp1, temp2);
 	}
 
-	a = _mm_add_epi32(a, _mm_load_si128((__m128i*)&broadH[0]));
-	b = _mm_add_epi32(b, _mm_load_si128((__m128i*)&broadH[4]));
-	c = _mm_add_epi32(c, _mm_load_si128((__m128i*)&broadH[8]));
-	d = _mm_add_epi32(d, _mm_load_si128((__m128i*)&broadH[12]));
-	e = _mm_add_epi32(e, _mm_load_si128((__m128i*)&broadH[16]));
-	f = _mm_add_epi32(f, _mm_load_si128((__m128i*)&broadH[20]));
-	g = _mm_add_epi32(g, _mm_load_si128((__m128i*)&broadH[24]));
-	h = _mm_add_epi32(h, _mm_load_si128((__m128i*)&broadH[28]));
+	// TODO :: single broadcast/load + shuffle
+	// do after transpose for no shuffle ??? maybe, check perf
+
+	a = _mm_add_epi32(a, _mm_castps_si128(_mm_broadcast_ss((float*)&H[0])));
+	b = _mm_add_epi32(b, _mm_castps_si128(_mm_broadcast_ss((float*)&H[1])));
+	c = _mm_add_epi32(c, _mm_castps_si128(_mm_broadcast_ss((float*)&H[2])));
+	d = _mm_add_epi32(d, _mm_castps_si128(_mm_broadcast_ss((float*)&H[3])));
+	e = _mm_add_epi32(e, _mm_castps_si128(_mm_broadcast_ss((float*)&H[4])));
+	f = _mm_add_epi32(f, _mm_castps_si128(_mm_broadcast_ss((float*)&H[5])));
+	g = _mm_add_epi32(g, _mm_castps_si128(_mm_broadcast_ss((float*)&H[6])));
+	h = _mm_add_epi32(h, _mm_castps_si128(_mm_broadcast_ss((float*)&H[7])));
 
 	// trans pose ma trix ????
 	// MATH REFERECNE ?????????

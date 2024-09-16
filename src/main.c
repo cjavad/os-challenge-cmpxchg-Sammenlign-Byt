@@ -2,6 +2,7 @@
 #include "server/server.h"
 #include "sha256/sha256.h"
 #include "sha256/x4/sha256x4.h"
+#include <stdint.h>
 #include <stdio.h>
 
 int main(int argc, char **argv) {
