@@ -23,7 +23,7 @@ static uint32_t s1(const uint32_t w) { return rotr(w, 17) ^ rotr(w, 19) ^ (w >> 
 
 __attribute__((flatten))
 void sha256_optim(HashDigest hash, const HashInput data) {
-    uint32_t w[64];
+    uint32_t w[64]  __attribute__((aligned(64)));
 
     // setting of initial block
     w[0] = __builtin_bswap32(((uint32_t *)data)[0]);
