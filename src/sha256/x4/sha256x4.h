@@ -15,6 +15,9 @@ void sha256x4_fused(uint8_t hash[SHA256_DIGEST_LENGTH * 4],
 
 void sha256x4_fullyfused(uint8_t hash[SHA256_DIGEST_LENGTH * 4],
 					const uint8_t data[SHA256_INPUT_LENGTH * 4]);
+					
+void sha256x4_cyclic(uint8_t hash[SHA256_DIGEST_LENGTH * 4],
+					const uint8_t data[SHA256_INPUT_LENGTH * 4]);
 
 #define BENCHMARK_SHA256X4(func)                                               \
     {                                                                          \
@@ -34,4 +37,5 @@ void sha256x4_fullyfused(uint8_t hash[SHA256_DIGEST_LENGTH * 4],
 #define BENCHMARK_SHA256X4_ALL \
 	BENCHMARK_SHA256X4(sha256x4_optim) \
 	BENCHMARK_SHA256X4(sha256x4_fused) \
-	BENCHMARK_SHA256X4(sha256x4_fullyfused)
+	BENCHMARK_SHA256X4(sha256x4_fullyfused) \
+	BENCHMARK_SHA256X4(sha256x4_cyclic)
