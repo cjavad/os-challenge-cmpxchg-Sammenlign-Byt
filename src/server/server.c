@@ -4,7 +4,7 @@ int server_init(Server *server, const int port) {
     int ret = 0;
 
     bzero(server, sizeof(Server));
-    ret = socket(AF_INET, SOCK_STREAM, 0);
+    ret = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);
 
     if (ret < 0) {
         fprintf(stderr, "Failed to create socket: %s\n", strerror(-ret));

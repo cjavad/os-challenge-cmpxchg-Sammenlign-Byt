@@ -50,15 +50,17 @@ int async_server_poll(const Server *server, AsyncCtx *ctx, Client *client) {
         // Accept new connection.
         if (event->data.fd == server->fd) {
             unsigned int client_len = sizeof(client->addr);
-            const int client_fd = accept(
-                server->fd, (struct sockaddr *)&client->addr, &client_len);
+            const int client_fd =
+                accept4(server->fd, (struct sockaddr *)&client->addr,
+                        &client_len, SOCK_NONBLOCK);
 
             // Make client fd non-blocking
-            if ((ret = fcntl(client_fd, F_SETFL, O_NONBLOCK)) < 0) {
+            if (client_fd < 0) {
                 fprintf(stderr, "Failed to set client fd to non-blocking: %s\n",
-                        strerror(ret));
+                        strerror(client_fd));
 
-                close(client_fd);
+                exit(1);
+
                 continue;
             }
 
@@ -72,23 +74,31 @@ int async_server_poll(const Server *server, AsyncCtx *ctx, Client *client) {
                         strerror(ret));
 
                 close(client_fd);
-
-                continue;
             }
+
+            continue;
         }
 
         // Data to read.
         if (event->events & EPOLLIN) {
             ProtocolRequest req;
 
-            // TODO Handle read error.
             int bytes_received =
                 recv(event->data.fd, &req, PROTOCOL_REQ_SIZE, 0);
 
-            if (bytes_received <= 0) {
-                epoll_ctl(ctx->epoll_fd, EPOLL_CTL_DEL, event->data.fd, NULL);
-                close(event->data.fd);
-                continue;
+            if (bytes_received == 0) {
+                goto close;
+            }
+
+            if (bytes_received < 0) {
+                printf("Failed to read from client: %s\n",
+                       strerror(bytes_received));
+                goto close;
+            }
+
+            if (bytes_received != PROTOCOL_REQ_SIZE) {
+                printf("Invalid request size: %d\n", bytes_received);
+                goto close;
             }
 
             protocol_request_to_le(&req);
@@ -103,10 +113,17 @@ int async_server_poll(const Server *server, AsyncCtx *ctx, Client *client) {
             protocol_response_to_be(&resp);
 
             send(event->data.fd, &resp, PROTOCOL_RES_SIZE, 0);
+        close:
+            epoll_ctl(ctx->epoll_fd, EPOLL_CTL_DEL, event->data.fd, NULL);
+            close(event->data.fd);
+            printf("Closed fd %d\n", event->data.fd);
+            continue;
         }
+
+        printf("Unknown event: %d\n", event->events);
     }
 
-    return ret;
+    return 0;
 }
 
 int async_server_exit(const Server *server, AsyncCtx *ctx, Client *client) {
