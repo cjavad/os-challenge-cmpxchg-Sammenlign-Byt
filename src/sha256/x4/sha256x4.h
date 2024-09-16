@@ -30,7 +30,7 @@ void sha256x4_cyclic(uint8_t hash[SHA256_DIGEST_LENGTH * 4],
         }                                                                      \
         BENCHMARK_END(func, SHA256_BENCHMARK_ITERATIONS)                       \
         printf("Hash: ");                                                      \
-        print_hash(&hash[96]);                                                 \
+        print_hash(&hash[SHA256_DIGEST_LENGTH * 3]);                           \
         printf("\n");                                                          \
     }
 
