@@ -118,7 +118,7 @@ static const uint32_t d64[4] __attribute__((aligned(16))) = {
 __attribute__((flatten)) void
 sha256x4_fullyfused(uint8_t hash[SHA256_DIGEST_LENGTH * 4],
                const uint8_t data[SHA256_INPUT_LENGTH * 4]) {
-    __m128i w[64] __attribute__((aligned(16)));
+    __m128i w[48] __attribute__((aligned(16)));
 
     // interleave input data words
     // register keyword doesn't actually do anything but i like writing it
@@ -191,105 +191,105 @@ sha256x4_fullyfused(uint8_t hash[SHA256_DIGEST_LENGTH * 4],
 
     {
         __m128i w16 = _mm_add_epi32(t0, s0(t1));
-        _mm_store_si128(&w[16], w16);
+        _mm_store_si128(&w[0], w16);
         t0 = w16;
         COMPRESS_ROUND(t0, 16)
     }
     {
         __m128i w17 = _mm_add_epi32(t1, _mm_add_epi32(s0(c80), s1(c64)));
-        _mm_store_si128(&w[17], w17);
+        _mm_store_si128(&w[1], w17);
         t1 = w17;
         COMPRESS_ROUND(t1, 17)
     }
     {
         __m128i w18 = _mm_add_epi32(c80, s1(t0));
-        _mm_store_si128(&w[18], w18);
+        _mm_store_si128(&w[2], w18);
         t0 = w18;
         COMPRESS_ROUND(t0, 18)
     }
     {
         __m128i w19 = s1(t1);
-        _mm_store_si128(&w[19], w19);
+        _mm_store_si128(&w[3], w19);
         t1 = w19;
         COMPRESS_ROUND(t1, 19)
 
         __m128i w20 = s1(t0);
-        _mm_store_si128(&w[20], w20);
+        _mm_store_si128(&w[4], w20);
         t0 = w20;
         COMPRESS_ROUND(t0, 20)
 
         __m128i w21 = s1(t1);
-        _mm_store_si128(&w[21], w21);
+        _mm_store_si128(&w[5], w21);
         t1 = w21;
         COMPRESS_ROUND(t1, 21)
     }
     {
         __m128i w22 = _mm_add_epi32(c64, s1(t0));
-        _mm_store_si128(&w[22], w22);
+        _mm_store_si128(&w[6], w22);
         t0 = w22;
         COMPRESS_ROUND(t0, 22)
     }
 
     {
-        register __m128i l0 = _mm_load_si128(&w[16]);
-        register __m128i l1 = _mm_load_si128(&w[17]);
+        register __m128i l0 = _mm_load_si128(&w[0]);
+        register __m128i l1 = _mm_load_si128(&w[1]);
 
         __m128i w23 = _mm_add_epi32(l0, s1(t1));
-        _mm_store_si128(&w[23], w23);
+        _mm_store_si128(&w[7], w23);
         t1 = w23;
         COMPRESS_ROUND(t1, 23)
-        l0 = _mm_load_si128(&w[18]);
+        l0 = _mm_load_si128(&w[2]);
 
         __m128i w24 = _mm_add_epi32(l1, s1(t0));
-        _mm_store_si128(&w[24], w24);
+        _mm_store_si128(&w[8], w24);
         t0 = w24;
         COMPRESS_ROUND(t0, 24)
-        l1 = _mm_load_si128(&w[19]);
+        l1 = _mm_load_si128(&w[3]);
 
         __m128i w25 = _mm_add_epi32(l0, s1(t1));
-        _mm_store_si128(&w[25], w25);
+        _mm_store_si128(&w[9], w25);
         t1 = w25;
         COMPRESS_ROUND(t1, 25)
-        l0 = _mm_load_si128(&w[20]);
+        l0 = _mm_load_si128(&w[4]);
 
         __m128i w26 = _mm_add_epi32(l1, s1(t0));
-        _mm_store_si128(&w[26], w26);
+        _mm_store_si128(&w[10], w26);
         t0 = w26;
         COMPRESS_ROUND(t0, 26)
-        l1 = _mm_load_si128(&w[21]);
+        l1 = _mm_load_si128(&w[5]);
 
         __m128i w27 = _mm_add_epi32(l0, s1(t1));
-        _mm_store_si128(&w[27], w27);
+        _mm_store_si128(&w[11], w27);
         t1 = w27;
         COMPRESS_ROUND(t1, 27)
-        l0 = _mm_load_si128(&w[22]);
+        l0 = _mm_load_si128(&w[6]);
 
         __m128i w28 = _mm_add_epi32(l1, s1(t0));
-        _mm_store_si128(&w[28], w28);
+        _mm_store_si128(&w[12], w28);
         t0 = w28;
         COMPRESS_ROUND(t0, 28)
-        l1 = _mm_load_si128(&w[23]);
+        l1 = _mm_load_si128(&w[7]);
 
         __m128i w29 = _mm_add_epi32(l0, s1(t1));
-        _mm_store_si128(&w[29], w29);
+        _mm_store_si128(&w[13], w29);
         t1 = w29;
         COMPRESS_ROUND(t1, 29)
-        l0 = _mm_load_si128(&w[24]);
+        l0 = _mm_load_si128(&w[8]);
 
         __m128i w30 = _mm_add_epi32(s0(c64), _mm_add_epi32(l1, s1(t0)));
-        _mm_store_si128(&w[30], w30);
+        _mm_store_si128(&w[14], w30);
         t0 = w30;
         COMPRESS_ROUND(t0, 30)
-        l1 = _mm_load_si128(&w[16]);
+        l1 = _mm_load_si128(&w[0]);
 
         __m128i w31 = _mm_add_epi32(_mm_add_epi32(l0, s1(t1)),
                                     _mm_add_epi32(c64, s0(l1)));
-        _mm_store_si128(&w[31], w31);
+        _mm_store_si128(&w[15], w31);
         t1 = w31;
         COMPRESS_ROUND(t1, 31)
     }
 
-    for (uint32_t i = 32; i < 64; i++) {
+    for (uint32_t i = 16; i < 48; i++) {
         __m128i wi16 = _mm_load_si128(&w[i - 16]),
                 wi15 = _mm_load_si128(&w[i - 15]),
                 wi7 = _mm_load_si128(&w[i - 7]), wi2 = t0;
@@ -303,7 +303,7 @@ sha256x4_fullyfused(uint8_t hash[SHA256_DIGEST_LENGTH * 4],
         t1 = wi;
 
         __m128i 
-			ki = _mm_castps_si128(_mm_broadcast_ss((float*)&k[i]));
+			ki = _mm_castps_si128(_mm_broadcast_ss((float*)&k[i + 16]));
 		
 		__m128i 
 			temp2 = _mm_add_epi32(S0(a), maj(a, b, c)),
