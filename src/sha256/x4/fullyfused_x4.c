@@ -154,9 +154,6 @@ sha256x4_fullyfused(uint8_t hash[SHA256_DIGEST_LENGTH * 4],
         __m128i w0 = _mm_unpacklo_epi32(lo, hi),
                 w1 = _mm_unpackhi_epi32(lo, hi);
 
-        _mm_store_si128(&w[0], w0);
-        _mm_store_si128(&w[1], w1);
-
         t0 = w0;
         t1 = w1;
 
@@ -168,8 +165,6 @@ sha256x4_fullyfused(uint8_t hash[SHA256_DIGEST_LENGTH * 4],
             c64 = _mm_load_si128((__m128i *)d64);
 
     COMPRESS_ROUND(c80, 2)
-
-    __builtin_memset(&w[3], 0, (15 - 3) * sizeof(__m128i));
     
     for (uint32_t i = 3; i < 15; i++) {
         __m128i 
@@ -191,9 +186,6 @@ sha256x4_fullyfused(uint8_t hash[SHA256_DIGEST_LENGTH * 4],
 		b = a;
 		a = _mm_add_epi32(temp1, temp2);
     }
-
-    _mm_store_si128(&w[2], c80);
-    _mm_store_si128(&w[15], c64);
 
     COMPRESS_ROUND(c64, 15)
 
