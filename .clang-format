@@ -1,3 +1,9 @@
 # lol
 # FUCK CLION
 IndentWidth: 4
+UseTab: ForIndentation
+AlignAfterOpenBracket: BlockIndent
+# clang docs lied to me
+# BinPackParameters: OnePerLine
+BreakBeforeBraces: Attach
+PointerAlignment: Left 
