@@ -25,14 +25,14 @@ typedef struct {
 } Client;
 
 // Setup socket fd (shared between all implementations)
-int server_init(Server *server, int port);
-int server_listen(Server *server, int backlog);
-int server_close(const Server *server);
+int server_init(Server* server, int port);
+int server_listen(Server* server, int backlog);
+int server_close(const Server* server);
 
 // Simple server implementation.
-int sync_server_init(Server *server, Client *client);
-int sync_server_poll(Server *server, Client *client);
-int sync_server_exit(const Server *server, Client *client);
+int sync_server_init(Server* server, Client* client);
+int sync_server_poll(Server* server, Client* client);
+int sync_server_exit(const Server* server, Client* client);
 
 #define USE_IO_URING 0
 
@@ -85,15 +85,18 @@ typedef enum AsyncOperation {
     EVENT_FD,
 } AsyncOperation;
 
-inline void async_data_pack(AsyncData *data, const int32_t fd1,
-                            const int32_t fd2, const AsyncOperation type) {
+inline void async_data_pack(
+    AsyncData* data, const int32_t fd1, const int32_t fd2,
+    const AsyncOperation type
+) {
     data->fd1 = fd1 & 0x7FFFFFFF;
     data->fd2 = fd2 & 0x7FFFFFFF;
     data->type = type & 0x3;
 }
 
-inline void async_data_unpack(const AsyncData *data, int32_t *fd1, int32_t *fd2,
-                              AsyncOperation *type) {
+inline void async_data_unpack(
+    const AsyncData* data, int32_t* fd1, int32_t* fd2, AsyncOperation* type
+) {
     *fd1 = data->fd1;
     *fd2 = data->fd2;
     *type = data->type;
@@ -102,9 +105,10 @@ inline void async_data_unpack(const AsyncData *data, int32_t *fd1, int32_t *fd2,
 #endif
 
 // Both io_uring and epoll allow for 64 bits of user data per request.
-_Static_assert(sizeof(AsyncData) <= sizeof(uint64_t),
-               "UserData struct is too large");
+_Static_assert(
+    sizeof(AsyncData) <= sizeof(uint64_t), "UserData struct is too large"
+);
 
-int async_server_init(const Server *server, AsyncCtx *ctx, Client *client);
-int async_server_poll(const Server *server, AsyncCtx *ctx, Client *client);
-int async_server_exit(const Server *server, AsyncCtx *ctx, Client *client);
+int async_server_init(const Server* server, AsyncCtx* ctx, Client* client);
+int async_server_poll(const Server* server, AsyncCtx* ctx, Client* client);
+int async_server_exit(const Server* server, AsyncCtx* ctx, Client* client);
