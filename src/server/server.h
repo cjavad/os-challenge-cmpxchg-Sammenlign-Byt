@@ -47,14 +47,14 @@ typedef struct io_uring AsyncCtx;
 
 // Pack all the information we need into an uint64_t
 // to prevent allocating once per SQE.
-typedef struct {
+typedef struct AsyncData {
     uint32_t fd;
     uint16_t type;
     uint16_t bid;
 } AsyncData;
 
 // Enum over the different types of async operations.
-typedef enum {
+typedef enum AsyncOperation {
     ACCEPT,
     READ,
     WRITE,
@@ -62,8 +62,6 @@ typedef enum {
     FUTEX,
 } AsyncOperation;
 
-_Static_assert(sizeof(AsyncData) <= sizeof(uint64_t),
-               "UserData struct is too large");
 #else
 #include <sys/epoll.h>
 
@@ -75,10 +73,37 @@ typedef struct AsyncCtx {
     struct epoll_event events[EPOLL_MAX_EVENTS];
 } AsyncCtx;
 
-typedef struct {
-} AsyncData;
+typedef struct AsyncData {
+    uint64_t fd2 : 31;
+    uint64_t fd1 : 31;
+    uint64_t type : 2;
+} AsyncData __attribute__((aligned(8)));
+
+typedef enum AsyncOperation {
+    ACCEPT,
+    READ,
+    EVENT_FD,
+} AsyncOperation;
+
+inline void async_data_pack(AsyncData *data, const int32_t fd1,
+                            const int32_t fd2, const AsyncOperation type) {
+    data->fd1 = fd1 & 0x7FFFFFFF;
+    data->fd2 = fd2 & 0x7FFFFFFF;
+    data->type = type & 0x3;
+}
+
+inline void async_data_unpack(const AsyncData *data, int32_t *fd1, int32_t *fd2,
+                              AsyncOperation *type) {
+    *fd1 = data->fd1;
+    *fd2 = data->fd2;
+    *type = data->type;
+}
 
 #endif
+
+// Both io_uring and epoll allow for 64 bits of user data per request.
+_Static_assert(sizeof(AsyncData) <= sizeof(uint64_t),
+               "UserData struct is too large");
 
 int async_server_init(const Server *server, AsyncCtx *ctx, Client *client);
 int async_server_poll(const Server *server, AsyncCtx *ctx, Client *client);

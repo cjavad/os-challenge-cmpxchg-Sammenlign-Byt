@@ -25,7 +25,8 @@ int async_server_init(const Server *server, AsyncCtx *ctx, Client *client) {
 
     // Setup server fd.
     ctx->ev.events = EPOLLIN;
-    ctx->ev.data.fd = server->fd;
+
+    async_data_pack((AsyncData *)&ctx->ev.data.u64, server->fd, 0, ACCEPT);
 
     if ((ret = epoll_ctl(ctx->epoll_fd, EPOLL_CTL_ADD, server->fd, &ctx->ev)) <
         0) {
@@ -47,44 +48,48 @@ int async_server_poll(const Server *server, AsyncCtx *ctx, Client *client) {
     for (int i = 0; i < new_events; i++) {
         const struct epoll_event *event = &ctx->events[i];
 
+        AsyncOperation type;
+        int32_t fd1;
+        int32_t fd2;
+
+        async_data_unpack((AsyncData *)&event->data.u64, &fd1, &fd2, &type);
+
+        printf("Event: %d from: %d to: %d\n", type, fd1, fd2);
+
+        switch (type) {
+
         // Accept new connection.
-        if (event->data.fd == server->fd) {
+        case ACCEPT:
             unsigned int client_len = sizeof(client->addr);
-            const int client_fd =
-                accept4(server->fd, (struct sockaddr *)&client->addr,
-                        &client_len, SOCK_NONBLOCK);
 
-            // Make client fd non-blocking
+            const int client_fd = accept4(fd1, (struct sockaddr *)&client->addr,
+                                          &client_len, SOCK_NONBLOCK);
+
             if (client_fd < 0) {
-                fprintf(stderr, "Failed to set client fd to non-blocking: %s\n",
+                fprintf(stderr, "Failed to set accept client: %s\n",
                         strerror(client_fd));
-
-                exit(1);
 
                 continue;
             }
 
             ctx->ev.events = EPOLLIN | EPOLLET;
-            ctx->ev.data.fd = client_fd;
+
+            async_data_pack((AsyncData *)&ctx->ev.data.u64, client_fd, 0, READ);
 
             if ((ret = epoll_ctl(ctx->epoll_fd, EPOLL_CTL_ADD, client_fd,
                                  &ctx->ev)) < 0) {
 
-                fprintf(stderr, "Failed to add client fd to epoll: %s\n",
-                        strerror(ret));
-
+                fprintf(stderr, "Failed to add client %d to epoll: %s\n",
+                        client_fd, strerror(ret));
                 close(client_fd);
             }
 
-            continue;
-        }
-
-        // Data to read.
-        if (event->events & EPOLLIN) {
+            break;
+        // Read from connection
+        case READ:
             ProtocolRequest req;
 
-            int bytes_received =
-                recv(event->data.fd, &req, PROTOCOL_REQ_SIZE, 0);
+            const int bytes_received = recv(fd1, &req, PROTOCOL_REQ_SIZE, 0);
 
             if (bytes_received == 0) {
                 goto close;
@@ -112,15 +117,19 @@ int async_server_poll(const Server *server, AsyncCtx *ctx, Client *client) {
 
             protocol_response_to_be(&resp);
 
-            send(event->data.fd, &resp, PROTOCOL_RES_SIZE, 0);
+            send(fd1, &resp, PROTOCOL_RES_SIZE, 0);
         close:
-            epoll_ctl(ctx->epoll_fd, EPOLL_CTL_DEL, event->data.fd, NULL);
-            close(event->data.fd);
-            printf("Closed fd %d\n", event->data.fd);
-            continue;
+            epoll_ctl(ctx->epoll_fd, EPOLL_CTL_DEL, fd1, NULL);
+            close(fd1);
+            printf("Closed fd %d\n", fd1);
+            break;
+        // Respond to connection
+        case EVENT_FD:
+            break;
+        default:
+            printf("Unknown event: %d type: %d\n", event->events, type);
+            break;
         }
-
-        printf("Unknown event: %d\n", event->events);
     }
 
     return 0;

@@ -8,11 +8,9 @@
 int main(int argc, char **argv) {
 
     // BENCHMARK_SHA256_ALL
-    BENCHMARK_SHA256X4_ALL
+    //     BENCHMARK_SHA256X4_ALL
 
-    BENCHMARK_REVERSE_HASH_ALL(0, 30000001, 30000000)
-
-    return 0;
+    //  BENCHMARK_REVERSE_HASH_ALL(0, 30000001, 30000000)
 
     int ret = 0;
     Server server;
