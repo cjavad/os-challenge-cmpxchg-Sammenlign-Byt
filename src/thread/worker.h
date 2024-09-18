@@ -8,7 +8,12 @@
 typedef struct WorkerState {
     ProtocolRequest request;
     ProtocolResponse response;
-    uint32_t futex;
+
+    // Notifier.
+    union {
+        uint32_t futex;
+        int32_t fd;
+    };
 } WorkerState;
 
 WorkerState *worker_create_shared_state();
