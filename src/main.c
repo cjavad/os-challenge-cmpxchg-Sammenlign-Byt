@@ -7,22 +7,25 @@
 #include <stdint.h>
 #include <stdio.h>
 
+#include "benchmark.h"
+
 int main(int argc, char **argv) {
 
-    // BENCHMARK_SHA256_ALL
+    BENCHMARK_SHA256_ALL
     // BENCHMARK_SHA256X8_ALL
-    // BENCHMARK_SHA256X4_ALL
-    // BENCHMARK_SHA256X4X2_ALL
+    BENCHMARK_SHA256X4_ALL
+    BENCHMARK_SHA256X4X2_ALL
 
     // BENCHMARK_REVERSE_HASH_ALL(0, 30000001, 30000000)
 
-    BENCHMARK_SHA256X4(sha256x4_cyclic)
-    printf("warmup done\n");
+    // BENCHMARK_SHA256X4(sha256x4_cyclic)
+    // printf("warmup done\n");
 
-    BENCHMARK_SHA256(sha256_optim)
-    BENCHMARK_SHA256X4(sha256x4_optim)
-    BENCHMARK_SHA256X4X2(sha256x4x2_optim)
-    BENCHMARK_SHA256X8(sha256x8_optim)
+    // BENCHMARK_SHA256(sha256_optim)
+    // BENCHMARK_SHA256X4(sha256x4_optim)
+    // BENCHMARK_SHA256X4X2(sha256x4x2_optim)
+    // BENCHMARK_SHA256X8(sha256x8_optim)
+
 
     return 0;
 
