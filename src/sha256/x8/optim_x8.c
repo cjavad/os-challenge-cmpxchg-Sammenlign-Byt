@@ -157,7 +157,7 @@ void sha256x8_optim(
 	uint8_t hash[SHA256_DIGEST_LENGTH * 8],
 	const uint8_t data[SHA256_INPUT_LENGTH * 8]
 ) {
-	__m256i w[64] __attribute__((aligned(16)));
+	__m256i w[64] __attribute__((aligned(32)));
 
 	register __m256i t0;
 	register __m256i t1;

@@ -7,7 +7,7 @@ void sha256x4x2_fused(
     uint8_t hash[SHA256_DIGEST_LENGTH * 8],
     const uint8_t data[SHA256_INPUT_LENGTH * 8]
 ) {
-    __m128i w[64 * 2] __attribute__((aligned(16)));
+    __m128i w[64 * 2] __attribute__((aligned(32)));
 
 	register __m128i t0l;
     register __m128i t0u;
