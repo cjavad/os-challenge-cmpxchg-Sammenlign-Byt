@@ -1,5 +1,5 @@
 CompileFlags:
-  Add: [-Drestrict=__restrict]
+  Add: [-Drestrict=__restrict, -masm=intel]
 ---
 If:
 	PathMatch: [src/sha256/x4/asm_x4.c]
