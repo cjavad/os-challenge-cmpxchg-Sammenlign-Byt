@@ -2,8 +2,6 @@
 
 #include "impl_common.h"
 
-#include <stdio.h>
-
 __attribute__((flatten))
 void sha256x4x2_optim(
     uint8_t hash[SHA256_DIGEST_LENGTH * 8],
