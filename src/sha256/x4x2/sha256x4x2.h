@@ -12,6 +12,11 @@ void sha256x4x2_optim(
     const uint8_t data[SHA256_INPUT_LENGTH * 8]
 );
 
+void sha256x4x2_fused(
+    uint8_t hash[SHA256_DIGEST_LENGTH * 8],
+    const uint8_t data[SHA256_INPUT_LENGTH * 8]
+);
+
 // #define BENCHMARK_SHA256X4X2(func)                                               \
 //     {                                                                          \
 //         uint8_t hash[SHA256_DIGEST_LENGTH * 8] __attribute__((aligned(16)));   \
@@ -42,4 +47,5 @@ D_BENCHMARK_START(8, SHA256_BENCHMARK_ITERATIONS)\
 D_BENCHMARK_END()\
 
 #define BENCHMARK_SHA256X4X2_ALL \
-	BENCHMARK_SHA256X4X2(sha256x4x2_optim)
+	BENCHMARK_SHA256X4X2(sha256x4x2_optim)\
+    BENCHMARK_SHA256X4X2(sha256x4x2_fused)
