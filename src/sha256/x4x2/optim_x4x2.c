@@ -4,11 +4,6 @@
 
 #include <stdio.h>
 
-static void printm256(const char* name, __m256 m) {
-    uint32_t* base = (uint32_t*)&m;
-    printf("%s = %u, %u, %u, %u, %u, %u, %u, %u\n", name, base[0], base[1], base[2], base[3], base[4], base[5], base[6], base[7]);
-}
-
 __attribute__((flatten))
 void sha256x4x2_optim(
     uint8_t hash[SHA256_DIGEST_LENGTH * 8],
