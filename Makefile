@@ -14,7 +14,7 @@ PPFLAGS =
 # include flags
 IFLAGS = -I$(INCDIR)
 # compile flags
-CFLAGS = -march=sandybridge -mtune=sandybridge -masm=intel -std=c11 -D_GNU_SOURCE
+CFLAGS = -march=sandybridge -mtune=sandybridge -masm=intel -std=gnu11 -D_GNU_SOURCE
 # linker flags
 LFLAGS = -luring -lssl -lcrypto -lpthread -lrt -lm -Wl,-rpath,lib
 
@@ -60,7 +60,9 @@ release: link
 clean:
 	@rm -f $(BINDIR)/$(EXECUTABLE)
 	@rm -rf $(OBJDIR)
-	@rm -rf $(DEPDIR)
+
+purge: clean
+	@rm -f $(DEPDIR)
 
 run:
 	./$(BINDIR)/$(EXECUTABLE)

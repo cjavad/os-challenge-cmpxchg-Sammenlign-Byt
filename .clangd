@@ -1,0 +1,9 @@
+If:
+	PathMatch: [src/sha256/x4/asm_x4.c]
+CompileFlags:
+	Add: [-xc++, -std=c++11]
+---
+If:
+	PathExclude: [src/sha256/x4/asm_x4.c]
+CompileFlags:
+	Add: [-xc, -std=gnu11]
