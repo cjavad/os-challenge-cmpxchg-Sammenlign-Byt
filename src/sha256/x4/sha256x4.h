@@ -19,6 +19,9 @@ void sha256x4_fullyfused(uint8_t hash[SHA256_DIGEST_LENGTH * 4],
 void sha256x4_cyclic(uint8_t hash[SHA256_DIGEST_LENGTH * 4],
 					const uint8_t data[SHA256_INPUT_LENGTH * 4]);
 
+void sha256x4_asm(uint8_t hash[SHA256_DIGEST_LENGTH * 4],
+					const uint8_t data[SHA256_INPUT_LENGTH * 4]);
+
 // #define BENCHMARK_SHA256X4(func)                                               \
 //     {                                                                          \
 //         uint8_t hash[SHA256_DIGEST_LENGTH * 4] __attribute__((aligned(16)));   \
