@@ -1,19 +1,5 @@
 #include "server.h"
 
-#include <errno.h>
-#include <fcntl.h>
-#include <linux/version.h>
-#include <netinet/in.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <strings.h>
-#include <sys/poll.h>
-#include <sys/socket.h>
-#include <unistd.h>
-
-#include <liburing.h>
-
 #if USE_IO_URING
 
 int IOURING_GROUP_ID = 0;

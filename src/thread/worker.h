@@ -5,19 +5,34 @@
 #include <pthread.h>
 #include <stdint.h>
 
-typedef struct WorkerState {
+struct WorkerState {
     ProtocolRequest request;
     ProtocolResponse response;
 
+    // Identifier
+    union {
+	// Can be any uint64_t value.
+	uint64_t u64;
+
+	// Most commonly we have a target file descriptor
+	// and some buffer id.
+	struct {
+	    int32_t fd;
+	    uint32_t bid;
+	};
+    } data;
+
     // Notifier.
     union {
-        uint32_t futex;
-        int32_t fd;
-    };
-} WorkerState;
+	uint32_t futex;
+	int32_t fd;
+    } notifier;
+};
 
-WorkerState *worker_create_shared_state();
-void worker_destroy_shared_state(WorkerState *state);
+typedef struct WorkerState WorkerState;
 
-void *worker_thread(void *arguments);
-void spawn_worker_thread(WorkerState *state);
+WorkerState* worker_create_shared_state();
+void worker_destroy_shared_state(WorkerState* state);
+
+void* worker_thread(void* arguments);
+void spawn_worker_thread(WorkerState* state);
