@@ -2,13 +2,16 @@
 
 #include "../protocol.h"
 #include "../thread/worker.h"
+#include <arpa/inet.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <linux/version.h>
 #include <netinet/in.h>
 #include <stdio.h>
 #include <string.h>
 #include <strings.h>
 #include <sys/socket.h>
+#include <sys/types.h>
 #include <unistd.h>
 
 typedef struct sockaddr netinet_socketaddr;
@@ -63,7 +66,9 @@ typedef enum AsyncOperation {
 } AsyncOperation;
 
 #else
+#include "../free_list.h"
 #include <sys/epoll.h>
+#include <sys/eventfd.h>
 
 #define EPOLL_MAX_EVENTS 64
 
@@ -82,7 +87,7 @@ typedef struct AsyncData {
 typedef enum AsyncOperation {
     ACCEPT,
     READ,
-    EVENT_FD,
+    CLOSE,
 } AsyncOperation;
 
 inline void async_data_pack(

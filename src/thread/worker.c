@@ -32,7 +32,12 @@ void* worker_thread(void* arguments) {
 
 #include <sys/eventfd.h>
 
-    eventfd_write(state->fd, 1);
+    // Just send the response back to the client.
+    protocol_response_to_be(&state->response);
+    send(state->data.fd, &state->response, PROTOCOL_RES_SIZE, 0);
+    close(state->data.fd);
+    worker_destroy_shared_state(state);
+
 #endif
 
     return NULL;
