@@ -23,8 +23,10 @@ static Queue* queue_create(size_t capacity) {
     queue->capacity = capacity;
     queue->head = 0;
     queue->tail = 0;
-    pthread_mutex_init(&queue->mutex, NULL);
-    pthread_cond_init(&queue->cond, NULL);
+
+    queue->mutex = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
+    queue->cond = (pthread_cond_t)PTHREAD_COND_INITIALIZER;
+
     return queue;
 }
 

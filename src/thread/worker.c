@@ -8,11 +8,12 @@ WorkerPool* worker_create_pool(const size_t size) {
     WorkerPool* pool = calloc(1, sizeof(WorkerPool));
     pool->workers = calloc(size, sizeof(WorkerState));
     pool->size = size;
-    pool->pending = queue_create(1024);
+    // Should be size of ulimit + backlog + some buffer.
+    pool->pending = queue_create(8096);
 
     for (size_t i = 0; i < size; i++) {
-	pthread_create(&pool->workers[i].thread, NULL, worker_thread, &pool->workers[i]);
 	pool->workers[i].pending = pool->pending;
+	pthread_create(&pool->workers[i].thread, NULL, worker_thread, &pool->workers[i]);
     }
 
     return pool;
