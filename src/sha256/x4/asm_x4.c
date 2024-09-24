@@ -703,8 +703,7 @@ void sha256x4_asm(
 		[x80000000] "m" (x80000000),
 		[d64] "m" (d64),
 		[H] "m" (H),
-		[punpack_mask] "m" (punpack_mask),
-		[format] "m" (format)
+		[punpack_mask] "m" (punpack_mask)
 		: // TODO :: proper clobbers based off of final assembly
 		"rax", "rcx",
 		// "rdx", (not using)
