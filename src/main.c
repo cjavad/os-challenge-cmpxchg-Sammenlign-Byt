@@ -12,7 +12,6 @@
 int server(const int port) {
     int ret = 0;
     Server server;
-    Client client;
 
     if ((ret = server_init(&server, port)) < 0) {
 	printf("Failed to initialize server: %s\n", strerror(-ret));
@@ -28,13 +27,13 @@ int server(const int port) {
 
     AsyncCtx ctx;
 
-    if ((ret = async_server_init(&server, &ctx, &client)) < 0) {
+    if ((ret = async_server_init(&server, &ctx)) < 0) {
 	printf("Failed to initialize async server: %s\n", strerror(-ret));
 	return 1;
     }
 
     while (1) {
-	if ((ret = async_server_poll(&server, &ctx, &client)) >= 0) {
+	if ((ret = async_server_poll(&server, &ctx)) >= 0) {
 	    continue;
 	}
 
@@ -42,7 +41,7 @@ int server(const int port) {
 	break;
     }
 
-    async_server_exit(&server, &ctx, &client);
+    async_server_exit(&server, &ctx);
 
     printf("Closed server\n");
 
@@ -53,7 +52,7 @@ int benchmark() {
     BENCHMARK_SHA256_ALL
     // BENCHMARK_SHA256X8_ALL
     BENCHMARK_SHA256X4_ALL
-	// BENCHMARK_SHA256X4(sha256x4_asm)
+    // BENCHMARK_SHA256X4(sha256x4_asm)
     // BENCHMARK_SHA256X4X2_ALL
 
     // BENCHMARK_REVERSE_HASH_ALL(0, 30000001, 30000000)
@@ -71,12 +70,12 @@ int benchmark() {
 
 int main(int argc, char** argv) {
     if (argc < 2) {
-		fprintf(stderr, "Usage: %s benchmark|<port>\n", argv[0]);
-		return 1;
+	fprintf(stderr, "Usage: %s benchmark|<port>\n", argv[0]);
+	return 1;
     }
 
     if (strcmp(argv[1], "benchmark") == 0) {
-		return benchmark();
+	return benchmark();
     }
 
     const int port = atoi(argv[1]);

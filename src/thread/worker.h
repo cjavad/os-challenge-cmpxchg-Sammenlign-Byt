@@ -1,38 +1,30 @@
 #pragma once
 
-#include "../protocol.h"
 #include "futex.h"
+#include "queue.h"
+#include "scheduler.h"
 #include <pthread.h>
 #include <stdint.h>
+#include <sys/socket.h>
 
 struct WorkerState {
-    ProtocolRequest request;
-    ProtocolResponse response;
-
-    // Identifier
-    union {
-	// Can be any uint64_t value.
-	uint64_t u64;
-
-	// Most commonly we have a target file descriptor
-	// and some buffer id.
-	struct {
-	    int32_t fd;
-	    uint32_t bid;
-	};
-    } data;
-
-    // Notifier.
-    union {
-	uint32_t futex;
-	int32_t fd;
-    } notifier;
+    Queue* pending;
+    pthread_t thread;
 };
 
 typedef struct WorkerState WorkerState;
 
-WorkerState* worker_create_shared_state();
-void worker_destroy_shared_state(WorkerState* state);
+struct WorkerPool {
+    Queue* pending;
+    WorkerState* workers;
+    size_t size;
+};
+
+typedef struct WorkerPool WorkerPool;
+
+WorkerPool* worker_create_pool(size_t size);
+void worker_destroy_pool(WorkerPool* pool);
 
 void* worker_thread(void* arguments);
-void spawn_worker_thread(WorkerState* state);
+
+int worker_pool_submit(const WorkerPool* pool, TaskState* state);
