@@ -26,6 +26,8 @@ ifneq (,$(findstring release,$(MAKECMDGOALS)))
 	DEPDIR := $(DEPDIR)/release
 	OBJDIR := $(OBJDIR)/release
 else ifneq (,$(findstring clean,$(MAKECMDGOALS)))
+	OBJDIR := $(OBJDIR)
+else ifneq (,$(findstring purge,$(MAKECMDGOALS)))
 	DEPDIR := $(DEPDIR)
 	OBJDIR := $(OBJDIR)
 else
@@ -37,7 +39,7 @@ endif
 D_FILES := $(patsubst $(SRCDIR)/%.c, $(DEPDIR)/%.d, $(C_FILES))
 O_FILES := $(patsubst $(SRCDIR)/%.c, $(OBJDIR)/%.o, $(C_FILES))
 
-ifneq (,$(findstring clean,$(MAKECMDGOALS)))
+ifneq (,$(findstring purge,$(MAKECMDGOALS)))
 	D_FILES := 
 else
 endif
