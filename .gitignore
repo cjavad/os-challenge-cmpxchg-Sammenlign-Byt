@@ -1,7 +1,7 @@
 .vscode/
 .idea/
 .cache/
-./obj/
-./dep/
-./server
+obj/
+dep/
+server
 ./compile_commands.json
