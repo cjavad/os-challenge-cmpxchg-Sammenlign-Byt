@@ -16,7 +16,8 @@ const char* lx_lookup_name[] = {
 	"ARE",
 	"MOV",
 	"LARGE INTESTINE",
-	"ANOTHA"
+	"ANOTHA",
+	"OXFORD"
 };
 
 const char* lx_lookup_symbols[] = {
@@ -35,5 +36,6 @@ const char* lx_lookup_symbols[] = {
 	"]",
 	"=",
 	":",
-	"\\n"
+	"\\n",
+	","
 };

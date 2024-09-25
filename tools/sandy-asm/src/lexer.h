@@ -22,7 +22,8 @@ enum LexemeType
 	LX_ARE,
 	LX_MOV,
 	LX_LARGE_INTESTINE,
-	LX_ANOTHA
+	LX_ANOTHA,
+	LX_OXFORD
 };
 
 struct Lexeme

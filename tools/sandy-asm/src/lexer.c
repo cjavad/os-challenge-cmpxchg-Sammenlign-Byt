@@ -54,6 +54,7 @@ struct LexemeList* lex_code(const char* code)
 					case ']': {SIMPLE_LEXEME(LX_ARE);} break;
 					case '=': {SIMPLE_LEXEME(LX_MOV);} break;
 					case ':': {SIMPLE_LEXEME(LX_LARGE_INTESTINE);} break;
+					case ',': {SIMPLE_LEXEME(LX_OXFORD);} break;
 					
 					case '\n': {
 						if (lexemes->len > 0 && lexemes->data[lexemes->len - 1].type != LX_ANOTHA) {
@@ -94,11 +95,8 @@ struct LexemeList* lex_code(const char* code)
 					} break;
 
 					case ' ':
-					case ',':
 					case '\t': {
 						// eeeeeeeeeeeeeeeyyyyyyyo
-					
-						// comma is whitespace now
 					} break;
 
 					default: {
