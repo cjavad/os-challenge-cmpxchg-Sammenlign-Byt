@@ -10,3 +10,6 @@ all:
 
 run:
 	./$(EXECUTABLE)
+
+lines:
+	@find src -type f -name "*.[ch]" | xargs wc -l | sort -n
