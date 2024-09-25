@@ -21,18 +21,16 @@ typedef struct {
     uint8_t priority;
 } __attribute__((packed)) ProtocolRequest;
 
-_Static_assert(sizeof(ProtocolRequest) == PROTOCOL_REQ_SIZE,
-               "ProtocolRequest size is not 49 bytes");
+_Static_assert(sizeof(ProtocolRequest) == PROTOCOL_REQ_SIZE, "ProtocolRequest size is not 49 bytes");
 
 typedef struct {
     uint64_t answer;
 } __attribute__((packed)) ProtocolResponse;
 
-_Static_assert(sizeof(ProtocolResponse) == PROTOCOL_RES_SIZE,
-               "ProtocolResponse size is not 8 bytes");
+_Static_assert(sizeof(ProtocolResponse) == PROTOCOL_RES_SIZE, "ProtocolResponse size is not 8 bytes");
 
-void protocol_request_to_le(ProtocolRequest *be);
-void protocol_response_to_be(ProtocolResponse *le);
+inline void protocol_request_to_le(ProtocolRequest* be);
+inline void protocol_response_to_be(ProtocolResponse* le);
 
-void protocol_debug_print_request(const ProtocolRequest *req);
-void protocol_debug_print_response(const ProtocolResponse *resp);
+void protocol_debug_print_request(const ProtocolRequest* req);
+void protocol_debug_print_response(const ProtocolResponse* resp);

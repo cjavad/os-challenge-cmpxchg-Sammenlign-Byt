@@ -66,7 +66,6 @@ typedef enum AsyncOperation {
 } AsyncOperation;
 
 #else
-#include "../free_list.h"
 #include <sys/epoll.h>
 #include <sys/eventfd.h>
 
@@ -74,46 +73,32 @@ typedef enum AsyncOperation {
 
 typedef struct AsyncCtx {
     int epoll_fd;
+    WorkerPool* worker_pool;
     struct epoll_event ev;
     struct epoll_event events[EPOLL_MAX_EVENTS];
 } AsyncCtx;
 
-typedef struct AsyncData {
-    uint64_t fd2 : 31;
-    uint64_t fd1 : 31;
-    uint64_t type : 2;
-} AsyncData __attribute__((aligned(8)));
-
 typedef enum AsyncOperation {
-    ACCEPT,
-    READ,
-    CLOSE,
+    SERVER_ACCEPT,
+    CLIENT_EVENT,
 } AsyncOperation;
 
-inline void async_data_pack(
-    AsyncData* data, const int32_t fd1, const int32_t fd2,
-    const AsyncOperation type
-) {
-    data->fd1 = fd1 & 0x7FFFFFFF;
-    data->fd2 = fd2 & 0x7FFFFFFF;
-    data->type = type & 0x3;
-}
+typedef struct AsyncData {
+    union {
+	struct {
+	    AsyncOperation type;
+	    int32_t fd;
+	};
 
-inline void async_data_unpack(
-    const AsyncData* data, int32_t* fd1, int32_t* fd2, AsyncOperation* type
-) {
-    *fd1 = data->fd1;
-    *fd2 = data->fd2;
-    *type = data->type;
-}
+	uint64_t u64;
+    };
+} AsyncData;
 
 #endif
 
 // Both io_uring and epoll allow for 64 bits of user data per request.
-_Static_assert(
-    sizeof(AsyncData) <= sizeof(uint64_t), "UserData struct is too large"
-);
+_Static_assert(sizeof(AsyncData) <= sizeof(uint64_t), "UserData struct is too large");
 
-int async_server_init(const Server* server, AsyncCtx* ctx, Client* client);
-int async_server_poll(const Server* server, AsyncCtx* ctx, Client* client);
-int async_server_exit(const Server* server, AsyncCtx* ctx, Client* client);
+int async_server_init(const Server* server, AsyncCtx* ctx);
+int async_server_poll(const Server* server, AsyncCtx* ctx);
+int async_server_exit(const Server* server, const AsyncCtx* ctx);
