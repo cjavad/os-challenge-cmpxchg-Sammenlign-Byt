@@ -64,7 +64,7 @@ clean:
 	@rm -rf $(OBJDIR)
 
 purge: clean
-	@rm -f $(DEPDIR)
+	@rm -rf $(DEPDIR)
 
 run:
 	./$(BINDIR)/$(EXECUTABLE)
