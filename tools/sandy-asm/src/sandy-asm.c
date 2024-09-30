@@ -4,6 +4,7 @@
 #include <stdio.h>
 
 #include "lexer.h"
+#include "parser.h"
 
 void printLexemes(struct LexemeList* list);
 
@@ -35,7 +36,11 @@ int32_t main(int32_t argc, char** argv)
 	}
 
 	struct LexemeList* lex_list = lex_code(file);
-	printLexemes(lex_list);
+	// printLexemes(lex_list);
+
+	ParseResult parse;
+
+	parseLex(&parse, lex_list);
 
 	return 0;
 }
@@ -55,7 +60,7 @@ void printLexemes(struct LexemeList* list)
 				printf("[%03u:%02u] %-16s: %s\n", l.line, l.col, "WORD", strbuff + l.index);
 			} break;
 			default: {
-				printf("[%03u:%02u] %-16s: %s\n", l.line, l.col, lx_lookup_name[l.type], lx_lookup_symbols[l.type]);
+				printf("[%03u:%02u] %-16s: %s\n", l.line, l.col, lx_lookup_names[l.type], lx_lookup_symbols[l.type]);
 			}
 		}
 	}

@@ -1,6 +1,6 @@
 #include "lexer.h"
 
-const char* lx_lookup_name[] = {
+const char* lx_lookup_names[] = {
 	"DOLLA",
 	"NOT A KILO",
 	"WORD",
@@ -39,3 +39,15 @@ const char* lx_lookup_symbols[] = {
 	"\\n",
 	","
 };
+
+const char* lx_lookupName(enum LexemeType type) {
+	return lx_lookup_names[type];
+}
+
+const char* lx_lookupSymbol(Lexeme l, StringBuffer* sb) {
+	if (l.type == LX_WORD || l.type == LX_NUM) {
+		return &sb->data[l.index];
+	} else {
+		return lx_lookup_symbols[l.type];
+	}
+}

@@ -3,19 +3,19 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#define SIMPLE_LEXEME(T) ll_push(&lexemes, (struct Lexeme){.type = T, .line = line, .col = col})
+#define SIMPLE_LEXEME(T) ll_push(&lexemes, (Lexeme){.type = T, .line = line, .col = col})
 
-static void sb_init(struct StringBuffer** buff);
-static void sb_push(struct StringBuffer** buff, const char c);
+static void sb_init(StringBuffer** buff);
+static void sb_push(StringBuffer** buff, const char c);
 
-static void ll_init(struct LexemeList** list);
-static void ll_push(struct LexemeList** list, const struct Lexeme l);
+static void ll_init(LexemeList** list);
+static void ll_push(LexemeList** list, const Lexeme l);
 
 static void error_exit(uint32_t line, uint32_t col, const char* message);
 
-struct LexemeList* lex_code(const char* code)
+LexemeList* lex_code(const char* code)
 {
-	struct LexemeList* lexemes;
+	LexemeList* lexemes;
 	ll_init(&lexemes);
 	sb_init(&(lexemes->strbuff));
 
@@ -73,7 +73,7 @@ struct LexemeList* lex_code(const char* code)
 
 					case 'a' ... 'z':
 					case 'A' ... 'Z': {
-						ll_push(&lexemes, (struct Lexeme){.type = LX_WORD, .line = line, .col = col, .index = lexemes->strbuff->len});
+						ll_push(&lexemes, (Lexeme){.type = LX_WORD, .line = line, .col = col, .index = lexemes->strbuff->len});
 						sb_push(&(lexemes->strbuff), c);
 						err_line = line;
 						err_col = col;
@@ -81,7 +81,7 @@ struct LexemeList* lex_code(const char* code)
 					} break;
 
 					case '0' ... '9': {
-						ll_push(&lexemes, (struct Lexeme){.type = LX_NUM, .line = line, .col = col, .index = lexemes->strbuff->len});
+						ll_push(&lexemes, (Lexeme){.type = LX_NUM, .line = line, .col = col, .index = lexemes->strbuff->len});
 						sb_push(&(lexemes->strbuff), c);
 						err_line = line;
 						err_col = col;
@@ -171,35 +171,35 @@ static void error_exit(uint32_t line, uint32_t col, const char* message)
 	exit(1);
 }
 
-static void sb_init(struct StringBuffer** buff)
+static void sb_init(StringBuffer** buff)
 {
-	(*buff) = malloc(sizeof(struct StringBuffer) + sizeof(char) * 1024);
+	(*buff) = malloc(sizeof(StringBuffer) + sizeof(char) * 1024);
 	(*buff)->len = 0;
 	(*buff)->cap = 1024;
 }
 
-static void sb_push(struct StringBuffer** buff, const char c)
+static void sb_push(StringBuffer** buff, const char c)
 {
 	if ((*buff)->len == (*buff)->cap) {
 		(*buff)->cap = (*buff)->cap << 1;
-		(*buff) = realloc((*buff), sizeof(struct StringBuffer) + sizeof(char) * (*buff)->cap);
+		(*buff) = realloc((*buff), sizeof(StringBuffer) + sizeof(char) * (*buff)->cap);
 	}
 	(*buff)->data[(*buff)->len] = c;
 	(*buff)->len = (*buff)->len + 1;
 }
 
-static void ll_init(struct LexemeList** list)
+static void ll_init(LexemeList** list)
 {
-	(*list) = malloc(sizeof(struct LexemeList) + sizeof(struct Lexeme) * 256);
+	(*list) = malloc(sizeof(LexemeList) + sizeof(Lexeme) * 256);
 	(*list)->len = 0;
 	(*list)->cap = 256;
 }
 
-static void ll_push(struct LexemeList** list, const struct Lexeme l)
+static void ll_push(LexemeList** list, const Lexeme l)
 {
 	if ((*list)->len == (*list)->cap) {
 		(*list)->cap = (*list)->cap << 1;
-		(*list) = realloc((*list), sizeof(struct LexemeList) + sizeof(struct Lexeme) * (*list)->cap);
+		(*list) = realloc((*list), sizeof(LexemeList) + sizeof(Lexeme) * (*list)->cap);
 	}
 	(*list)->data[(*list)->len] = l;
 	(*list)->len = (*list)->len + 1;

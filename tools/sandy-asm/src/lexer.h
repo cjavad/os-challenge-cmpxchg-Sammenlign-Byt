@@ -2,12 +2,12 @@
 
 #include <stdint.h>
 
-extern const char* lx_lookup_name[];
+extern const char* lx_lookup_names[];
 extern const char* lx_lookup_symbols[];
 
 enum LexemeType
 {
-	LX_DOLLA,
+	LX_DOLLA = 0,
 	LX_NOT_A_KILO,
 	LX_WORD,
 	LX_EMAIL,
@@ -36,6 +36,7 @@ struct Lexeme
 		uint32_t index;
 	};
 };
+typedef struct Lexeme Lexeme;
 
 struct StringBuffer
 {
@@ -43,13 +44,18 @@ struct StringBuffer
 	uint32_t cap;
 	char data[];
 };
+typedef struct StringBuffer StringBuffer;
 
 struct LexemeList
 {
 	uint32_t len;
 	uint32_t cap;
-	struct StringBuffer* strbuff;
-	struct Lexeme data[];
+	StringBuffer* strbuff;
+	Lexeme data[];
 };
+typedef struct LexemeList LexemeList; 
 
-struct LexemeList* lex_code(const char* code);
+LexemeList* lex_code(const char* code);
+
+const char* lx_lookupName(enum LexemeType type);
+const char* lx_lookupSymbol(Lexeme l, StringBuffer* sb);
