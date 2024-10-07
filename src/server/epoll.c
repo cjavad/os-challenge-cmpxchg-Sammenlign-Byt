@@ -1,8 +1,5 @@
 #include "server.h"
 
-// epoll server implementation.
-#if !USE_IO_URING
-
 void accept_client(AsyncCtx* ctx, AsyncData* data);
 void consume_request(AsyncCtx* ctx, const AsyncData* data);
 void remove_client(const AsyncCtx* ctx, const AsyncData* data);
@@ -144,5 +141,3 @@ failed:
 void remove_client(const AsyncCtx* ctx, const AsyncData* data) {
     epoll_ctl(ctx->epoll_fd, EPOLL_CTL_DEL, data->fd, NULL);
 }
-
-#endif

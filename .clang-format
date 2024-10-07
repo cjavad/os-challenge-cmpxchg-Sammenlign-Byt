@@ -1,8 +1,9 @@
 # lol
 # FUCK CLION
 IndentWidth: 4
+TabWidth: 4
 ColumnLimit: 120
-UseTab: ForIndentation
+UseTab: Never
 AlignAfterOpenBracket: BlockIndent
 # clang docs lied to me
 # BinPackParameters: OnePerLine
