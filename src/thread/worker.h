@@ -1,10 +1,8 @@
 #pragma once
 
-#include "futex.h"
 #include "queue.h"
 #include "scheduler.h"
 #include <pthread.h>
-#include <stdint.h>
 #include <sys/socket.h>
 
 struct WorkerState {

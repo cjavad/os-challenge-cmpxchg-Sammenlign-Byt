@@ -29,8 +29,8 @@ typedef struct {
 
 _Static_assert(sizeof(ProtocolResponse) == PROTOCOL_RES_SIZE, "ProtocolResponse size is not 8 bytes");
 
-inline void protocol_request_to_le(ProtocolRequest* be);
-inline void protocol_response_to_be(ProtocolResponse* le);
+void protocol_request_to_le(ProtocolRequest* be);
+void protocol_response_to_be(ProtocolResponse* le);
 
 void protocol_debug_print_request(const ProtocolRequest* req);
 void protocol_debug_print_response(const ProtocolResponse* resp);

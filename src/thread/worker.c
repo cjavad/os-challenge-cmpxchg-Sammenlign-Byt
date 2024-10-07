@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 WorkerPool* worker_create_pool(const size_t size) {
     WorkerPool* pool = calloc(1, sizeof(WorkerPool));

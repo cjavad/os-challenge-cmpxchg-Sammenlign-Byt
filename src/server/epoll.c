@@ -12,7 +12,7 @@ int async_server_init(const Server* server, AsyncCtx* ctx) {
     ret = epoll_create(EPOLL_MAX_EVENTS);
 
     if (ret < 0) {
-	return ret;
+        return ret;
     }
 
     // Setup server fd.
@@ -23,11 +23,11 @@ int async_server_init(const Server* server, AsyncCtx* ctx) {
     memcpy(&ctx->ev.data.u64, &async_data, sizeof(async_data));
 
     if ((ret = epoll_ctl(ctx->epoll_fd, EPOLL_CTL_ADD, server->fd, &ctx->ev)) < 0) {
-	return ret;
+        return ret;
     }
 
     // Spawn worker pool
-    ctx->worker_pool = worker_create_pool(128);
+    ctx->worker_pool = worker_create_pool(16);
 
     return ret;
 }
@@ -36,34 +36,34 @@ int async_server_poll(const Server* server, AsyncCtx* ctx) {
     const int new_events = epoll_wait(ctx->epoll_fd, ctx->events, EPOLL_MAX_EVENTS, -1);
 
     if (new_events < 0) {
-	return new_events;
+        return new_events;
     }
 
     for (int i = 0; i < new_events; i++) {
-	const struct epoll_event* event = &ctx->events[i];
-	AsyncData data;
-	memcpy(&data, &event->data.u64, sizeof(data));
+        const struct epoll_event* event = &ctx->events[i];
+        AsyncData data;
+        memcpy(&data, &event->data.u64, sizeof(data));
 
-	switch (data.type) {
+        switch (data.type) {
 
-	// Accept new connection.
-	case SERVER_ACCEPT:
-	    accept_client(ctx, &data);
-	    break;
-	// Read from connection
-	case CLIENT_EVENT:
-	    if (event->events & EPOLLIN) {
-		consume_request(ctx, &data);
-	    } else if (event->events & EPOLLHUP) {
-		remove_client(ctx, &data);
-	    }
+        // Accept new connection.
+        case SERVER_ACCEPT:
+            accept_client(ctx, &data);
+            break;
+        // Read from connection
+        case CLIENT_EVENT:
+            if (event->events & EPOLLIN) {
+                consume_request(ctx, &data);
+            } else if (event->events & EPOLLHUP) {
+                remove_client(ctx, &data);
+            }
 
-	    break;
+            break;
 
-	default:
-	    fprintf(stderr, "Unknown event: %d type: %d\n", event->events, data.type);
-	    break;
-	}
+        default:
+            fprintf(stderr, "Unknown event: %d type: %d\n", event->events, data.type);
+            break;
+        }
     }
 
     return 0;
@@ -83,9 +83,9 @@ void accept_client(AsyncCtx* ctx, AsyncData* data) {
     const int client_fd = accept4(data->fd, (struct sockaddr*)&addr, &client_len, SOCK_NONBLOCK);
 
     if (client_fd < 0) {
-	fprintf(stderr, "Failed to accept client: %s from %d\n", strerror(-client_fd), data->fd);
+        fprintf(stderr, "Failed to accept client: %s from %d\n", strerror(-client_fd), data->fd);
 
-	return;
+        return;
     }
 
     // Handle CLIENT_EVENT and CLIENT_CLOSED events.
@@ -96,9 +96,9 @@ void accept_client(AsyncCtx* ctx, AsyncData* data) {
 
     if ((ret = epoll_ctl(ctx->epoll_fd, EPOLL_CTL_ADD, client_fd, &ctx->ev)) < 0) {
 
-	fprintf(stderr, "Failed to add client %d to epoll: %s\n", client_fd, strerror(ret));
+        fprintf(stderr, "Failed to add client %d to epoll: %s\n", client_fd, strerror(ret));
 
-	close(client_fd);
+        close(client_fd);
     }
 }
 
@@ -111,15 +111,15 @@ void consume_request(AsyncCtx* ctx, const AsyncData* data) {
     const int64_t bytes_received = recv(client_fd, &state->request, PROTOCOL_REQ_SIZE, 0);
 
     if (bytes_received != PROTOCOL_REQ_SIZE) {
-	if (bytes_received == 0) {
-	    fprintf(stderr, "Received 0 bytes (perhaps closed)\n");
-	} else if (bytes_received < 0) {
-	    fprintf(stderr, "Failed to receive request (perhaps closed): %s\n", strerror(errno));
-	} else {
-	    fprintf(stderr, "Invalid request size: %lu\n", bytes_received);
-	}
+        if (bytes_received == 0) {
+            fprintf(stderr, "Received 0 bytes (perhaps closed)\n");
+        } else if (bytes_received < 0) {
+            fprintf(stderr, "Failed to receive request (perhaps closed): %s\n", strerror(errno));
+        } else {
+            fprintf(stderr, "Invalid request size: %lu\n", bytes_received);
+        }
 
-	goto failed;
+        goto failed;
     }
 
     protocol_request_to_le(&state->request);
