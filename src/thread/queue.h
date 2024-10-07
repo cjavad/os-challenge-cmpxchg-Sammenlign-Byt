@@ -39,7 +39,7 @@ static void queue_push(Queue* queue, const QueueData data) {
     pthread_mutex_lock(&queue->mutex);
 
     while (queue->size == queue->capacity) {
-	pthread_cond_wait(&queue->cond, &queue->mutex);
+        pthread_cond_wait(&queue->cond, &queue->mutex);
     }
 
     queue->data[queue->tail] = data;
@@ -53,7 +53,7 @@ static void queue_push(Queue* queue, const QueueData data) {
 static QueueData queue_pop(Queue* queue) {
     pthread_mutex_lock(&queue->mutex);
     while (queue->size == 0) {
-	pthread_cond_wait(&queue->cond, &queue->mutex);
+        pthread_cond_wait(&queue->cond, &queue->mutex);
     }
     QueueData data = queue->data[queue->head];
     queue->head = (queue->head + 1) % queue->capacity;

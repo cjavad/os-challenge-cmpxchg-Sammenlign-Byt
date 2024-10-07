@@ -7,8 +7,8 @@ struct TaskState {
     ProtocolResponse response;
 
     union {
-	uint32_t futex;
-	int32_t fd;
+        uint32_t futex;
+        int32_t fd;
     } data;
 };
 
