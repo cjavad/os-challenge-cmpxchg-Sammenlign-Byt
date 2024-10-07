@@ -41,12 +41,18 @@ O_FILES := $(patsubst $(SRCDIR)/%.c, $(OBJDIR)/%.o, $(C_FILES))
 
 ifneq (,$(findstring purge,$(MAKECMDGOALS)))
 	D_FILES := 
+else ifneq (,$(findstring clean,$(MAKECMDGOALS)))
+	D_FILES :=
+else ifneq (,$(findstring run,$(MAKECMDGOALS)))
+	D_FILES :=
+else ifneq (,$(findstring lines,$(MAKECMDGOALS)))
+	D_FILES :=
 else
 endif
 
-all: build
+all: release
 
-.PHONY: build release clean run lines
+.PHONY: build release clean run lines purge
 
 include $(D_FILES)
 
