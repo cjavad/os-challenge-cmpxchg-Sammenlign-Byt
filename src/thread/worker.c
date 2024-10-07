@@ -74,10 +74,6 @@ void* worker_thread(void* arguments) {
 }
 
 int worker_pool_submit(const WorkerPool* pool, TaskState* state) {
-    if (queue_full_unsafe(pool->pending)) {
-	return -1;
-    }
-
     queue_push(pool->pending, state);
     return 0;
 }

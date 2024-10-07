@@ -35,12 +35,6 @@ static void queue_destroy(Queue* queue) {
     free(queue);
 }
 
-static void queue_push_unsafe(Queue* queue, const QueueData data) {
-    queue->data[queue->tail] = data;
-    queue->tail = (queue->tail + 1) % queue->capacity;
-    queue->size++;
-}
-
 static void queue_push(Queue* queue, const QueueData data) {
     pthread_mutex_lock(&queue->mutex);
 
@@ -48,7 +42,9 @@ static void queue_push(Queue* queue, const QueueData data) {
 	pthread_cond_wait(&queue->cond, &queue->mutex);
     }
 
-    queue_push_unsafe(queue, data);
+    queue->data[queue->tail] = data;
+    queue->tail = (queue->tail + 1) % queue->capacity;
+    queue->size++;
 
     pthread_cond_signal(&queue->cond);
     pthread_mutex_unlock(&queue->mutex);
@@ -88,11 +84,9 @@ static int queue_empty(Queue* queue) {
     return empty;
 }
 
-static int queue_full_unsafe(const Queue* queue) { return queue->size == queue->capacity; }
-
 static int queue_full(Queue* queue) {
     pthread_mutex_lock(&queue->mutex);
-    int full = queue_full_unsafe(queue);
+    int full = queue->size == queue->capacity;
     pthread_mutex_unlock(&queue->mutex);
     return full;
 }
