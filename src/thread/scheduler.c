@@ -13,6 +13,9 @@ Scheduler* scheduler_create(uint32_t cap) {
 
     scheduler->priority_sum = 0;
 
+    scheduler->task_idx = 0;
+    scheduler->priority_idx = 0;
+
     scheduler->prng_state = 0xbeefbaad;
 
     return scheduler;
