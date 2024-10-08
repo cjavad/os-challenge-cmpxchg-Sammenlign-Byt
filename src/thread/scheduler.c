@@ -80,6 +80,9 @@ void scheduler_terminate(Scheduler* scheduler, uint64_t job_id) {
         if (job->id == job_id) {
             scheduler_remove_swap_job(scheduler, i);
             scheduler->priority_sum -= job->priority;
+
+            scheduler->task_idx = 0;
+            scheduler->priority_idx = 0;
             break;
         }
     }
@@ -142,6 +145,10 @@ bool scheduler_schedule(Scheduler* scheduler, Task* task) {
     if (current->start == current->end) {
         scheduler_remove_swap_job(scheduler, scheduler->task_idx);
         scheduler->priority_sum -= current->priority;
+
+        // reset the scheduler state, or segfaults be upon us
+        scheduler->task_idx = 0;
+        scheduler->priority_idx = 0;
     }
 
     pthread_mutex_unlock(&scheduler->mutex);
