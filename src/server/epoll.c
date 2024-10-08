@@ -1,5 +1,8 @@
 #include "server.h"
 
+#include <errno.h>
+#include <stdio.h>
+
 void accept_client(AsyncCtx* ctx, AsyncData* data);
 void consume_request(AsyncCtx* ctx, const AsyncData* data);
 void remove_client(const AsyncCtx* ctx, const AsyncData* data);
@@ -27,7 +30,8 @@ int async_server_init(const Server* server, AsyncCtx* ctx) {
     }
 
     // Spawn worker pool
-    ctx->worker_pool = worker_create_pool(16);
+    ctx->worker_pool = worker_create_pool(16, ctx->scheduler);
+    ctx->scheduler = scheduler_create(8);
 
     return ret;
 }
@@ -70,7 +74,10 @@ int async_server_poll(const Server* server, AsyncCtx* ctx) {
 }
 
 int async_server_exit(const Server* server, const AsyncCtx* ctx) {
+    // it's *very* important that the worker pool is destroyed before the scheduler
+    // since the worker threads are still running and may access the scheduler.
     worker_destroy_pool(ctx->worker_pool);
+    scheduler_destroy(ctx->scheduler);
     return close(ctx->epoll_fd) + close(server->fd);
 }
 
@@ -105,10 +112,9 @@ void accept_client(AsyncCtx* ctx, AsyncData* data) {
 void consume_request(AsyncCtx* ctx, const AsyncData* data) {
     const int32_t client_fd = data->fd;
 
-    TaskState* state = scheduler_create_task();
-    state->data.fd = client_fd;
+    ProtocolRequest request;
 
-    const int64_t bytes_received = recv(client_fd, &state->request, PROTOCOL_REQ_SIZE, 0);
+    const int64_t bytes_received = recv(client_fd, &request, PROTOCOL_REQ_SIZE, 0);
 
     if (bytes_received != PROTOCOL_REQ_SIZE) {
         if (bytes_received == 0) {
@@ -119,23 +125,13 @@ void consume_request(AsyncCtx* ctx, const AsyncData* data) {
             fprintf(stderr, "Invalid request size: %lu\n", bytes_received);
         }
 
-        goto failed;
+        return;
     }
 
-    protocol_request_to_le(&state->request);
+    protocol_request_to_le(&request);
 
-    // protocol_debug_print_request(&state->request);
-
-    // send(client_fd, &state->response, PROTOCOL_RES_SIZE, 0);
-    // close(client_fd);
-    // return;
-
-    worker_pool_submit(ctx->worker_pool, state);
-
-    return;
-
-failed:
-    scheduler_destroy_task(state);
+    TaskData task_data = {.fd = client_fd};
+    scheduler_submit(ctx->scheduler, &request, task_data);
 }
 
 void remove_client(const AsyncCtx* ctx, const AsyncData* data) {

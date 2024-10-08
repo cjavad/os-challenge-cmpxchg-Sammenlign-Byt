@@ -5,15 +5,14 @@
 #include <string.h>
 #include <unistd.h>
 
-WorkerPool* worker_create_pool(const size_t size) {
+WorkerPool* worker_create_pool(const size_t size, Scheduler* scheduler) {
     WorkerPool* pool = calloc(1, sizeof(WorkerPool));
     pool->workers = calloc(size, sizeof(WorkerState));
     pool->size = size;
-    // Should be size of ulimit + backlog + some buffer.
-    pool->pending = queue_create(8096);
+    pool->scheduler = scheduler;
 
     for (size_t i = 0; i < size; i++) {
-        pool->workers[i].pending = pool->pending;
+        pool->workers[i].scheduler = scheduler;
         pthread_create(&pool->workers[i].thread, NULL, worker_thread, &pool->workers[i]);
     }
 
@@ -21,22 +20,14 @@ WorkerPool* worker_create_pool(const size_t size) {
 }
 
 void worker_destroy_pool(WorkerPool* pool) {
-    // Fill the queue with NULLs to signal the worker threads to exit.
-    for (size_t i = 0; i < pool->size; i++) {
-        if (queue_full(pool->pending)) {
-            queue_pop(pool->pending);
-        }
-
-        queue_push(pool->pending, NULL);
-    }
+    scheduler_empty(pool->scheduler);
 
     // Wait for all worker threads to exit.
     for (size_t i = 0; i < pool->size; i++) {
         pthread_join(pool->workers[i].thread, NULL);
     }
 
-    // Clean up the queue and the pool.
-    queue_destroy(pool->pending);
+    // Clean up the pool.
     free(pool->workers);
     free(pool);
 }
@@ -45,25 +36,21 @@ void* worker_thread(void* arguments) {
     const WorkerState* worker_state = arguments;
 
     while (1) {
-        TaskState* state = queue_pop(worker_state->pending);
+        Task task;
 
-        if (state == NULL) {
-            break;
+        if (!scheduler_schedule(worker_state->scheduler, &task)) {
+            continue;
         }
 
-        state->response.answer = reverse_hash(state->request.start, state->request.end, state->request.hash);
+        ProtocolResponse response;
+
+        response.answer = reverse_hash(task.start, task.end, task.hash);
 
         // Just send the response back to the client.
-        protocol_response_to_be(&state->response);
-        send(state->data.fd, &state->response, PROTOCOL_RES_SIZE, 0);
-        close(state->data.fd);
-        scheduler_destroy_task(state);
+        protocol_response_to_be(&response);
+        send(task.data.fd, &response, PROTOCOL_RES_SIZE, 0);
+        close(task.data.fd);
     }
 
     return NULL;
-}
-
-int worker_pool_submit(const WorkerPool* pool, TaskState* state) {
-    queue_push(pool->pending, state);
-    return 0;
 }

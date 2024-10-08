@@ -1,14 +1,10 @@
 #pragma once
 
-#include "../protocol.h"
 #include "../thread/worker.h"
 #include <arpa/inet.h>
-#include <errno.h>
 #include <fcntl.h>
 #include <linux/version.h>
 #include <netinet/in.h>
-#include <stdio.h>
-#include <string.h>
 #include <strings.h>
 #include <sys/socket.h>
 #include <sys/types.h>
@@ -45,6 +41,7 @@ int sync_server_exit(const Server* server, Client* client);
 typedef struct AsyncCtx {
     int epoll_fd;
     WorkerPool* worker_pool;
+    Scheduler* scheduler;
     struct epoll_event ev;
     struct epoll_event events[EPOLL_MAX_EVENTS];
 } AsyncCtx;
@@ -56,12 +53,12 @@ typedef enum AsyncOperation {
 
 typedef struct AsyncData {
     union {
-	struct {
-	    AsyncOperation type;
-	    int32_t fd;
-	};
+        struct {
+            AsyncOperation type;
+            int32_t fd;
+        };
 
-	uint64_t u64;
+        uint64_t u64;
     };
 } AsyncData;
 
