@@ -130,7 +130,7 @@ void consume_request(AsyncCtx* ctx, const AsyncData* data) {
 
     protocol_request_to_le(&request);
 
-    TaskData task_data = {.fd = client_fd};
+    JobData task_data = {.fd = client_fd};
     scheduler_submit(ctx->scheduler, &request, task_data);
 }
 

@@ -5,12 +5,12 @@
 #include <pthread.h>
 #include <stdbool.h>
 
-union TaskData {
+union JobData {
     uint32_t futex;
     int32_t fd;
 };
 
-typedef union TaskData TaskData;
+typedef union JobData JobData;
 
 struct Task {
     HashDigest hash;
@@ -18,23 +18,29 @@ struct Task {
     uint64_t start;
     uint64_t end;
 
-    TaskData data;
+    /* unique identifier for the job */
+    uint64_t job_id;
+
+    JobData data;
 };
 
 typedef struct Task Task;
 
-struct TaskState {
+struct Job {
     HashDigest hash;
 
     uint64_t start;
     uint64_t end;
 
+    /* unique identifier for the job */
+    uint64_t id;
+
     uint8_t priority;
 
-    TaskData data;
+    JobData data;
 };
 
-typedef struct TaskState TaskState;
+typedef struct Job Job;
 
 struct Scheduler {
     uint64_t block_size;
@@ -42,9 +48,11 @@ struct Scheduler {
     pthread_mutex_t mutex;
 
     /* task list */
-    TaskState* tasks;
-    uint32_t task_len;
-    uint32_t task_cap;
+    Job* jobs;
+    uint32_t job_len;
+    uint32_t job_cap;
+
+    uint64_t next_job_id;
 
     /* priority sum */
     uint32_t priority_sum;
@@ -63,7 +71,10 @@ Scheduler* scheduler_create(uint32_t cap);
 void scheduler_destroy(Scheduler* scheduler);
 
 /// Submit a new request to the scheduler.
-void scheduler_submit(Scheduler* scheduler, const ProtocolRequest* req, TaskData data);
+uint64_t scheduler_submit(Scheduler* scheduler, const ProtocolRequest* req, JobData data);
+
+/// Terminate a job by its unique identifier.
+void scheduler_terminate(Scheduler* scheduler, uint64_t job_id);
 
 /// Request a new task from the scheduler, returns fall if no task is
 /// available.
