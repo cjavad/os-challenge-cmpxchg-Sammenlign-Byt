@@ -30,8 +30,8 @@ int async_server_init(const Server* server, AsyncCtx* ctx) {
     }
 
     // Spawn worker pool
-    ctx->worker_pool = worker_create_pool(16, ctx->scheduler);
     ctx->scheduler = scheduler_create(8);
+    ctx->worker_pool = worker_create_pool(16, ctx->scheduler);
 
     return ret;
 }
