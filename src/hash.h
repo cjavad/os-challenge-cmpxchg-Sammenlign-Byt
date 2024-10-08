@@ -1,9 +1,7 @@
 #pragma once
 
 #include "sha256/sha256.h"
-#include "sha256/x4/sha256x4.h"
 #include <stdint.h>
-#include <string.h>
 
 uint64_t reverse_hash(uint64_t start, uint64_t end, HashDigest target);
 uint64_t reverse_hash_x4(uint64_t start, uint64_t end, HashDigest target);

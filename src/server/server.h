@@ -1,10 +1,13 @@
 #pragma once
 
+#include "../sha256/sha256.h"
 #include "../thread/worker.h"
 #include <arpa/inet.h>
 #include <fcntl.h>
 #include <linux/version.h>
 #include <netinet/in.h>
+#include <stdlib.h>
+#include <string.h>
 #include <strings.h>
 #include <sys/socket.h>
 #include <sys/types.h>

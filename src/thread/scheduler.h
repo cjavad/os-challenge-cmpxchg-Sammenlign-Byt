@@ -1,16 +1,36 @@
 #pragma once
 
+#include "../prng.h"
 #include "../protocol.h"
+#include "../sha256/sha256.h"
 
 #include <pthread.h>
 #include <stdbool.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/socket.h>
+#include <unistd.h>
 
-union JobData {
-    uint32_t futex;
-    int32_t fd;
+enum JobType {
+    JOB_TYPE_FUTEX,
+    JOB_TYPE_FD,
 };
 
-typedef union JobData JobData;
+typedef enum JobType JobType;
+
+struct JobData {
+    JobType type;
+
+    union {
+        uint32_t data;
+        uint32_t futex;
+        int32_t fd;
+    };
+
+    ProtocolResponse response;
+};
+
+typedef struct JobData JobData;
 
 struct Task {
     HashDigest hash;
@@ -21,7 +41,7 @@ struct Task {
     /* unique identifier for the job */
     uint64_t job_id;
 
-    JobData data;
+    JobData* data;
 };
 
 typedef struct Task Task;
@@ -37,7 +57,7 @@ struct Job {
 
     uint8_t priority;
 
-    JobData data;
+    JobData* data;
 };
 
 typedef struct Job Job;
@@ -70,11 +90,18 @@ typedef struct Scheduler Scheduler;
 Scheduler* scheduler_create(uint32_t cap);
 void scheduler_destroy(Scheduler* scheduler);
 
+JobData* scheduler_create_job_data(JobType type, uint32_t data);
+
 /// Submit a new request to the scheduler.
-uint64_t scheduler_submit(Scheduler* scheduler, const ProtocolRequest* req, JobData data);
+/// JobData has to be accessible from other threads.
+uint64_t scheduler_submit(Scheduler* scheduler, ProtocolRequest* req, JobData* data);
+
+/// Notify the scheduler that a job is done.
+/// This performs notification of recipients waiting for the job to be done.
+void scheduler_job_done(Scheduler* scheduler, const Task* task, ProtocolResponse* response);
 
 /// Terminate a job by its unique identifier.
-void scheduler_terminate(Scheduler* scheduler, uint64_t job_id);
+bool scheduler_terminate(Scheduler* scheduler, uint64_t job_id);
 
 /// Request a new task from the scheduler, returns fall if no task is
 /// available.

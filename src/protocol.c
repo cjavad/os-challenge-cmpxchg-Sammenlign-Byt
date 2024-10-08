@@ -1,5 +1,6 @@
 #include "protocol.h"
 
+#include "sha256/sha256.h"
 #include <stdio.h>
 
 void protocol_request_to_le(ProtocolRequest* req) {
@@ -7,17 +8,14 @@ void protocol_request_to_le(ProtocolRequest* req) {
     req->end = __builtin_bswap64(req->end);
 }
 
-void protocol_response_to_be(ProtocolResponse* resp) {
-    resp->answer = __builtin_bswap64(resp->answer);
-}
+void protocol_response_to_be(ProtocolResponse* resp) { resp->answer = __builtin_bswap64(resp->answer); }
+
 void protocol_debug_print_request(const ProtocolRequest* req) {
-    printf("Got request with hash: ");
+    printf("ProtocolRequest(\n    hash=");
     print_hash(req->hash);
-    printf(
-        "\nStart: %lu, End: %lu, Priority %d\n", req->start, req->end,
-        req->priority
-    );
+    printf("    start=%lu\n    end=%lu\n    prio=%d\n)\n", req->start, req->end, req->priority);
 }
+
 void protocol_debug_print_response(const ProtocolResponse* resp) {
-    printf("Answer: %lu\n", resp->answer);
+    printf("ProtocolResponse(answer=%lu)\n", resp->answer);
 }

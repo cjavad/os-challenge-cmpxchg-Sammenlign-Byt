@@ -5,14 +5,12 @@
 
 #include <stdint.h>
 
-#include "hash.h"
-
 // The format over the wire is big endian but all values are generated in little
 // endian
 
-typedef struct {
+typedef struct ProtocolRequest {
     // Hash to be reversed
-    HashDigest hash;
+    uint8_t hash[32];
     // Range of the input that the hash originates from.
     // 64-bit unsigned integers
     uint64_t start;
@@ -23,7 +21,7 @@ typedef struct {
 
 _Static_assert(sizeof(ProtocolRequest) == PROTOCOL_REQ_SIZE, "ProtocolRequest size is not 49 bytes");
 
-typedef struct {
+typedef struct ProtocolResponse {
     uint64_t answer;
 } __attribute__((packed)) ProtocolResponse;
 

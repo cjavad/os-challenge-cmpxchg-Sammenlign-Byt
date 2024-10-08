@@ -1,17 +1,15 @@
 #include "hash.h"
 #include "server/server.h"
-#include "sha256/sha256.h"
-#include "sha256/x4/sha256x4.h"
-#include "sha256/x4x2/sha256x4x2.h"
-#include "sha256/x8/sha256x8.h"
+
 #include <stdint.h>
 #include <stdio.h>
 
 #include "benchmark.h"
 
 int server(const int port) {
-    int ret = 0;
     Server server;
+    AsyncCtx ctx;
+    int ret = 0;
 
     if ((ret = server_init(&server, port)) < 0) {
         printf("Failed to initialize server: %s\n", strerror(-ret));
@@ -24,8 +22,6 @@ int server(const int port) {
     }
 
     printf("Listening on port 8080\n");
-
-    AsyncCtx ctx;
 
     if ((ret = async_server_init(&server, &ctx)) < 0) {
         printf("Failed to initialize async server: %s\n", strerror(-ret));
@@ -49,22 +45,8 @@ int server(const int port) {
 }
 
 int benchmark() {
-    BENCHMARK_SHA256_ALL
-    // BENCHMARK_SHA256X8_ALL
-    BENCHMARK_SHA256X4_ALL
-    // BENCHMARK_SHA256X4(sha256x4_asm)
-    // BENCHMARK_SHA256X4X2_ALL
-
-    // BENCHMARK_REVERSE_HASH_ALL(0, 30000001, 30000000)
-
-    // BENCHMARK_SHA256X4(sha256x4_cyclic)
-    // printf("warmup done\n");
-
-    // BENCHMARK_SHA256(sha256_optim)
-    // BENCHMARK_SHA256X4(sha256x4_optim)
-    // BENCHMARK_SHA256X4X2(sha256x4x2_optim)
-    // BENCHMARK_SHA256X8(sha256x8_optim)
-
+    // benchmark_hash();
+    benchmark_scheduler();
     return 0;
 }
 

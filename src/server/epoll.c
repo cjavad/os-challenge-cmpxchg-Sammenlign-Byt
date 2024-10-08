@@ -31,7 +31,7 @@ int async_server_init(const Server* server, AsyncCtx* ctx) {
 
     // Spawn worker pool
     ctx->scheduler = scheduler_create(8);
-    ctx->worker_pool = worker_create_pool(16, ctx->scheduler);
+    ctx->worker_pool = worker_create_pool(nprocs() - 1, ctx->scheduler);
 
     return ret;
 }
@@ -130,7 +130,7 @@ void consume_request(AsyncCtx* ctx, const AsyncData* data) {
 
     protocol_request_to_le(&request);
 
-    JobData task_data = {.fd = client_fd};
+    JobData* task_data = scheduler_create_job_data(JOB_TYPE_FD, client_fd);
     scheduler_submit(ctx->scheduler, &request, task_data);
 }
 
