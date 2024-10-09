@@ -67,20 +67,32 @@ void benchmark_scheduler() {
     // getrandom(&BENCHMARK_PRNG_STATE, sizeof(BENCHMARK_PRNG_STATE), 0);
 
     Scheduler* scheduler = scheduler_create(8);
+
+    const size_t count = 8;
+
+    ProtocolRequest reqs[count];
+    JobData** data = calloc(count, sizeof(JobData*));
+
+    for (int i = 0; i < count; i++) {
+        benchmark_random_req(&reqs[i], true);
+
+        reqs[i].priority = (count - i) % 4;
+
+        data[i] = scheduler_create_job_data(JOB_TYPE_FUTEX, 0);
+        scheduler_submit(scheduler, &reqs[i], data[i]);
+    }
+
+    benchmark_reference_block_time(&reqs[count - 1]);
+
     WorkerPool* pool = worker_create_pool(cpu_core_count(), scheduler);
-    JobData* data = scheduler_create_job_data(JOB_TYPE_FUTEX, 0);
-
-    ProtocolRequest req;
-
-    benchmark_random_req(&req, true);
-    benchmark_reference_block_time(&req);
-
-    scheduler_submit(scheduler, &req, data);
 
     D_BENCHMARK_TIME_START()
-    futex_wait(&data->futex);
+    for (int i = 0; i < count; i++) {
+        futex_wait(&data[i]->futex);
+    }
     D_BENCHMARK_TIME_END("scheduler")
 
+    free(data);
     worker_destroy_pool(pool);
     scheduler_destroy(scheduler);
 }

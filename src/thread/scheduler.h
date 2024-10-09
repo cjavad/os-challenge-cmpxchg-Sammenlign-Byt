@@ -65,12 +65,14 @@ typedef struct Job Job;
 struct Scheduler {
     uint64_t block_size;
 
+    bool running;
     pthread_cond_t waker;
     pthread_mutex_t r_mutex;
     pthread_mutex_t w_mutex;
 
     /* task list */
     Job* jobs;
+
     uint32_t job_len;
     uint32_t job_cap;
 
@@ -109,4 +111,7 @@ bool scheduler_terminate(Scheduler* scheduler, uint64_t job_id);
 /// available.
 bool scheduler_schedule(Scheduler* scheduler, Task* task);
 
-void scheduler_empty(Scheduler* scheduler);
+void scheduler_close(Scheduler* scheduler);
+
+void scheduler_debug_print(const Scheduler* scheduler);
+void scheduler_debug_print_job(const Job* job);

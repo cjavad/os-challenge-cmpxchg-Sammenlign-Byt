@@ -22,7 +22,7 @@ WorkerPool* worker_create_pool(const size_t size, Scheduler* scheduler) {
 }
 
 void worker_destroy_pool(WorkerPool* pool) {
-    scheduler_empty(pool->scheduler);
+    scheduler_close(pool->scheduler);
 
     // Wait for all worker threads to exit.
     for (size_t i = 0; i < pool->size; i++) {
