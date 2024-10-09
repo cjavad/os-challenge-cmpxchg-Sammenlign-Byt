@@ -65,7 +65,9 @@ typedef struct Job Job;
 struct Scheduler {
     uint64_t block_size;
 
-    pthread_mutex_t mutex;
+    pthread_cond_t waker;
+    pthread_mutex_t r_mutex;
+    pthread_mutex_t w_mutex;
 
     /* task list */
     Job* jobs;

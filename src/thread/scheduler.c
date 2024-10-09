@@ -2,14 +2,22 @@
 
 #include "futex.h"
 
+#include <assert.h>
+
 #define SCHEDULER_BLOCK_SIZE (30000000 / 16)
+
+void scheduler_grow_jobs(Scheduler* scheduler);
+void scheduler_push_job(Scheduler* scheduler, const ProtocolRequest* req, uint64_t id, JobData* data);
+void scheduler_remove_swap_job(Scheduler* scheduler, uint32_t idx);
 
 Scheduler* scheduler_create(const uint32_t cap) {
     Scheduler* scheduler = calloc(1, sizeof(Scheduler));
 
     scheduler->block_size = SCHEDULER_BLOCK_SIZE;
 
-    pthread_mutex_init(&scheduler->mutex, NULL);
+    scheduler->waker = (pthread_cond_t)PTHREAD_COND_INITIALIZER;
+    scheduler->r_mutex = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
+    scheduler->w_mutex = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
 
     scheduler->jobs = calloc(cap, sizeof(Job));
     scheduler->job_cap = cap;
@@ -26,57 +34,22 @@ Scheduler* scheduler_create(const uint32_t cap) {
 }
 
 void scheduler_destroy(Scheduler* scheduler) {
-    pthread_mutex_destroy(&scheduler->mutex);
+    pthread_cond_destroy(&scheduler->waker);
+    pthread_mutex_destroy(&scheduler->r_mutex);
+    pthread_mutex_destroy(&scheduler->r_mutex);
     free(scheduler->jobs);
     free(scheduler);
 }
 
-JobData* scheduler_create_job_data(JobType type, const uint32_t data) {
+JobData* scheduler_create_job_data(const JobType type, const uint32_t data) {
     JobData* job_data = calloc(1, sizeof(JobData));
     job_data->type = type;
     job_data->data = data;
     return job_data;
 }
 
-static void scheduler_grow_jobs(Scheduler* scheduler) {
-    const uint32_t new_cap = scheduler->job_cap * 2;
-    Job* new_jobs = reallocarray(scheduler->jobs, new_cap, sizeof(Job));
-
-    if (new_jobs == NULL) {
-        fprintf(stderr, "Failed to grow jobs array - segfault imminent\n");
-        return;
-    }
-
-    scheduler->jobs = new_jobs;
-    scheduler->job_cap = new_cap;
-}
-
-static void scheduler_push_job(Scheduler* scheduler, const ProtocolRequest* req, uint64_t id, JobData* data) {
-    if (scheduler->job_len >= scheduler->job_cap) {
-        scheduler_grow_jobs(scheduler);
-    }
-
-    Job* job = &scheduler->jobs[scheduler->job_len];
-    memcpy(&job->hash, req->hash, sizeof(HashDigest));
-    job->start = req->start;
-    job->end = req->end;
-    job->priority = req->priority;
-    job->id = id;
-    job->data = data;
-
-    scheduler->job_len += 1;
-}
-
-static void scheduler_remove_swap_job(Scheduler* scheduler, uint32_t idx) {
-    Job* task = &scheduler->jobs[idx];
-    Job* last = &scheduler->jobs[scheduler->job_len - 1];
-
-    memcpy(task, last, sizeof(Job));
-    scheduler->job_len -= 1;
-}
-
 uint64_t scheduler_submit(Scheduler* scheduler, ProtocolRequest* req, JobData* data) {
-    pthread_mutex_lock(&scheduler->mutex);
+    pthread_mutex_lock(&scheduler->w_mutex);
 
     // If the priority is 0, set it to 1
     if (req->priority == 0) {
@@ -86,9 +59,11 @@ uint64_t scheduler_submit(Scheduler* scheduler, ProtocolRequest* req, JobData* d
     const uint64_t job_id = scheduler->next_job_id++;
 
     scheduler_push_job(scheduler, req, job_id, data);
-    scheduler->priority_sum += req->priority;
 
-    pthread_mutex_unlock(&scheduler->mutex);
+    pthread_mutex_unlock(&scheduler->w_mutex);
+
+    // Wake single thread per new submission.
+    pthread_cond_signal(&scheduler->waker);
 
     return job_id;
 }
@@ -96,7 +71,7 @@ uint64_t scheduler_submit(Scheduler* scheduler, ProtocolRequest* req, JobData* d
 bool scheduler_terminate(Scheduler* scheduler, const uint64_t job_id) {
     bool found = false;
 
-    pthread_mutex_lock(&scheduler->mutex);
+    pthread_mutex_lock(&scheduler->w_mutex);
 
     for (uint32_t i = 0; i < scheduler->job_len; i++) {
         const Job* job = &scheduler->jobs[i];
@@ -104,6 +79,7 @@ bool scheduler_terminate(Scheduler* scheduler, const uint64_t job_id) {
         if (job->id == job_id) {
             scheduler_remove_swap_job(scheduler, i);
             scheduler->priority_sum -= job->priority;
+            printf("[terminate] priority_sum DEC %u = %u\n", job->priority, scheduler->priority_sum);
 
             scheduler->task_idx = 0;
             scheduler->priority_idx = 0;
@@ -112,7 +88,7 @@ bool scheduler_terminate(Scheduler* scheduler, const uint64_t job_id) {
         }
     }
 
-    pthread_mutex_unlock(&scheduler->mutex);
+    pthread_mutex_unlock(&scheduler->w_mutex);
 
     return found;
 }
@@ -137,24 +113,32 @@ void scheduler_job_done(Scheduler* scheduler, const Task* task, ProtocolResponse
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 
 bool scheduler_schedule(Scheduler* scheduler, Task* task) {
-    pthread_mutex_lock(&scheduler->mutex);
+    pthread_mutex_lock(&scheduler->r_mutex);
+    pthread_mutex_lock(&scheduler->w_mutex);
 
-    if (scheduler->job_len == 0) {
-        pthread_mutex_unlock(&scheduler->mutex);
-        return false;
+    while (scheduler->job_len == 0) {
+        // Give up the w_mutex to allow new jobs to come in.
+        pthread_mutex_unlock(&scheduler->w_mutex);
+
+        // Wait for new jobs to come in.
+        pthread_cond_wait(&scheduler->waker, &scheduler->r_mutex);
+
+        // Attempt to reclaim w_mutex, this can only race with job submission
+        // not other worker threads as they are still waiting on r_mutex.
+        pthread_mutex_lock(&scheduler->w_mutex);
     }
 
-    if (scheduler->priority_sum == 0) {
-        printf("scheduler->priority_sum == 0!!! But job_len == %d\n", scheduler->job_len);
-        pthread_mutex_unlock(&scheduler->mutex);
-        return false;
-    }
+    // Give up the r_mutex so another waiter can queue up.
+    pthread_mutex_unlock(&scheduler->r_mutex);
+
+    assert(scheduler->job_len > 0);
+    assert(scheduler->priority_sum > 0);
 
     uint32_t offset = xorshift32_prng_next(&scheduler->prng_state) % scheduler->priority_sum;
 
     for (;;) {
-        Job* current = &scheduler->jobs[scheduler->task_idx];
-        uint32_t remaining = current->priority - scheduler->priority_idx;
+        const Job* current = &scheduler->jobs[scheduler->task_idx];
+        const uint32_t remaining = current->priority - scheduler->priority_idx;
 
         if (remaining < offset) {
             scheduler->task_idx = (scheduler->task_idx + 1) % scheduler->job_len;
@@ -183,22 +167,67 @@ bool scheduler_schedule(Scheduler* scheduler, Task* task) {
     if (current->start == current->end) {
         scheduler_remove_swap_job(scheduler, scheduler->task_idx);
         scheduler->priority_sum -= current->priority;
+        printf("[schedule] priority_sum DEC %u = %u\n", current->priority, scheduler->priority_sum);
 
         // reset the scheduler state, or segfaults be upon us
         scheduler->task_idx = 0;
         scheduler->priority_idx = 0;
     }
 
-    pthread_mutex_unlock(&scheduler->mutex);
+    pthread_mutex_unlock(&scheduler->w_mutex);
 
     return true;
 }
 
 void scheduler_empty(Scheduler* scheduler) {
-    pthread_mutex_lock(&scheduler->mutex);
+    pthread_mutex_lock(&scheduler->w_mutex);
 
     scheduler->job_len = 0;
     scheduler->priority_sum = 0;
 
-    pthread_mutex_unlock(&scheduler->mutex);
+    pthread_mutex_unlock(&scheduler->w_mutex);
+}
+
+// SAFETY: Requires ownership of w_mutex
+void scheduler_grow_jobs(Scheduler* scheduler) {
+    const uint32_t new_cap = scheduler->job_cap * 2;
+    Job* new_jobs = reallocarray(scheduler->jobs, new_cap, sizeof(Job));
+
+    if (new_jobs == NULL) {
+        fprintf(stderr, "Failed to grow jobs array - segfault imminent\n");
+        return;
+    }
+
+    scheduler->jobs = new_jobs;
+    scheduler->job_cap = new_cap;
+}
+
+// SAFETY: Requires ownership of w_mutex
+void scheduler_push_job(Scheduler* scheduler, const ProtocolRequest* req, const uint64_t id, JobData* data) {
+    if (scheduler->job_len >= scheduler->job_cap) {
+        scheduler_grow_jobs(scheduler);
+    }
+
+    Job* job = &scheduler->jobs[scheduler->job_len];
+    memcpy(&job->hash, req->hash, sizeof(HashDigest));
+
+    job->start = req->start;
+    job->end = req->end;
+    job->priority = req->priority;
+    job->id = id;
+    job->data = data;
+
+    // It is important we increment the priority sum before the job_len.
+    scheduler->priority_sum += req->priority;
+    scheduler->job_len += 1;
+    printf("[push_job] priority_sum INC %u = %u\n", req->priority, scheduler->priority_sum);
+}
+
+// SAFETY: Requires ownership of w_mutex
+void scheduler_remove_swap_job(Scheduler* scheduler, const uint32_t idx) {
+    Job* task = &scheduler->jobs[idx];
+    const Job* last = &scheduler->jobs[scheduler->job_len - 1];
+
+    memcpy(task, last, sizeof(Job));
+    scheduler->job_len -= 1;
 }
