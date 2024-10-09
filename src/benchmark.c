@@ -24,7 +24,7 @@ void benchmark_random_req(ProtocolRequest* req, const bool worst_case) {
 
     const uint64_t data = worst_case ? req->end : random_u64_in_range(req->start, req->end);
 
-    sha256_openssl(req->hash, (uint8_t*)&data);
+    sha256_custom(req->hash, (uint8_t*)&data);
 
     req->priority = 1;
 }

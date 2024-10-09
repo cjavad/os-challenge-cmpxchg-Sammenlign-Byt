@@ -16,7 +16,7 @@ IFLAGS = -I$(INCDIR)
 # compile flags
 CFLAGS = -march=sandybridge -mtune=sandybridge -masm=intel -std=gnu11 -D_GNU_SOURCE
 # linker flags
-LFLAGS = -lssl -lcrypto -lpthread -lrt -lm -Wl,-rpath,lib
+LFLAGS = -lpthread -lrt -lm -Wl,-rpath,lib
 
 # build
 

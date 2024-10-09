@@ -10,7 +10,7 @@ uint64_t reverse_hash_x4(uint64_t start, uint64_t end, HashDigest target);
     {                                                                          \
         uint64_t target_result = target_uint64;                                \
         HashDigest target;                                                     \
-        sha256_openssl(target, (uint8_t *)&target_result);                     \
+        sha256_custom(target, (uint8_t *)&target_result);                     \
         BENCHMARK_START                                                        \
         uint64_t res = func(_start, _end, target);                             \
         BENCHMARK_END(func, 1)                                                 \
