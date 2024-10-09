@@ -2,7 +2,7 @@
 
 #include "futex.h"
 
-#define SCHEDULER_BLOCK_SIZE (1000000)
+#define SCHEDULER_BLOCK_SIZE (30000000 / 16)
 
 Scheduler* scheduler_create(const uint32_t cap) {
     Scheduler* scheduler = calloc(1, sizeof(Scheduler));

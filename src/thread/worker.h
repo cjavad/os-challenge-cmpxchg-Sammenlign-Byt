@@ -27,4 +27,5 @@ void* worker_thread(void* arguments);
 
 int worker_pool_submit(const WorkerPool* pool, Task* state);
 
-int nprocs();
+int cpu_affinity_count();
+int cpu_core_count();

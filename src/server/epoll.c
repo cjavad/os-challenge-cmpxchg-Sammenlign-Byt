@@ -31,7 +31,7 @@ int async_server_init(const Server* server, AsyncCtx* ctx) {
 
     // Spawn worker pool
     ctx->scheduler = scheduler_create(8);
-    ctx->worker_pool = worker_create_pool(nprocs() - 1, ctx->scheduler);
+    ctx->worker_pool = worker_create_pool(cpu_core_count(), ctx->scheduler);
 
     return ret;
 }

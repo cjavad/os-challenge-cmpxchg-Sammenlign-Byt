@@ -10,6 +10,8 @@ WorkerPool* worker_create_pool(const size_t size, Scheduler* scheduler) {
     pool->size = size;
     pool->scheduler = scheduler;
 
+    printf("Creating worker pool with %zu workers\n", size);
+
     for (size_t i = 0; i < size; i++) {
         pool->workers[i].running = true;
         pool->workers[i].scheduler = scheduler;
@@ -63,9 +65,11 @@ void* worker_thread(void* arguments) {
     return NULL;
 }
 
-int nprocs() {
+int cpu_affinity_count() {
     cpu_set_t cs;
     CPU_ZERO(&cs);
     sched_getaffinity(0, sizeof(cs), &cs);
     return CPU_COUNT(&cs);
 }
+
+int cpu_core_count() { return sysconf(_SC_NPROCESSORS_ONLN); }

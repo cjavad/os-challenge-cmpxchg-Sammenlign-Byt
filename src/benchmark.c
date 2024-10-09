@@ -64,10 +64,10 @@ void benchmark_reference_block_time(ProtocolRequest* req) {
 
 void benchmark_scheduler() {
     // Randomly seed the PRNG
-    getrandom(&BENCHMARK_PRNG_STATE, sizeof(BENCHMARK_PRNG_STATE), 0);
+    // getrandom(&BENCHMARK_PRNG_STATE, sizeof(BENCHMARK_PRNG_STATE), 0);
 
     Scheduler* scheduler = scheduler_create(8);
-    WorkerPool* pool = worker_create_pool(8, scheduler);
+    WorkerPool* pool = worker_create_pool(cpu_core_count(), scheduler);
     JobData* data = scheduler_create_job_data(JOB_TYPE_FUTEX, 0);
 
     ProtocolRequest req;
