@@ -64,7 +64,7 @@ uint64_t scheduler_submit(Scheduler* scheduler, ProtocolRequest* req, JobData* d
     pthread_mutex_unlock(&scheduler->w_mutex);
 
     // Wake single thread per new submission.
-    pthread_cond_signal(&scheduler->waker);
+    pthread_cond_broadcast(&scheduler->waker);
 
     return job_id;
 }
@@ -169,7 +169,7 @@ bool scheduler_schedule(Scheduler* scheduler, Task* task) {
 
     current->start = task->end;
 
-    if (false && current->start == current->end) {
+    if (current->start == current->end) {
         scheduler_remove_swap_job(scheduler, scheduler->task_idx);
 
         // reset the scheduler state, or segfaults be upon us
