@@ -118,9 +118,9 @@ void consume_request(AsyncCtx* ctx, const AsyncData* data) {
 
     if (bytes_received != PROTOCOL_REQ_SIZE) {
         if (bytes_received == 0) {
-            fprintf(stderr, "Received 0 bytes (perhaps closed)\n");
+            // fprintf(stderr, "Received 0 bytes (perhaps closed)\n");
         } else if (bytes_received < 0) {
-            fprintf(stderr, "Failed to receive request (perhaps closed): %s\n", strerror(errno));
+            // fprintf(stderr, "Failed to receive request (perhaps closed): %s\n", strerror(errno));
         } else {
             fprintf(stderr, "Invalid request size: %lu\n", bytes_received);
         }

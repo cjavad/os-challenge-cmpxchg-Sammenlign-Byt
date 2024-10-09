@@ -4,14 +4,14 @@
 
 #define SCHEDULER_BLOCK_SIZE (1000000)
 
-Scheduler* scheduler_create(uint32_t cap) {
-    Scheduler* scheduler = malloc(sizeof(Scheduler));
+Scheduler* scheduler_create(const uint32_t cap) {
+    Scheduler* scheduler = calloc(1, sizeof(Scheduler));
 
     scheduler->block_size = SCHEDULER_BLOCK_SIZE;
 
     pthread_mutex_init(&scheduler->mutex, NULL);
 
-    scheduler->jobs = malloc(sizeof(Task) * cap);
+    scheduler->jobs = calloc(cap, sizeof(Job));
     scheduler->job_cap = cap;
     scheduler->job_len = 0;
 
@@ -40,8 +40,14 @@ JobData* scheduler_create_job_data(JobType type, const uint32_t data) {
 
 static void scheduler_grow_jobs(Scheduler* scheduler) {
     const uint32_t new_cap = scheduler->job_cap * 2;
+    Job* new_jobs = reallocarray(scheduler->jobs, new_cap, sizeof(Job));
 
-    scheduler->jobs = realloc(scheduler->jobs, sizeof(Task) * new_cap);
+    if (new_jobs == NULL) {
+        fprintf(stderr, "Failed to grow jobs array - segfault imminent\n");
+        return;
+    }
+
+    scheduler->jobs = new_jobs;
     scheduler->job_cap = new_cap;
 }
 
@@ -70,12 +76,12 @@ static void scheduler_remove_swap_job(Scheduler* scheduler, uint32_t idx) {
 }
 
 uint64_t scheduler_submit(Scheduler* scheduler, ProtocolRequest* req, JobData* data) {
+    pthread_mutex_lock(&scheduler->mutex);
+
     // If the priority is 0, set it to 1
     if (req->priority == 0) {
         req->priority = 1;
     }
-
-    pthread_mutex_lock(&scheduler->mutex);
 
     const uint64_t job_id = scheduler->next_job_id++;
 
@@ -115,8 +121,6 @@ void scheduler_job_done(Scheduler* scheduler, const Task* task, ProtocolResponse
     /// We assume this can only be called once.
     task->data->response = *response;
 
-    printf("Job done: %lu\n", task->data->response.answer);
-
     switch (task->data->type) {
     case JOB_TYPE_FD:
         protocol_response_to_be(response);
@@ -140,6 +144,12 @@ bool scheduler_schedule(Scheduler* scheduler, Task* task) {
         return false;
     }
 
+    if (scheduler->priority_sum == 0) {
+        printf("scheduler->priority_sum == 0!!! But job_len == %d\n", scheduler->job_len);
+        pthread_mutex_unlock(&scheduler->mutex);
+        return false;
+    }
+
     uint32_t offset = xorshift32_prng_next(&scheduler->prng_state) % scheduler->priority_sum;
 
     for (;;) {
@@ -147,8 +157,7 @@ bool scheduler_schedule(Scheduler* scheduler, Task* task) {
         uint32_t remaining = current->priority - scheduler->priority_idx;
 
         if (remaining < offset) {
-            scheduler->task_idx += 1;
-            scheduler->task_idx %= scheduler->job_len;
+            scheduler->task_idx = (scheduler->task_idx + 1) % scheduler->job_len;
             scheduler->priority_idx = 0;
 
             offset -= remaining;
