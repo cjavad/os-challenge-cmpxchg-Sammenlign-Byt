@@ -1,5 +1,6 @@
 #include "benchmark.h"
 
+#include "cache.h"
 #include "hash.h"
 #include "prng.h"
 #include "sha256/sha256.h"
@@ -9,6 +10,7 @@
 #include "thread/futex.h"
 #include "thread/scheduler.h"
 #include "thread/worker.h"
+#include "vec.h"
 
 #include <sys/random.h>
 
@@ -95,4 +97,33 @@ void benchmark_scheduler() {
     free(data);
     worker_destroy_pool(pool);
     scheduler_destroy(scheduler);
+}
+
+void benchmark_test_vec() {
+    Cache* cache = cache_create();
+    cache_debug_print(cache);
+
+    HashDigest key1;
+    uint64_t data1 = 1;
+    HashDigest key2;
+    uint64_t data2 = 2;
+    HashDigest key3;
+    uint64_t data3 = 3;
+
+    sha256_custom(key1, (uint8_t*)&data1);
+    sha256_custom(key2, (uint8_t*)&data2);
+    sha256_custom(key3, (uint8_t*)&data3);
+
+    cache_insert(cache, key1, data1);
+    cache_debug_print(cache);
+
+    cache_insert(cache, key2, data2);
+    cache_debug_print(cache);
+
+    cache_insert(cache, key3, data3);
+    cache_debug_print(cache);
+
+    printf("Get key1: %lu\n", cache_get(cache, key1));
+    printf("Get key2: %lu\n", cache_get(cache, key2));
+    printf("Get key3: %lu\n", cache_get(cache, key3));
 }

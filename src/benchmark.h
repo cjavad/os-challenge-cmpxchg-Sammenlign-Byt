@@ -53,3 +53,4 @@ void benchmark_random_req(ProtocolRequest* req, bool worst_case);
 
 void benchmark_hash();
 void benchmark_scheduler();
+void benchmark_test_vec();

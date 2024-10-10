@@ -1,9 +1,9 @@
 #pragma once
 
+#include "../cache.h"
 #include "../prng.h"
 #include "../protocol.h"
 #include "../sha256/sha256.h"
-
 #include <pthread.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -70,6 +70,9 @@ struct Scheduler {
     pthread_mutex_t r_mutex;
     pthread_mutex_t w_mutex;
 
+    /* cache */
+    Cache* cache;
+
     /* task list */
     Job* jobs;
 
@@ -102,7 +105,7 @@ uint64_t scheduler_submit(Scheduler* scheduler, ProtocolRequest* req, JobData* d
 
 /// Notify the scheduler that a job is done.
 /// This performs notification of recipients waiting for the job to be done.
-void scheduler_job_done(Scheduler* scheduler, const Task* task, ProtocolResponse* response);
+void scheduler_job_done(const Scheduler* scheduler, const Task* task, ProtocolResponse* response);
 
 /// Terminate a job by its unique identifier.
 bool scheduler_terminate(Scheduler* scheduler, uint64_t job_id);

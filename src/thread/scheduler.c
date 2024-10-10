@@ -9,6 +9,7 @@
 void scheduler_grow_jobs(Scheduler* scheduler);
 void scheduler_push_job(Scheduler* scheduler, const ProtocolRequest* req, uint64_t id, JobData* data);
 void scheduler_remove_swap_job(Scheduler* scheduler, uint32_t idx);
+void scheduler_job_notify(JobData* data, ProtocolResponse* response);
 
 Scheduler* scheduler_create(const uint32_t cap) {
     Scheduler* scheduler = calloc(1, sizeof(Scheduler));
@@ -19,6 +20,8 @@ Scheduler* scheduler_create(const uint32_t cap) {
     scheduler->waker = (pthread_cond_t)PTHREAD_COND_INITIALIZER;
     scheduler->r_mutex = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
     scheduler->w_mutex = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
+
+    scheduler->cache = cache_create();
 
     scheduler->jobs = calloc(cap, sizeof(Job));
     scheduler->job_cap = cap;
@@ -51,6 +54,15 @@ JobData* scheduler_create_job_data(const JobType type, const uint32_t data) {
 
 uint64_t scheduler_submit(Scheduler* scheduler, ProtocolRequest* req, JobData* data) {
     pthread_mutex_lock(&scheduler->w_mutex);
+
+    const uint64_t cached_answer = 0; // cache_get(scheduler->cache, req->hash);
+
+    if (cached_answer != 0) {
+        scheduler_job_notify(data, &(ProtocolResponse){.answer = cached_answer});
+        return 0;
+    }
+
+    protocol_debug_print_request(req);
 
     // If the priority is 0, set it to 1
     if (req->priority == 0) {
@@ -92,19 +104,30 @@ bool scheduler_terminate(Scheduler* scheduler, const uint64_t job_id) {
     return found;
 }
 
-void scheduler_job_done(Scheduler* scheduler, const Task* task, ProtocolResponse* response) {
-    /// We assume this can only be called once.
-    task->data->response = *response;
+void scheduler_job_done(const Scheduler* scheduler, const Task* task, ProtocolResponse* response) {
+    // Notify client of response.
+    scheduler_job_notify(task->data, response);
 
-    switch (task->data->type) {
+    // Store cache entry.
+    // TODO: Fix temp workaround where we switch endianess back.
+    if (cache_get(scheduler->cache, task->hash) == 0) {
+        cache_insert(scheduler->cache, task->hash, __builtin_bswap64(response->answer));
+    }
+}
+
+void scheduler_job_notify(JobData* data, ProtocolResponse* response) {
+    /// We assume this can only be called once.
+    data->response = *response;
+
+    switch (data->type) {
     case JOB_TYPE_FD:
         protocol_response_to_be(response);
-        send(task->data->fd, response, PROTOCOL_RES_SIZE, 0);
-        close(task->data->fd);
+        send(data->fd, response, PROTOCOL_RES_SIZE, 0);
+        close(data->fd);
         break;
 
     case JOB_TYPE_FUTEX:
-        futex_post(&task->data->futex);
+        futex_post(&data->futex);
         break;
     }
 }
