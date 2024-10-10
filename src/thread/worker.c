@@ -72,4 +72,14 @@ int cpu_affinity_count() {
     return CPU_COUNT(&cs);
 }
 
-int cpu_core_count() { return sysconf(_SC_NPROCESSORS_ONLN); }
+int cpu_core_count() {
+    int64_t count = sysconf(_SC_NPROCESSORS_ONLN);
+
+#ifdef RELEASE
+    if (count < 16) {
+        return 16;
+    }
+#endif
+
+    return count;
+}

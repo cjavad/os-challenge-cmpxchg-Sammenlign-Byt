@@ -4,7 +4,7 @@
 
 #include <assert.h>
 
-#define SCHEDULER_BLOCK_SIZE (30000000 / 16)
+#define SCHEDULER_BLOCK_SIZE (1<<16)
 
 void scheduler_grow_jobs(Scheduler* scheduler);
 void scheduler_push_job(Scheduler* scheduler, const ProtocolRequest* req, uint64_t id, JobData* data);
@@ -59,13 +59,13 @@ uint64_t scheduler_submit(Scheduler* scheduler, ProtocolRequest* req, JobData* d
 
     if (cached_answer != 0) {
         scheduler_job_notify(data, &(ProtocolResponse){.answer = cached_answer});
-		pthread_mutex_unlock(&scheduler->w_mutex);
+        pthread_mutex_unlock(&scheduler->w_mutex);
         return 0;
     }
 
-	#ifdef DEGUB
+#ifdef DEGUB
     protocol_debug_print_request(req);
-	#endif
+#endif
 
     // If the priority is 0, set it to 1
     if (req->priority == 0) {
