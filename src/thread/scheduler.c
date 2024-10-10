@@ -21,7 +21,7 @@ Scheduler* scheduler_create(const uint32_t cap) {
     scheduler->r_mutex = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
     scheduler->w_mutex = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
 
-    scheduler->cache = cache_create();
+    scheduler->cache = cache_create(1024);
 
     scheduler->jobs = calloc(cap, sizeof(Job));
     scheduler->job_cap = cap;
@@ -55,14 +55,17 @@ JobData* scheduler_create_job_data(const JobType type, const uint32_t data) {
 uint64_t scheduler_submit(Scheduler* scheduler, ProtocolRequest* req, JobData* data) {
     pthread_mutex_lock(&scheduler->w_mutex);
 
-    const uint64_t cached_answer = 0; // cache_get(scheduler->cache, req->hash);
+    const uint64_t cached_answer = cache_get(scheduler->cache, req->hash);
 
     if (cached_answer != 0) {
         scheduler_job_notify(data, &(ProtocolResponse){.answer = cached_answer});
+		pthread_mutex_unlock(&scheduler->w_mutex);
         return 0;
     }
 
+	#ifdef DEGUB
     protocol_debug_print_request(req);
+	#endif
 
     // If the priority is 0, set it to 1
     if (req->priority == 0) {

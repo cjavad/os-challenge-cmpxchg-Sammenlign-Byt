@@ -8,8 +8,8 @@
 #include <stdint.h>
 #include <stdio.h>
 
-#define CACHE_KEY_LENGTH SHA256_DIGEST_LENGTH
-#define CACHE_KEY_HASH_MAX 256
+#define CACHE_KEY_LENGTH (SHA256_DIGEST_LENGTH * 2)
+#define CACHE_KEY_HASH_MAX 16
 
 typedef struct TreeNode TreeNode;
 
@@ -45,7 +45,7 @@ struct Cache {
 
 typedef struct Cache Cache;
 
-Cache* cache_create();
+Cache* cache_create(uint32_t default_cap);
 void cache_destroy(Cache* cache);
 
 uint64_t cache_get(Cache* cache, HashDigest key);
@@ -68,7 +68,7 @@ static void cache_debug_print_node(const Cache* cache, const TreeNode* node, con
         printf("%*sLength: %d\n", indent + 2, "", node->edge.length);
         printf("%*sData: ", indent + 2, "");
         for (int i = 0; i < node->edge.length; i++) {
-            printf("%02x", node->edge.data[i]);
+            printf("%01x", node->edge.data[i]);
         }
         printf("\n");
         cache_debug_print_node(cache, &vec_get(&cache->nodes, node->edge.next), indent + 2);
@@ -86,17 +86,32 @@ static void cache_debug_print_node(const Cache* cache, const TreeNode* node, con
     }
 }
 
-/**
-*
-* uint8_t cache_key_hash_hex(const HashDigest hash, const uint32_t idx) {
-    return (hash[idx >> 1] & (0xf << (idx & 1))) >> (idx & 1);
-*/
+// /*
+inline uint8_t cache_key_hash_idx(const HashDigest hash, const uint32_t idx) {
+    return (hash[idx >> 1] >> ((~idx & 1) << 2)) & 0xf;
+}
+//*/
 
+/*
 inline uint8_t cache_key_hash_idx(const HashDigest key, const uint64_t idx) {
     return key[idx];
 }
+//*/
 
 static void cache_debug_print(const Cache* cache) {
     printf("===============================<CACHE>=================================\n");
     cache_debug_print_node(cache, &vec_get(&cache->nodes, 0), 0);
 }
+
+static void cache_debug_print_idx(const HashDigest hash) {
+	printf("\t");
+	for (uint32_t i = 0; i < 32; i++) {
+		printf("%02x ", hash[i]);
+	}
+	printf("\n\t");
+	for (uint32_t i = 0; i < 32; i++) {
+		printf("%01x%01x ", cache_key_hash_idx(hash, i * 2), cache_key_hash_idx(hash, i * 2 + 1));
+	}
+	printf("\n");
+
+};

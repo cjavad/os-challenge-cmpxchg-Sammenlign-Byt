@@ -7,11 +7,11 @@
 #include <assert.h>
 #include <string.h>
 
-Cache* cache_create() {
+Cache* cache_create(uint32_t default_cap) {
     Cache* cache = calloc(1, sizeof(Cache));
 
     cache->lock = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
-    vec_init(&cache->nodes, 1024);
+    vec_init(&cache->nodes, default_cap);
 
     const TreeNode root = {.type = TT_NONE};
     vec_push(&cache->nodes, root);
@@ -36,41 +36,41 @@ uint64_t cache_get(Cache* cache, HashDigest key) {
 
     while (true) {
         switch (node->type) {
-        case TT_BRANCH: {
-            const uint32_t hex_char = cache_key_hash_idx(key, key_idx++);
-            const uint32_t next = node->branch.next[hex_char];
+			case TT_BRANCH: {
+				const uint32_t hex_char = cache_key_hash_idx(key, key_idx++);
+				const uint32_t next = node->branch.next[hex_char];
 
-            if (next == 0) {
-                goto notfound;
-            }
+				if (next == 0) {
+					goto notfound;
+				}
 
-            node = &vec_get(&cache->nodes, next);
-        } break;
-        case TT_EDGE: {
-            assert(node->edge.length <= CACHE_KEY_LENGTH - key_idx);
+				node = &vec_get(&cache->nodes, next);
+			} break;
+			case TT_EDGE: {
+				assert(node->edge.length <= CACHE_KEY_LENGTH - key_idx);
 
-            for (uint64_t i = 0; i < node->edge.length; i++) {
-                const uint32_t hex_char = cache_key_hash_idx(key, key_idx++);
+				for (uint64_t i = 0; i < node->edge.length; i++) {
+					const uint32_t hex_char = cache_key_hash_idx(key, key_idx++);
 
-                if (node->edge.data[i] != hex_char) {
-                    goto notfound;
-                }
-            }
+					if (node->edge.data[i] != hex_char) {
+						goto notfound;
+					}
+				}
 
-            const uint32_t next = node->edge.next;
+				const uint32_t next = node->edge.next;
 
-            assert(next != 0);
+				assert(next != 0);
 
-            node = &vec_get(&cache->nodes, next);
-        } break;
-        case TT_LEAF: {
-            pthread_mutex_unlock(&cache->lock);
-            return node->leaf.value;
-        } break;
-        case TT_NONE: {
-            // Unreachable.
-            assert(false);
-        }
+				node = &vec_get(&cache->nodes, next);
+			} break;
+			case TT_LEAF: {
+				pthread_mutex_unlock(&cache->lock);
+				return node->leaf.value;
+			} break;
+			case TT_NONE: {
+				// Unreachable.
+				assert(false);
+			}
         }
     }
 
@@ -191,10 +191,10 @@ void cache_insert(Cache* cache, HashDigest key, const uint64_t value) {
 
                 goto exit;
             }
+			key_idx++;
 
             // Keep edge.data until no longer matches.
             for (uint32_t i = 1; i < node->edge.length; i++) {
-
                 // From this point on the keys differ
                 // Create two separate edges and truncate current
                 // until this point.
@@ -207,6 +207,15 @@ void cache_insert(Cache* cache, HashDigest key, const uint64_t value) {
                     // otherwise we just add the leaf directly.
                     if (node->edge.length - i - 1 > 0) {
                         const uint32_t old_node_new_edge_idx = cache->nodes.len;
+
+						/*
+							len = 4
+							i = 1
+
+							a b c d
+							a   c d
+							i   len - i - 1
+						*/
 
                         TreeNode edge = {
                             .type = TT_EDGE, .edge = {.next = old_node, .length = node->edge.length - i - 1}
