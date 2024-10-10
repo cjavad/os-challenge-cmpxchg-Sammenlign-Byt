@@ -99,31 +99,36 @@ void benchmark_scheduler() {
     scheduler_destroy(scheduler);
 }
 
+struct Entry {
+    HashDigest key;
+    uint64_t data;
+};
+
+void benchmark_random_entry(struct Entry* entry) {
+    entry->data = random_u64();
+    sha256_custom(entry->key, (uint8_t*)&entry->data);
+}
+
 void benchmark_test_vec() {
     Cache* cache = cache_create();
-    cache_debug_print(cache);
 
-    HashDigest key1;
-    uint64_t data1 = 1;
-    HashDigest key2;
-    uint64_t data2 = 2;
-    HashDigest key3;
-    uint64_t data3 = 3;
+    const uint64_t N = 1000000;
 
-    sha256_custom(key1, (uint8_t*)&data1);
-    sha256_custom(key2, (uint8_t*)&data2);
-    sha256_custom(key3, (uint8_t*)&data3);
+    struct Entry* entries = calloc(N, sizeof(struct Entry));
 
-    cache_insert(cache, key1, data1);
-    cache_debug_print(cache);
+    for (int i = 0; i < N; i++) {
+        benchmark_random_entry(&entries[i]);
+    }
 
-    cache_insert(cache, key2, data2);
-    cache_debug_print(cache);
+    D_BENCHMARK_TIME_START()
+    for (int i = 0; i < N; i++) {
+        cache_insert(cache, entries[i].key, entries[i].data);
+    }
+    D_BENCHMARK_TIME_END("cache insert")
 
-    cache_insert(cache, key3, data3);
-    cache_debug_print(cache);
-
-    printf("Get key1: %lu\n", cache_get(cache, key1));
-    printf("Get key2: %lu\n", cache_get(cache, key2));
-    printf("Get key3: %lu\n", cache_get(cache, key3));
+    D_BENCHMARK_TIME_START()
+    for (int i = 0; i < N; i++) {
+        cache_get(cache, entries[i].key);
+    }
+    D_BENCHMARK_TIME_END("cache get")
 }
