@@ -1,6 +1,5 @@
 #include "worker.h"
 
-#include <sched.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -63,13 +62,6 @@ void* worker_thread(void* arguments) {
     }
 
     return NULL;
-}
-
-int cpu_affinity_count() {
-    cpu_set_t cs;
-    CPU_ZERO(&cs);
-    sched_getaffinity(0, sizeof(cs), &cs);
-    return CPU_COUNT(&cs);
 }
 
 int cpu_core_count() {
