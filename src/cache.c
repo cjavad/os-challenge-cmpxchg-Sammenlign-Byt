@@ -7,70 +7,83 @@
 #include <assert.h>
 #include <string.h>
 
-Cache* cache_create(uint32_t default_cap) {
+Cache* cache_create(const uint32_t default_cap) {
     Cache* cache = calloc(1, sizeof(Cache));
 
     cache->lock = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
-    vec_init(&cache->nodes, default_cap);
 
-    const TreeNode root = {.type = TT_NONE};
-    vec_push(&cache->nodes, root);
+    freelist_init(&cache->strings, default_cap);
+    freelist_init(&cache->branches, default_cap);
+    freelist_init(&cache->edges, default_cap);
+    freelist_init(&cache->leaves, default_cap);
+
+    cache->root = (TreeNodePointer){.type = TT_NONE, .idx = 0};
 
     return cache;
 }
 
 void cache_destroy(Cache* cache) {
-    vec_destroy(&cache->nodes);
+    freelist_destroy(&cache->strings);
+    freelist_destroy(&cache->branches);
+    freelist_destroy(&cache->edges);
+    freelist_destroy(&cache->leaves);
     free(cache);
+}
+
+uint8_t* cache_get_edge_str(const Cache* cache, struct TreeNodeEdge* edge) {
+    if (edge->length > 4) {
+        return cache->strings.data[edge->str_idx].str;
+    }
+
+    return edge->data;
 }
 
 uint64_t cache_get(Cache* cache, HashDigest key) {
     pthread_mutex_lock(&cache->lock);
 
-    const TreeNode* node = &vec_get(&cache->nodes, 0);
-    uint32_t key_idx = 0;
+    TreeNodePointer* node = &cache->root;
+    uint8_t key_idx = 0;
 
     if (node->type == TT_NONE) {
         goto notfound;
     }
 
-    while (true) {
+    for (;;) {
         switch (node->type) {
-			case TT_BRANCH: {
-				const uint32_t hex_char = cache_key_hash_idx(key, key_idx++);
-				const uint32_t next = node->branch.next[hex_char];
+        case TT_EDGE: {
+            struct TreeNodeEdge* edge_node = &cache->edges.data[node->idx];
+            const uint8_t* edge_key = cache_get_edge_str(cache, edge_node);
 
-				if (next == 0) {
-					goto notfound;
-				}
+            for (uint8_t i = 0; i < edge_node->length; i++) {
+                if (edge_key[i] != cache_key_hash(key, key_idx++)) {
+                    goto notfound;
+                }
+            }
 
-				node = &vec_get(&cache->nodes, next);
-			} break;
-			case TT_EDGE: {
-				assert(node->edge.length <= CACHE_KEY_LENGTH - key_idx);
+            *node = edge_node->next;
+        }
+        break;
+        case TT_BRANCH: {
+            const struct TreeNodeBranch* branch_node = &cache->branches.data[node->idx];
+            const uint8_t hash = cache_key_hash(key, key_idx++);
+            const TreeNodePointer next = branch_node->next[hash];
 
-				for (uint64_t i = 0; i < node->edge.length; i++) {
-					const uint32_t hex_char = cache_key_hash_idx(key, key_idx++);
+            if (next.type == 0) {
+                goto notfound;
+            }
 
-					if (node->edge.data[i] != hex_char) {
-						goto notfound;
-					}
-				}
-
-				const uint32_t next = node->edge.next;
-
-				assert(next != 0);
-
-				node = &vec_get(&cache->nodes, next);
-			} break;
-			case TT_LEAF: {
-				pthread_mutex_unlock(&cache->lock);
-				return node->leaf.value;
-			} break;
-			case TT_NONE: {
-				// Unreachable.
-				assert(false);
-			}
+            *node = next;
+        }
+        break;
+        case TT_LEAF: {
+            const struct TreeNodeLeaf* leaf = &cache->leaves.data[node->idx];
+            pthread_mutex_unlock(&cache->lock);
+            return leaf->value;
+        }
+        break;
+        default: {
+            goto notfound;
+        }
         }
     }
 
@@ -79,192 +92,140 @@ notfound:
     return 0;
 }
 
-uint32_t cache_create_leaf(Cache* cache, uint64_t value) {
-    const uint32_t idx = cache->nodes.len;
-    const TreeNode n = {.type = TT_LEAF, .leaf.value = value};
-    vec_push(&cache->nodes, n);
-    return idx;
+TreeNodePointer cache_create_leaf_node(Cache* cache, const uint64_t value) {
+    const struct TreeNodeLeaf leaf = {.value = value};
+    const uint32_t idx = freelist_add(&cache->leaves, leaf);
+    return (TreeNodePointer){.type = TT_LEAF, .idx = idx};
 }
 
-uint32_t cache_create_edge(Cache* cache, const uint8_t* hex_key, const uint32_t offset, const uint32_t next_node) {
-    TreeNode edge = {.type = TT_EDGE};
-    edge.edge.length = CACHE_KEY_LENGTH - offset;
-    memcpy(&edge.edge.data, hex_key + offset, edge.edge.length);
+TreeNodePointer cache_create_edge_node(Cache* cache, const uint8_t* key, const uint32_t offset, const uint32_t end,
+                                       const TreeNodePointer next, bool packed) {
+    const struct TreeNodeEdge edge = {.length = end - offset, .next = next};
 
-    const uint32_t edge_idx = cache->nodes.len;
-    vec_push(&cache->nodes, edge);
+    const uint32_t idx = freelist_add(&cache->edges, edge);
 
-    cache->nodes.data[edge_idx].edge.next = next_node;
+    uint8_t* buffer;
 
-    return edge_idx;
+    if (edge.length > 4) {
+        const uint32_t str_idx = freelist_add(&cache->strings, (union TreeNodeKeyEntry){0});
+        cache->edges.data[idx].str_idx = str_idx;
+        buffer = cache->strings.data[str_idx].str;
+    } else {
+        buffer = cache->edges.data[idx].data;
+    }
+
+    if (packed) {
+        memcpy(buffer, key + offset, edge.length);
+    } else {
+        // Unpack and write into the data
+        for (uint8_t i = 0; i < edge.length; i++) {
+            buffer[i] = cache_key_hash(key, offset + i);
+        }
+    }
+
+    return (TreeNodePointer){.type = TT_EDGE, .idx = idx};
 }
 
-uint32_t cache_create_edge_with_leaf(Cache* cache, uint8_t* hex_key, uint32_t offset, uint64_t value) {
-    const uint32_t leaf_idx = cache_create_leaf(cache, value);
-    return cache_create_edge(cache, hex_key, offset, leaf_idx);
+TreeNodePointer cache_create_branch_node(Cache* cache) {
+    const struct TreeNodeBranch branch = {0};
+    const uint32_t idx = freelist_add(&cache->branches, branch);
+    return (TreeNodePointer){.type = TT_BRANCH, .idx = idx};
 }
 
-#define REFETCH_NODE(cache, node, idx) node = &vec_get(&cache->nodes, idx);
 
 void cache_insert(Cache* cache, HashDigest key, const uint64_t value) {
     pthread_mutex_lock(&cache->lock);
 
-    uint32_t node_idx = 0;
-    TreeNode* node;
+    // Current node
+    TreeNodePointer* node = &cache->root;
+    // Index into key (0-CACHE_KEY_LENGTH)
+    uint8_t key_idx = 0;
 
-    REFETCH_NODE(cache, node, node_idx);
-
-    uint32_t key_idx = 0;
-    uint8_t hex_key[CACHE_KEY_LENGTH];
-
-    for (uint64_t i = 0; i < CACHE_KEY_LENGTH; i++) {
-        hex_key[i] = cache_key_hash_idx(key, i);
-    }
-
-    // Base case, no root node yet
-    // Just add single entry as edge with entire key.
+    // If the root node is empty insert a new edge with
+    // the entire key and a leaf node with the value.
     if (node->type == TT_NONE) {
-        bzero(node, sizeof(TreeNode));
-        node->type = TT_EDGE;
-        node->edge.length = (CACHE_KEY_LENGTH - key_idx);
-        memcpy(node->edge.data, &hex_key, node->edge.length);
-        const uint32_t leaf_idx = cache_create_leaf(cache, value);
-        REFETCH_NODE(cache, node, node_idx);
-        node->edge.next = leaf_idx;
+        const TreeNodePointer leaf = cache_create_leaf_node(cache, value);
+        cache->root = cache_create_edge_node(cache, key, 0, CACHE_KEY_LENGTH, leaf, false);
         goto exit;
     }
 
-    while (true) {
+    for (;;) {
         switch (node->type) {
-        case TT_BRANCH: {
-            const uint32_t hex = hex_key[key_idx++];
-            const uint32_t next = node->branch.next[hex];
-
-            // Insert edge and leaf.
-            if (next == 0) {
-                // Creates edge with leaf node
-                // add to next map on current branch node.
-                const uint32_t edge_idx = cache_create_edge_with_leaf(cache, hex_key, key_idx, value);
-                REFETCH_NODE(cache, node, node_idx);
-                node->branch.next[hex] = edge_idx;
-                goto exit;
-            }
-
-            node_idx = next;
-            REFETCH_NODE(cache, node, node_idx);
-        } break;
         case TT_EDGE: {
-            // First hex char does NOT match
-            if (node->edge.data[0] != hex_key[key_idx]) {
-                uint32_t old_node = node->edge.next;
-                uint32_t new_node = cache_create_leaf(cache, value);
-                REFETCH_NODE(cache, node, node_idx);
+            struct TreeNodeEdge* edge_node = &cache->edges.data[node->idx];
+            const uint8_t* edge_key = cache_get_edge_str(cache, edge_node);
 
-                const uint8_t current_hex = hex_key[key_idx++];
-                const uint8_t edge_current_hex = node->edge.data[0];
-
-                // If current edge has remaining bytes create new edge with remainder
-                // other just add the leaf in this branch node.
-                if (node->edge.length != 1) {
-                    const uint32_t old_node_new_edge_idx = cache->nodes.len;
-
-                    TreeNode edge = {.type = TT_EDGE, .edge = {.next = old_node, .length = node->edge.length - 1}};
-
-                    memcpy(edge.edge.data, node->edge.data + 1, edge.edge.length);
-
-                    vec_push(&cache->nodes, edge);
-                    REFETCH_NODE(cache, node, node_idx);
-
-                    old_node = old_node_new_edge_idx;
-                }
-
-                // Do the same for the new key we are inserting not creating empty edges.
-                if (key_idx < CACHE_KEY_LENGTH) {
-                    new_node = cache_create_edge(cache, hex_key, key_idx, new_node);
-                    REFETCH_NODE(cache, node, node_idx);
-                }
-
-                bzero(node, sizeof(TreeNode));
-                node->type = TT_BRANCH;
-                node->branch.next[edge_current_hex] = old_node;
-                node->branch.next[current_hex] = new_node;
+            // First character does not match insert branch
+            if (edge_key[0] != cache_key_hash(key, key_idx)) {
 
                 goto exit;
             }
-			key_idx++;
 
-            // Keep edge.data until no longer matches.
-            for (uint32_t i = 1; i < node->edge.length; i++) {
-                // From this point on the keys differ
-                // Create two separate edges and truncate current
-                // until this point.
-                if (node->edge.data[i] != hex_key[key_idx]) {
-                    uint32_t old_node = node->edge.next;
-                    uint32_t new_node = cache_create_leaf(cache, value);
-                    REFETCH_NODE(cache, node, node_idx);
+            // Skip next index as we already know it matches
+            key_idx++;
 
-                    // Create new edge if there are more key bytes in old node
-                    // otherwise we just add the leaf directly.
-                    if (node->edge.length - i - 1 > 0) {
-                        const uint32_t old_node_new_edge_idx = cache->nodes.len;
+            for (uint8_t i = 1; i < edge_node->length; i++) {
+                const uint8_t old_hash = edge_key[i];
+                const uint8_t new_hash = cache_key_hash(key, key_idx);
 
-						/*
-							len = 4
-							i = 1
-
-							a b c d
-							a   c d
-							i   len - i - 1
-						*/
-
-                        TreeNode edge = {
-                            .type = TT_EDGE, .edge = {.next = old_node, .length = node->edge.length - i - 1}
-                        };
-
-                        memcpy(edge.edge.data, node->edge.data + i + 1, edge.edge.length);
-
-                        vec_push(&cache->nodes, edge);
-                        REFETCH_NODE(cache, node, node_idx);
-
-                        old_node = old_node_new_edge_idx;
-                    }
-
-                    // If we have remaining key data from our new inserted key
-                    // create an edge to hold it.
-                    if (key_idx + 1 < CACHE_KEY_LENGTH) {
-                        new_node = cache_create_edge(cache, hex_key, key_idx + 1, new_node);
-                        REFETCH_NODE(cache, node, node_idx);
-                    }
-
-                    // New branch to set as new node for current edge.
-                    TreeNode branch = {.type = TT_BRANCH};
-                    branch.branch.next[node->edge.data[i]] = old_node;
-                    branch.branch.next[hex_key[key_idx]] = new_node;
-
-                    const uint32_t branch_idx = cache->nodes.len;
-                    vec_push(&cache->nodes, branch);
-                    REFETCH_NODE(cache, node, node_idx);
-
-                    node->edge.length = i;
-                    node->edge.next = branch_idx;
-
-                    goto exit;
+                // Skip over matching indices as long as possible
+                // But don't consume the first one that doesn't match
+                if (old_hash == new_hash) {
+                    key_idx++;
+                    continue;
                 }
 
-                // Only consume matching keys.
-                key_idx++;
+                // Found a mismatch, insert a branch.
+                TreeNodePointer old_node = edge_node->next;
+                TreeNodePointer new_node = cache_create_leaf_node(cache, value);
+
+                // Create new edge IF there are characters left in the edge
+                // otherwise directly insert the leaf.
+                if (edge_node->length - i - 1 > 0) {
+                    old_node = cache_create_edge_node(cache, edge_key, i + 1, edge_node->length - i - 1, old_node,
+                                                      true);
+                }
+
+                // Also only create a edge if we have more characters left in the key
+                if (key_idx + 1 < CACHE_KEY_LENGTH) {
+                    new_node = cache_create_edge_node(cache, key, key_idx + 1, CACHE_KEY_LENGTH - key_idx - 1,
+                                                      new_node, false);
+                }
+
+                const TreeNodePointer branch = cache_create_branch_node(cache);
+                struct TreeNodeBranch* branch_node = &cache->branches.data[branch.idx];
+                branch_node->next[old_hash] = old_node;
+                branch_node->next[new_hash] = new_node;
+
+                edge_node->length = i;
+                edge_node->next = branch;
+
+                goto exit;
             }
 
-            node_idx = node->edge.next;
-            REFETCH_NODE(cache, node, node_idx);
-        } break;
-        case TT_LEAF: {
-            assert(false);
-        } break;
-        case TT_NONE: {
-            // Unreachable.
-            assert(false);
+            *node = edge_node->next;
         }
+        break;
+        case TT_BRANCH: {
+            struct TreeNodeBranch* branch_node = &cache->branches.data[node->idx];
+            const uint8_t hash = cache_key_hash(key, key_idx++);
+            const TreeNodePointer next = branch_node->next[hash];
+
+            // Just insert rest as edge + leaf into the branch
+            if (next.type == 0) {
+                const TreeNodePointer leaf = cache_create_leaf_node(cache, value);
+                const TreeNodePointer edge = cache_create_edge_node(cache, key, key_idx, CACHE_KEY_LENGTH - key_idx,
+                                                                    leaf, false);
+                branch_node->next[hash] = edge;
+                goto exit;
+            }
+
+            *node = next;
+        }
+        break;
+
+        default:
+            goto exit;
         }
     }
 
