@@ -1,6 +1,7 @@
 #include "parser.h"
 #include "lexer.h"
 
+#include <stdint.h>
 #include <string.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -32,6 +33,7 @@ static bool matchWord(ParseState* st, const char* word);
 
 static void parseDefine(ParseState* st, ParseResult* result);
 static void parseFunc(ParseState* st, ParseResult* result);
+static AST_Expr* parseExpr(ParseState* st);
 static void parseBody(ParseState* st, ParseResult* result);
 
 static uint64_t parseNum(const char* str);
@@ -235,21 +237,114 @@ static void parseFunc(ParseState* st, ParseResult* result)
 		}
 	}
 
-	// read instructions until new
+	// read instructions until none or #
+
+	AST_Instruction** instr = &func->instrs;
 
 	for (bool loop = true; loop;)
 	{
-		unwrap(l, lexPeek(st)) break;
+		unwrap(l, lexPeek(st)) goto exit;
+		
+		bool func_call = false;
+		if (l.type == LX_EMAIL) {
+			func_call = true;
+			lexConsume(st);
+			unwrap(l, lexPeek(st)) {
+				error_exit(0, 0, "expected word, got EOF");
+			}
+		}
+
+		if (l.type == LX_NOT_A_KILO) goto exit;
+		if (l.type != LX_WORD) {
+			error_exit(l.line, l.col, "expected word, got %s", lx_lookupName(l.type));
+		}
+		lexConsume(st);
+		
+		*instr = malloc(sizeof(AST_Instruction));
+		(*instr)->name = &sb->data[l.index];
+		(*instr)->next = NULL;
+		(*instr)->exprs = NULL;
 
 		// got instruction/call
-		
+
+		// read all args
+		AST_Expr** expr = &((*instr)->exprs);
+		for(;1;)
+		{
+			unwrap(l, lexPeek(st)) break;
+
+			if (l.type == LX_ANOTHA) break;
+
+			*expr = parseExpr(st);
+			// *expr = malloc(sizeof(AST_Expr));
+			// parseExpr(st, );
+			// (*expr)->type = //;
+			// (*expr)	
+		}
+
+		if (func_call) {
+			
+		}
+		else {
+
+		}
+
+
 		// parse instruction until newline
 		// inline if function call
+
+		instr = &((*instr)->next);
 	}
 
 	exit:
 	result->func_count++;
 	return;
+}
+
+static AST_Expr* parseExpr(ParseState* st)
+{
+	AST_Expr* ret = malloc(sizeof(AST_Expr));
+
+	// this will never break (lie)
+	struct { bool op; union {const char* name; uint64_t op_type; }; } rpn_stack[64];
+	uint32_t rpn_index = 0;
+
+	uint64_t op_stack[16];
+	uint32_t op_index = 0;
+
+	for (;1;)
+	{
+		struct Lexeme l;
+		unwrap(l, lexPeek(st)) goto exit;
+	
+		if (l.type == LX_OXFORD) goto exit; 
+	
+		switch (l.type)
+		{
+			case LX_WORD: {
+				
+			} break;
+			case LX_MORE: {
+
+			} break;
+			case LX_LESS: {
+
+			} break;
+			case LX_NOT_A_SHIFT: {
+
+			} break;
+			case LX_PAREN: {
+
+			} break;
+			case LX_THESES: {
+
+			} break;
+		}
+	}
+
+	exit:
+	// TODO :: railyard
+	return ret;
 }
 
 // ( ⓛ Ⱉ ⓛ )
