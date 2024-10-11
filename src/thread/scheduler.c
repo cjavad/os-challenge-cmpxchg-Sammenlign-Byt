@@ -53,15 +53,14 @@ JobData* scheduler_create_job_data(const JobType type, const uint32_t data) {
 }
 
 uint64_t scheduler_submit(Scheduler* scheduler, ProtocolRequest* req, JobData* data) {
-    pthread_mutex_lock(&scheduler->w_mutex);
-
     const uint64_t cached_answer = cache_get(scheduler->cache, req->hash);
 
     if (cached_answer != 0) {
         scheduler_job_notify(data, &(ProtocolResponse){.answer = cached_answer});
-        pthread_mutex_unlock(&scheduler->w_mutex);
         return 0;
     }
+
+    pthread_mutex_lock(&scheduler->w_mutex);
 
 #ifdef DEBUG
     protocol_debug_print_request(req);
