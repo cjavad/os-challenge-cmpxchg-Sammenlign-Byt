@@ -121,9 +121,9 @@ static void cache_debug_print_node(const Cache* cache, const TreeNodePointer* no
             const cache_key_t* edge_str;
             CACHE_EDGE_FETCH_STR(edge_str, cache, edge);
 
-            for (int i = 0; i < edge->length; i += 2)
+            for (int i = 0; i < edge->length; i++)
             {
-                printf("%01x%01x", edge_str[i * 2], edge_str[i * 2 + 1]);
+                printf("%01x", edge_str[i]);
             }
             printf("\n");
 
