@@ -77,7 +77,7 @@ typedef struct Cache Cache;
 #define CACHE_EDGE(cache, node) (&(cache)->edges.data[(node).idx])
 #define CACHE_BRANCH(cache, node) (&(cache)->branches.data[(node).idx])
 
-#define CACHE_EDGE_STR(cache, edge) ((edge)->length > 4 ? (cache)->strings.data[(edge)->str_idx].str : (edge)->data)
+#define CACHE_EDGE_FETCH_STR(variable, cache, edge) (variable) = ((edge)->length > 4 ? (cache)->strings.data[(edge)->str_idx].str : (edge)->data)
 
 #define CACHE_LEAF_REFETCH(variable, cache, node) (variable) = CACHE_LEAF(cache, node)
 #define CACHE_EDGE_REFETCH(variable, cache, node) (variable) = CACHE_EDGE(cache, node)
@@ -115,7 +115,9 @@ static void cache_debug_print_node(const Cache* cache, const TreeNodePointer* no
             printf("%*sEdge\n", indent, "");
             printf("%*sLength: %d\n", indent + 2, "", edge->length);
             printf("%*sData: ", indent + 2, "");
-            const uint8_t* edge_str = CACHE_EDGE_STR(cache, edge);
+            const uint8_t* edge_str;
+            CACHE_EDGE_FETCH_STR(edge_str, cache, edge);
+
             for (int i = 0; i < edge->length; i++)
             {
                 printf("%01x", edge_str[i]);
