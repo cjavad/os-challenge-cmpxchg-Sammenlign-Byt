@@ -110,7 +110,9 @@ void benchmark_random_entry(struct Entry* entry) {
 }
 
 void benchmark_test_vec() {
-    const uint64_t N = 1000000;
+    getrandom(&BENCHMARK_PRNG_STATE, sizeof(BENCHMARK_PRNG_STATE), 0);
+
+    const uint64_t N = 10000000;
     Cache* cache = cache_create(N);
 
     struct Entry* entries = calloc(N, sizeof(struct Entry));
@@ -124,6 +126,21 @@ void benchmark_test_vec() {
             cache_insert(cache, entries[i].key, entries[i].data);
         }
     D_BENCHMARK_TIME_END("cache insert")
+
+    uint32_t max_idx = 0;
+    uint32_t max_len = 0;
+
+    for (uint32_t idx = 0; idx < cache->edges.cap; idx++) {
+        struct TreeNodeEdge* edge = &cache->edges.data[idx];
+
+        if (edge->next.type != TT_LEAF && edge->length > max_len) {
+            max_idx = idx;
+            max_len = edge->length;
+        }
+    }
+
+    printf("Max edge length: %d\n", max_len);
+    cache_debug_print_node(cache, &(TreeNodePointer){.type = TT_EDGE, .idx = max_idx}, 0);
 
     D_BENCHMARK_TIME_START()
         for (int i = 0; i < N; i++) {

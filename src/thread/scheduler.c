@@ -21,7 +21,7 @@ Scheduler* scheduler_create(const uint32_t cap) {
     scheduler->r_mutex = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
     scheduler->w_mutex = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
 
-    scheduler->cache = cache_create(1);
+    scheduler->cache = cache_create(1024);
 
     scheduler->jobs = calloc(cap, sizeof(Job));
     scheduler->job_cap = cap;
