@@ -61,19 +61,26 @@
         } \
     }
 
-#define freelist_add(freelist, elem) \
+#define ____CONCAT_IMPL(a, b) a##b
+#define ____CONCAT(a, b) ____CONCAT_IMPL(a, b)
+#define ____LAST_CAP(iii) ____CONCAT(____lastcap____, iii)
+
+    #define ____freelist_add(freelist, elem, iii) \
     ({ \
         if ((freelist)->free == 0) { \
-            (freelist)->cap *= 2; \
+            uint32_t ____LAST_CAP(iii) = (freelist)->cap; \
+            (freelist)->cap = (uint32_t)((float)(freelist)->cap * ((freelist)->cap <= (1 << 14) ? 2 : 1.25)); \
             (freelist)->data = reallocarray((freelist)->data, (freelist)->cap, sizeof(*(freelist)->data)); \
             (freelist)->indicices = reallocarray((freelist)->indicices, (freelist)->cap, sizeof(*(freelist)->indicices)); \
-            for (uint32_t i = (freelist)->cap / 2; i < (freelist)->cap; i++) { \
-                (freelist)->indicices[i - (freelist)->cap / 2] = i; \
+            for (uint32_t i = ____LAST_CAP(iii); i < (freelist)->cap; i++) { \
+                (freelist)->indicices[i - ____LAST_CAP(iii)] = i; \
             } \
-            (freelist)->free += (freelist)->cap / 2; \
+            (freelist)->free = (freelist)->cap - ____LAST_CAP(iii); \
         } \
         (freelist)->data[(freelist)->indicices[--(freelist)->free]] = (elem); \
     (freelist)->indicices[(freelist)->free]; })
+
+#define freelist_add(freelist, elem) ____freelist_add(freelist, elem, __COUNTER__)
 
 #define freelist_remove(freelist, idx) \
     { \

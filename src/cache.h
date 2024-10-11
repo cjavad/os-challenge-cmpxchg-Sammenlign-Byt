@@ -11,6 +11,7 @@
 #define CACHE_KEY_LENGTH_PACKED (SHA256_DIGEST_LENGTH)
 #define CACHE_KEY_LENGTH (SHA256_DIGEST_LENGTH * 2)
 #define CACHE_KEY_HASH_MAX 16
+#define CACHE_EDGE_SMALL_STR_SIZE 8
 
 typedef uint8_t cache_key_t;
 typedef uint8_t cache_key_idx_t;
@@ -55,7 +56,7 @@ struct TreeNodeLeaf
 
 union TreeNodeKeyEntry
 {
-    cache_key_t str[CACHE_KEY_LENGTH];
+    cache_key_t str[CACHE_KEY_LENGTH_PACKED];
 };
 
 struct Cache
@@ -80,7 +81,7 @@ typedef struct Cache Cache;
 #define CACHE_BRANCH(cache, node) (&(cache)->branches.data[(node).idx])
 
 
-#define CACHE_EDGE_FETCH_STR(variable, cache, edge) (variable) = ((edge)->length > 4 ? (cache)->strings.data[(edge)->str_idx].str : (edge)->data)
+#define CACHE_EDGE_FETCH_STR(variable, cache, edge) (variable) = ((edge)->length > CACHE_EDGE_SMALL_STR_SIZE ? (cache)->strings.data[(edge)->str_idx].str : (edge)->data)
 
 #define CACHE_LEAF_REFETCH(variable, cache, node) (variable) = CACHE_LEAF(cache, node)
 #define CACHE_EDGE_REFETCH(variable, cache, node) (variable) = CACHE_EDGE(cache, node)
@@ -91,6 +92,16 @@ void cache_destroy(Cache* cache);
 
 uint64_t cache_get(Cache* cache, HashDigest key);
 void cache_insert(Cache* cache, HashDigest key, uint64_t value);
+
+inline cache_key_t cache_key_hash_get(const cache_key_t* hash, const uint32_t idx)
+{
+    return (hash[idx >> 1] >> ((~idx & 1) << 2)) & 0xf;
+}
+
+inline void cache_key_hash_set(cache_key_t* const hash, const uint32_t idx, const cache_key_t value)
+{
+    hash[idx >> 1] = (hash[idx >> 1] & (0xf << ((idx & 1) << 2))) | (value << ((~idx & 1) << 2));
+}
 
 static void cache_debug_print_node(const Cache* cache, const TreeNodePointer* node, const int indent)
 {
@@ -123,7 +134,7 @@ static void cache_debug_print_node(const Cache* cache, const TreeNodePointer* no
 
             for (int i = 0; i < edge->length; i++)
             {
-                printf("%01x", edge_str[i]);
+                printf("%01x", cache_key_hash_get(edge_str, i));
             }
             printf("\n");
 
@@ -151,19 +162,6 @@ static void cache_debug_print_node(const Cache* cache, const TreeNodePointer* no
     }
 }
 
-// /*
-inline cache_key_t cache_key_hash(const HashDigest hash, const uint32_t idx)
-{
-    return (hash[idx >> 1] >> ((~idx & 1) << 2)) & 0xf;
-}
-
-//*/
-
-/*
-inline cache_key_t cache_key_hash_idx(const HashDigest key, const uint64_t idx) {
-    return key[idx];
-}
-//*/
 
 static void cache_debug_print(const Cache* cache)
 {
@@ -181,7 +179,7 @@ static void cache_debug_print_idx(const HashDigest hash)
     printf("\n\t");
     for (uint32_t i = 0; i < 32; i++)
     {
-        printf("%01x%01x ", cache_key_hash(hash, i * 2), cache_key_hash(hash, i * 2 + 1));
+        printf("%01x%01x ", cache_key_hash_get(hash, i * 2), cache_key_hash_get(hash, i * 2 + 1));
     }
     printf("\n");
 };

@@ -1,10 +1,12 @@
 #pragma once
 
+#include "../vec.h"
 #include "../protocol.h"
 #include <stdbool.h>
 #include <stdint.h>
 
-struct InferredSessionParameters {
+struct InferredSessionParameters
+{
     uint32_t seed;
     bool randomized_start;
     bool using_priority;
@@ -12,14 +14,16 @@ struct InferredSessionParameters {
 
 typedef struct InferredSessionParameters InferredSessionParameters;
 
-struct InferredRequestParameters {
+struct InferredRequestParameters
+{
     uint64_t start;
     uint64_t difficulty;
 };
 
 typedef struct InferredRequestParameters InferredRequestParameters;
 
-struct AnalysisRequestEntry {
+struct AnalysisRequestEntry
+{
     uint64_t id;
     ProtocolRequest req;
     InferredRequestParameters params;
@@ -27,11 +31,10 @@ struct AnalysisRequestEntry {
 
 typedef struct AnalysisRequestEntry AnalysisRequestEntry;
 
-struct AnalysisRequestStorage {
+struct AnalysisRequestStorage
+{
     InferredSessionParameters session_params;
-    AnalysisRequestEntry* entries;
-    uint32_t len;
-    uint32_t cap;
+    Vec(AnalysisRequestEntry) entries;
 };
 
 typedef struct AnalysisRequestStorage AnalysisRequestStorage;

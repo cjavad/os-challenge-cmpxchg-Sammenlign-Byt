@@ -14,7 +14,7 @@
 
 #include <sys/random.h>
 
-static uint64_t BENCHMARK_PRNG_STATE = 0x3;
+static uint64_t BENCHMARK_PRNG_STATE = 0x1;
 
 uint64_t random_u64() { return xorshift64_prng_next(&BENCHMARK_PRNG_STATE); }
 
@@ -109,10 +109,19 @@ void benchmark_random_entry(struct Entry* entry) {
     sha256_custom(entry->key, (uint8_t*)&entry->data);
 }
 
+void debug_print_uint4(const uint8_t* data, const size_t len) {
+    for (size_t i = 0; i < len; i++) {
+        printf("%01x", cache_key_hash_get(data, i));
+    }
+    printf("\n");
+}
+
 void benchmark_test_vec() {
     getrandom(&BENCHMARK_PRNG_STATE, sizeof(BENCHMARK_PRNG_STATE), 0);
 
-    const uint64_t N = 10000000;
+    const uint64_t N = random_u64_in_range(0, 1000000);
+    printf("Benchmarking vec with %lu elements\n", N);
+
     Cache* cache = cache_create(N);
 
     struct Entry* entries = calloc(N, sizeof(struct Entry));
@@ -127,20 +136,33 @@ void benchmark_test_vec() {
         }
     D_BENCHMARK_TIME_END("cache insert")
 
-    uint32_t max_idx = 0;
-    uint32_t max_len = 0;
+    printf("[Strings] cap: %d, free: %d usage %f%%\n", cache->strings.cap, cache->strings.free,
+           (float)cache->strings.free / (float)cache->strings.cap * 100);
+    printf("[Edges] cap: %d, free: %d usage %f%%\n", cache->edges.cap, cache->edges.free,
+           (float)cache->edges.free / (float)cache->edges.cap * 100);
+    printf("[Branches] cap: %d, free: %d usage %f%%\n", cache->branches.cap, cache->branches.free,
+           (float)cache->branches.free / (float)cache->branches.cap * 100);
+    printf("[Leaf] cap: %d, free: %d usage %f%%\n", cache->leaves.cap, cache->leaves.free,
+           (float)cache->leaves.free / (float)cache->leaves.cap * 100);
 
-    for (uint32_t idx = 0; idx < cache->edges.cap; idx++) {
-        struct TreeNodeEdge* edge = &cache->edges.data[idx];
+    uint32_t used_strs = 0;
 
-        if (edge->next.type != TT_LEAF && edge->length > max_len) {
-            max_idx = idx;
-            max_len = edge->length;
+    for (uint32_t i = 0; i < cache->strings.cap; i++) {
+        // ignore all zero
+        int sum = 0;
+
+        for (int k = 0; k < SHA256_DIGEST_LENGTH; k++) {
+            sum += cache->strings.data[i].str[k];
         }
+
+        if (sum == 0) {
+            continue;
+        }
+
+        used_strs++;
     }
 
-    printf("Max edge length: %d\n", max_len);
-    cache_debug_print_node(cache, &(TreeNodePointer){.type = TT_EDGE, .idx = max_idx}, 0);
+    printf("[Strings] used: %d\n", used_strs);
 
     D_BENCHMARK_TIME_START()
         for (int i = 0; i < N; i++) {
