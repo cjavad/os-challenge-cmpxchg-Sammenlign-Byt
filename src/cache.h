@@ -13,7 +13,7 @@
 #define CACHE_KEY_HASH_MAX 16
 
 typedef uint8_t cache_key_t;
-typedef uint32_t cache_key_idx_t;
+typedef uint8_t cache_key_idx_t;
 
 enum TreeNodeType
 {
@@ -61,7 +61,6 @@ union TreeNodeKeyEntry
 struct Cache
 {
     pthread_mutex_t lock;
-
     TreeNodePointer root;
 
     FreeList(union TreeNodeKeyEntry) strings;
@@ -79,6 +78,7 @@ typedef struct Cache Cache;
 #define CACHE_LEAF(cache, node) (&(cache)->leaves.data[(node).idx])
 #define CACHE_EDGE(cache, node) (&(cache)->edges.data[(node).idx])
 #define CACHE_BRANCH(cache, node) (&(cache)->branches.data[(node).idx])
+
 
 #define CACHE_EDGE_FETCH_STR(variable, cache, edge) (variable) = ((edge)->length > 4 ? (cache)->strings.data[(edge)->str_idx].str : (edge)->data)
 
