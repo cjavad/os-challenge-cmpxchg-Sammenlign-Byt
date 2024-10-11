@@ -9,9 +9,9 @@
 
 TreeNodePointer cache_create_leaf_node(Cache* cache, uint64_t value);
 
-TreeNodePointer cache_create_edge_node(Cache* cache, const uint8_t* key, uint8_t offset,
-                                       uint8_t end,
-                                       TreeNodePointer next, bool packed);
+TreeNodePointer cache_create_edge_node(Cache* cache, const cache_key_t* key, cache_key_idx_t offset,
+                                       cache_key_idx_t length,
+                                       TreeNodePointer next, bool unpacked);
 
 TreeNodePointer cache_create_branch_node(Cache* cache);
 
@@ -43,7 +43,7 @@ uint64_t cache_get(Cache* cache, HashDigest key) {
     pthread_mutex_lock(&cache->lock);
 
     TreeNodePointer node = cache->root;
-    uint8_t key_idx = 0;
+    cache_key_idx_t key_idx = 0;
 
     if (node.type == TT_NONE) {
         goto notfound;
@@ -53,10 +53,10 @@ uint64_t cache_get(Cache* cache, HashDigest key) {
         switch (node.type) {
         case TT_EDGE: {
             const struct TreeNodeEdge* edge_node = CACHE_EDGE(cache, node);
-            const uint8_t* edge_key;
+            const cache_key_t* edge_key;
             CACHE_EDGE_FETCH_STR(edge_key, cache, edge_node);
 
-            for (uint8_t i = 0; i < edge_node->length; i++) {
+            for (cache_key_idx_t i = 0; i < edge_node->length; i++) {
                 if (edge_key[i] != cache_key_hash(key, key_idx++)) {
                     goto notfound;
                 }
@@ -67,7 +67,7 @@ uint64_t cache_get(Cache* cache, HashDigest key) {
         break;
         case TT_BRANCH: {
             const struct TreeNodeBranch* branch_node = CACHE_BRANCH(cache, node);
-            const uint8_t hash = cache_key_hash(key, key_idx++);
+            const cache_key_t hash = cache_key_hash(key, key_idx++);
             const TreeNodePointer next = branch_node->next[hash];
 
             if (next.type == 0) {
@@ -100,22 +100,24 @@ inline TreeNodePointer cache_create_leaf_node(Cache* cache, const uint64_t value
     return (TreeNodePointer){.type = TT_LEAF, .idx = idx};
 }
 
-inline void cache_copy_key_helper(uint8_t* buffer, const uint8_t* key, const uint8_t offset,
-                                  const uint8_t length, const bool packed) {
-    if (packed) {
+inline void cache_copy_key_helper(cache_key_t* buffer, const cache_key_t* key, const cache_key_idx_t offset,
+                                  const cache_key_idx_t length,
+                                  const bool unpacked) {
+    if (unpacked) {
         memcpy(buffer, key + offset, length);
     } else {
         // Unpack and write into the data
-        for (uint8_t i = 0; i < length; i++) {
-            buffer[i] = cache_key_hash(key, offset + i);
+        for (cache_key_idx_t i = 0; i < length; i++) {
+            buffer[i] = cache_key_hash(key, i + offset);
         }
     }
 }
 
-inline TreeNodePointer cache_create_edge_node(Cache* cache, const uint8_t* key, const uint8_t offset,
-                                              const uint8_t end,
-                                              const TreeNodePointer next, const bool packed) {
-    const struct TreeNodeEdge edge = {.length = end - offset, .next = next};
+inline TreeNodePointer cache_create_edge_node(Cache* cache, const cache_key_t* key, const cache_key_idx_t offset,
+                                              const cache_key_idx_t length,
+                                              const TreeNodePointer next, const bool unpacked) {
+
+    const struct TreeNodeEdge edge = {.length = length, .next = next};
 
     const uint32_t idx = freelist_add(&cache->edges, edge);
 
@@ -123,11 +125,11 @@ inline TreeNodePointer cache_create_edge_node(Cache* cache, const uint8_t* key, 
         union TreeNodeKeyEntry str_buffer;
         // It is important that we copy before adding to the string freelist
         // as realloc will change the pointer and can invalidate key.
-        cache_copy_key_helper(str_buffer.str, key, offset, edge.length, packed);
+        cache_copy_key_helper(str_buffer.str, key, offset, edge.length, unpacked);
         const uint32_t str_idx = freelist_add(&cache->strings, str_buffer);
         cache->edges.data[idx].str_idx = str_idx;
     } else {
-        cache_copy_key_helper(cache->edges.data[idx].data, key, offset, edge.length, packed);
+        cache_copy_key_helper(cache->edges.data[idx].data, key, offset, edge.length, unpacked);
     }
 
     return (TreeNodePointer){.type = TT_EDGE, .idx = idx};
@@ -148,11 +150,11 @@ void cache_insert(Cache* cache, HashDigest key, const uint64_t value) {
 
     // Pointer either to edge next or branch next to be replaced for substitutions
     // Store additional index for branch nodes.
-    TreeNodePointer prev = cache->root;
-    uint8_t prev_idx = 0;
+    TreeNodePointer prev = {.type = TT_NONE};
+    cache_key_idx_t prev_idx = 0;
 
     // Index into key (0-CACHE_KEY_LENGTH)
-    uint8_t key_idx = 0;
+    cache_key_idx_t key_idx = 0;
 
     // If the root node is empty insert a new edge with
     // the entire key and a leaf node with the value.
@@ -166,26 +168,25 @@ void cache_insert(Cache* cache, HashDigest key, const uint64_t value) {
         switch (node.type) {
         case TT_EDGE: {
             struct TreeNodeEdge* edge_node = CACHE_EDGE(cache, node);
-            const uint8_t* edge_key;
+            const cache_key_t* edge_key;
             CACHE_EDGE_FETCH_STR(edge_key, cache, edge_node);
-
             // Always skip next key_idx while storing the first character
             // as both cases needs it consumed.
-            const uint8_t current_hash = cache_key_hash(key, key_idx++);
+            const cache_key_t current_hash = cache_key_hash(key, key_idx++);
 
             // First character does not match insert branch
             if (edge_key[0] != current_hash) {
                 TreeNodePointer old_node = edge_node->next;
                 TreeNodePointer new_node = cache_create_leaf_node(cache, value);
 
-                if (edge_node->length != 1) {
-                    old_node = cache_create_edge_node(cache, edge_key, 1, edge_node->length, old_node, true);
+                if (edge_node->length > 1) {
+                    old_node = cache_create_edge_node(cache, edge_key, 1, edge_node->length - 1, old_node, true);
                     CACHE_EDGE_REFETCH(edge_node, cache, node);
                     CACHE_EDGE_FETCH_STR(edge_key, cache, edge_node);
                 }
 
-                if (key_idx < CACHE_KEY_LENGTH) {
-                    new_node = cache_create_edge_node(cache, key, key_idx, CACHE_KEY_LENGTH - key_idx + 1, new_node,
+                if (CACHE_KEY_LENGTH - key_idx > 0) {
+                    new_node = cache_create_edge_node(cache, key, key_idx, CACHE_KEY_LENGTH - key_idx, new_node,
                                                       false);
                     CACHE_EDGE_REFETCH(edge_node, cache, node);
                     CACHE_EDGE_FETCH_STR(edge_key, cache, edge_node);
@@ -197,8 +198,15 @@ void cache_insert(Cache* cache, HashDigest key, const uint64_t value) {
                 branch_node->next[edge_key[0]] = old_node;
                 branch_node->next[current_hash] = new_node;
 
+                // If the edge uses a dynamic string remove it
+                if (edge_node->length > 4) {
+                    freelist_remove(&cache->strings, edge_node->str_idx);
+                }
+
+                // Remove the edge node.
                 freelist_remove(&cache->edges, node.idx);
 
+                // Replace the reference to the edge node with our new node.
                 switch (prev.type) {
                 case TT_EDGE:
                     CACHE_EDGE(cache, prev)->next = branch;
@@ -206,13 +214,15 @@ void cache_insert(Cache* cache, HashDigest key, const uint64_t value) {
                 case TT_BRANCH:
                     CACHE_BRANCH(cache, prev)->next[prev_idx] = branch;
                     break;
+                case TT_NONE:
+                    cache->root = branch;
                 }
                 goto exit;
             }
 
-            for (uint8_t i = 1; i < edge_node->length; i++) {
-                const uint8_t old_hash = edge_key[i];
-                const uint8_t new_hash = cache_key_hash(key, key_idx);
+            for (cache_key_idx_t i = 1; i < edge_node->length; i++) {
+                const cache_key_t old_hash = edge_key[i];
+                const cache_key_t new_hash = cache_key_hash(key, key_idx);
 
                 // Skip over matching indices as long as possible
                 // But don't consume the first one that doesn't match
@@ -227,8 +237,8 @@ void cache_insert(Cache* cache, HashDigest key, const uint64_t value) {
 
                 // Create new edge IF there are characters left in the edge
                 // otherwise directly insert the leaf.
-                if (edge_node->length - i - 1 > 0) {
-                    old_node = cache_create_edge_node(cache, edge_key, i + 1, edge_node->length - i, old_node,
+                if (edge_node->length - i > 1) {
+                    old_node = cache_create_edge_node(cache, edge_key, i + 1, edge_node->length - i - 1, old_node,
                                                       true);
                     CACHE_EDGE_REFETCH(edge_node, cache, node);
                     CACHE_EDGE_FETCH_STR(edge_key, cache, edge_node);
@@ -236,7 +246,7 @@ void cache_insert(Cache* cache, HashDigest key, const uint64_t value) {
 
                 // Also only create an edge if we have more characters left in the key
                 if (key_idx + 1 < CACHE_KEY_LENGTH) {
-                    new_node = cache_create_edge_node(cache, key, key_idx + 1, CACHE_KEY_LENGTH - key_idx,
+                    new_node = cache_create_edge_node(cache, key, key_idx + 1, CACHE_KEY_LENGTH - key_idx - 1,
                                                       new_node, false);
                     CACHE_EDGE_REFETCH(edge_node, cache, node);
                     CACHE_EDGE_FETCH_STR(edge_key, cache, edge_node);
@@ -246,6 +256,13 @@ void cache_insert(Cache* cache, HashDigest key, const uint64_t value) {
                 struct TreeNodeBranch* branch_node = CACHE_BRANCH(cache, branch);
                 branch_node->next[old_hash] = old_node;
                 branch_node->next[new_hash] = new_node;
+
+                // Delete old string and set edge data.
+                if (edge_node->length > 4 && i <= 4) {
+                    const uint32_t str_idx = edge_node->str_idx;
+                    memcpy(edge_node->data, edge_key, i);
+                    freelist_remove(&cache->strings, str_idx);
+                }
 
                 edge_node->length = i;
                 edge_node->next = branch;
@@ -259,7 +276,7 @@ void cache_insert(Cache* cache, HashDigest key, const uint64_t value) {
         break;
         case TT_BRANCH: {
             struct TreeNodeBranch* branch_node = CACHE_BRANCH(cache, node);
-            const uint8_t hash = cache_key_hash(key, key_idx++);
+            const cache_key_t hash = cache_key_hash(key, key_idx++);
             const TreeNodePointer next = branch_node->next[hash];
 
             // Just insert rest as edge + leaf into the branch

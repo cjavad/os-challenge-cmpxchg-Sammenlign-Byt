@@ -12,6 +12,9 @@
 #define CACHE_KEY_LENGTH (SHA256_DIGEST_LENGTH * 2)
 #define CACHE_KEY_HASH_MAX 16
 
+typedef uint8_t cache_key_t;
+typedef uint32_t cache_key_idx_t;
+
 enum TreeNodeType
 {
     TT_NONE = 0,
@@ -37,11 +40,11 @@ struct TreeNodeEdge
 {
     union
     {
-        uint8_t data[4];
+        cache_key_t data[4];
         uint32_t str_idx;
     };
 
-    uint8_t length;
+    cache_key_idx_t length;
     TreeNodePointer next;
 };
 
@@ -52,7 +55,7 @@ struct TreeNodeLeaf
 
 union TreeNodeKeyEntry
 {
-    uint8_t str[CACHE_KEY_LENGTH];
+    cache_key_t str[CACHE_KEY_LENGTH];
 };
 
 struct Cache
@@ -115,14 +118,20 @@ static void cache_debug_print_node(const Cache* cache, const TreeNodePointer* no
             printf("%*sEdge\n", indent, "");
             printf("%*sLength: %d\n", indent + 2, "", edge->length);
             printf("%*sData: ", indent + 2, "");
-            const uint8_t* edge_str;
+            const cache_key_t* edge_str;
             CACHE_EDGE_FETCH_STR(edge_str, cache, edge);
 
-            for (int i = 0; i < edge->length; i++)
+            for (int i = 0; i < edge->length; i += 2)
             {
-                printf("%01x", edge_str[i]);
+                printf("%01x%01x", edge_str[i * 2], edge_str[i * 2 + 1]);
             }
             printf("\n");
+
+            if (edge->next.type == TT_NONE)
+            {
+                return;
+            }
+
             cache_debug_print_node(cache, &edge->next, indent + 2);
         }
         break;
@@ -143,7 +152,7 @@ static void cache_debug_print_node(const Cache* cache, const TreeNodePointer* no
 }
 
 // /*
-inline uint8_t cache_key_hash(const HashDigest hash, const uint32_t idx)
+inline cache_key_t cache_key_hash(const HashDigest hash, const uint32_t idx)
 {
     return (hash[idx >> 1] >> ((~idx & 1) << 2)) & 0xf;
 }
@@ -151,7 +160,7 @@ inline uint8_t cache_key_hash(const HashDigest hash, const uint32_t idx)
 //*/
 
 /*
-inline uint8_t cache_key_hash_idx(const HashDigest key, const uint64_t idx) {
+inline cache_key_t cache_key_hash_idx(const HashDigest key, const uint64_t idx) {
     return key[idx];
 }
 //*/
