@@ -72,10 +72,20 @@ struct Cache
 
 typedef struct Cache Cache;
 
+
+#define CACHE_LEAF(cache, node) (&(cache)->leaves.data[(node).idx])
+#define CACHE_EDGE(cache, node) (&(cache)->edges.data[(node).idx])
+#define CACHE_BRANCH(cache, node) (&(cache)->branches.data[(node).idx])
+
+#define CACHE_EDGE_STR(cache, edge) ((edge)->length > 4 ? (cache)->strings.data[(edge)->str_idx].str : (edge)->data)
+
+#define CACHE_LEAF_REFETCH(variable, cache, node) (variable) = CACHE_LEAF(cache, node)
+#define CACHE_EDGE_REFETCH(variable, cache, node) (variable) = CACHE_EDGE(cache, node)
+#define CACHE_BRANCH_REFETCH(variable, cache, node) (variable) = CACHE_BRANCH(cache, node)
+
 Cache* cache_create(uint32_t default_cap);
 void cache_destroy(Cache* cache);
 
-uint8_t* cache_get_edge_str(const Cache* cache, struct TreeNodeEdge* edge);
 uint64_t cache_get(Cache* cache, HashDigest key);
 void cache_insert(Cache* cache, HashDigest key, uint64_t value);
 
@@ -85,7 +95,7 @@ static void cache_debug_print_node(const Cache* cache, const TreeNodePointer* no
     {
     case TT_BRANCH:
         {
-            const struct TreeNodeBranch* branch = &cache->branches.data[node->idx];
+            const struct TreeNodeBranch* branch = CACHE_BRANCH(cache, *node);
             printf("%*sBranch\n", indent, "");
             for (int i = 0; i < CACHE_KEY_HASH_MAX; i++)
             {
@@ -100,12 +110,12 @@ static void cache_debug_print_node(const Cache* cache, const TreeNodePointer* no
 
     case TT_EDGE:
         {
-            struct TreeNodeEdge* edge = &cache->edges.data[node->idx];
+            const struct TreeNodeEdge* edge = CACHE_EDGE(cache, *node);
 
             printf("%*sEdge\n", indent, "");
             printf("%*sLength: %d\n", indent + 2, "", edge->length);
             printf("%*sData: ", indent + 2, "");
-            uint8_t* edge_str = cache_get_edge_str(cache, edge);
+            const uint8_t* edge_str = CACHE_EDGE_STR(cache, edge);
             for (int i = 0; i < edge->length; i++)
             {
                 printf("%01x", edge_str[i]);
@@ -117,7 +127,7 @@ static void cache_debug_print_node(const Cache* cache, const TreeNodePointer* no
 
     case TT_LEAF:
         {
-            const struct TreeNodeLeaf* leaf = &cache->leaves.data[node->idx];
+            const struct TreeNodeLeaf* leaf = CACHE_LEAF(cache, *node);
             printf("%*sLeaf\n", indent, "");
             printf("%*sValue: %lu\n", indent + 2, "", leaf->value);
         }

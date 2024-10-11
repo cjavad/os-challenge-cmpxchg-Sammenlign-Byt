@@ -21,7 +21,7 @@ Scheduler* scheduler_create(const uint32_t cap) {
     scheduler->r_mutex = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
     scheduler->w_mutex = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
 
-    scheduler->cache = cache_create(1024);
+    scheduler->cache = cache_create(1);
 
     scheduler->jobs = calloc(cap, sizeof(Job));
     scheduler->job_cap = cap;
@@ -63,7 +63,7 @@ uint64_t scheduler_submit(Scheduler* scheduler, ProtocolRequest* req, JobData* d
         return 0;
     }
 
-#ifdef DEGUB
+#ifdef DEBUG
     protocol_debug_print_request(req);
 #endif
 
@@ -113,9 +113,7 @@ void scheduler_job_done(const Scheduler* scheduler, const Task* task, ProtocolRe
 
     // Store cache entry.
     // TODO: Fix temp workaround where we switch endianess back.
-    if (cache_get(scheduler->cache, task->hash) == 0) {
-        cache_insert(scheduler->cache, task->hash, __builtin_bswap64(response->answer));
-    }
+    cache_insert(scheduler->cache, task->hash, __builtin_bswap64(response->answer));
 }
 
 void scheduler_job_notify(JobData* data, ProtocolResponse* response) {
