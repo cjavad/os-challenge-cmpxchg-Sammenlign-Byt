@@ -22,9 +22,9 @@ LFLAGS = -lpthread -lrt -lm -Wl,-rpath,lib
 
 C_FILES := $(shell find $(SRCDIR) -type f -name "*.c")
 
-ifneq (,$(findstring release,$(MAKECMDGOALS)))
-	DEPDIR := $(DEPDIR)/release
-	OBJDIR := $(OBJDIR)/release
+ifneq (,$(findstring build,$(MAKECMDGOALS)))
+	DEPDIR := $(DEPDIR)/build
+	OBJDIR := $(OBJDIR)/build
 else ifneq (,$(findstring clean,$(MAKECMDGOALS)))
 	OBJDIR := $(OBJDIR)
 else ifneq (,$(findstring purge,$(MAKECMDGOALS)))
@@ -32,8 +32,8 @@ else ifneq (,$(findstring purge,$(MAKECMDGOALS)))
 	OBJDIR := $(OBJDIR)
 else
 # (,$(findstring build,$(MAKECMDGOALS)))
-	DEPDIR := $(DEPDIR)/build
-	OBJDIR := $(OBJDIR)/build
+	DEPDIR := $(DEPDIR)/release
+	OBJDIR := $(OBJDIR)/release
 endif
 
 D_FILES := $(patsubst $(SRCDIR)/%.c, $(DEPDIR)/%.d, $(C_FILES))
