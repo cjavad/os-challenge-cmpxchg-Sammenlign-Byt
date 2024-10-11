@@ -119,23 +119,22 @@ void benchmark_test_vec() {
         benchmark_random_entry(&entries[i]);
     }
 
-    // struct Entry e0 = {.data = 7166471293614885318 };
-    // struct Entry e1 = {.data = 3168397521958174489 };
-    // sha256_custom(e0.key, (uint8_t*)&e0.data);
-    // sha256_custom(e1.key, (uint8_t*)&e1.data);
+    struct Entry e0 = {.data = 7166471293614885318};
+    struct Entry e1 = {.data = 3168397521958174489};
+    sha256_custom(e0.key, (uint8_t*)&e0.data);
+    sha256_custom(e1.key, (uint8_t*)&e1.data);
 
-    // print_hash(e0.key);
-    // print_hash(e1.key);
+    print_hash(e1.key);
+    print_hash(e0.key);
 
-    // cache_debug_print_idx(e0.key);
-    // cache_debug_print_idx(e1.key);
+    cache_debug_print_idx(e0.key);
+    cache_debug_print_idx(e1.key);
 
-    // cache_insert(cache, e0.key, e0.data);
-    // cache_debug_print(cache);
-    // cache_insert(cache, e1.key, e1.data);
-    // cache_debug_print(cache);
-
-    // return;
+    cache_insert(cache, e0.key, e0.data);
+    cache_debug_print(cache);
+    cache_insert(cache, e1.key, e1.data);
+    cache_debug_print(cache);
+    return;
 
     D_BENCHMARK_TIME_START()
         for (int i = 0; i < N; i++) {

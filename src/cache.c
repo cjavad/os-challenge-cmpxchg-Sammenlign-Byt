@@ -30,7 +30,7 @@ void cache_destroy(Cache* cache) {
     free(cache);
 }
 
-uint8_t* cache_get_edge_str(const Cache* cache, struct TreeNodeEdge* edge) {
+inline uint8_t* cache_get_edge_str(const Cache* cache, struct TreeNodeEdge* edge) {
     if (edge->length > 4) {
         return cache->strings.data[edge->str_idx].str;
     }
@@ -92,13 +92,13 @@ notfound:
     return 0;
 }
 
-TreeNodePointer cache_create_leaf_node(Cache* cache, const uint64_t value) {
+inline TreeNodePointer cache_create_leaf_node(Cache* cache, const uint64_t value) {
     const struct TreeNodeLeaf leaf = {.value = value};
     const uint32_t idx = freelist_add(&cache->leaves, leaf);
     return (TreeNodePointer){.type = TT_LEAF, .idx = idx};
 }
 
-TreeNodePointer cache_create_edge_node(Cache* cache, const uint8_t* key, const uint32_t offset, const uint32_t end,
+inline TreeNodePointer cache_create_edge_node(Cache* cache, const uint8_t* key, const uint32_t offset, const uint32_t end,
                                        const TreeNodePointer next, bool packed) {
     const struct TreeNodeEdge edge = {.length = end - offset, .next = next};
 
@@ -126,7 +126,7 @@ TreeNodePointer cache_create_edge_node(Cache* cache, const uint8_t* key, const u
     return (TreeNodePointer){.type = TT_EDGE, .idx = idx};
 }
 
-TreeNodePointer cache_create_branch_node(Cache* cache) {
+inline TreeNodePointer cache_create_branch_node(Cache* cache) {
     const struct TreeNodeBranch branch = {0};
     const uint32_t idx = freelist_add(&cache->branches, branch);
     return (TreeNodePointer){.type = TT_BRANCH, .idx = idx};

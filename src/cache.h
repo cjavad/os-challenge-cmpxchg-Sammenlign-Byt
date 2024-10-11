@@ -12,9 +12,6 @@
 #define CACHE_KEY_LENGTH (SHA256_DIGEST_LENGTH * 2)
 #define CACHE_KEY_HASH_MAX 16
 
-typedef struct TreeNode TreeNode;
-
-
 enum TreeNodeType
 {
     TT_NONE = 0,
@@ -78,12 +75,59 @@ typedef struct Cache Cache;
 Cache* cache_create(uint32_t default_cap);
 void cache_destroy(Cache* cache);
 
-
+uint8_t* cache_get_edge_str(const Cache* cache, struct TreeNodeEdge* edge);
 uint64_t cache_get(Cache* cache, HashDigest key);
 void cache_insert(Cache* cache, HashDigest key, uint64_t value);
 
-static void cache_debug_print_node(const Cache* cache, const TreeNode* node, const int indent)
+static void cache_debug_print_node(const Cache* cache, const TreeNodePointer* node, const int indent)
 {
+    switch (node->type)
+    {
+    case TT_BRANCH:
+        {
+            const struct TreeNodeBranch* branch = &cache->branches.data[node->idx];
+            printf("%*sBranch\n", indent, "");
+            for (int i = 0; i < CACHE_KEY_HASH_MAX; i++)
+            {
+                if (branch->next[i].type != TT_NONE)
+                {
+                    printf("%*s[%x]\n", indent + 2, "", i);
+                    cache_debug_print_node(cache, &branch->next[i], indent + 4);
+                }
+            }
+        }
+        break;
+
+    case TT_EDGE:
+        {
+            struct TreeNodeEdge* edge = &cache->edges.data[node->idx];
+
+            printf("%*sEdge\n", indent, "");
+            printf("%*sLength: %d\n", indent + 2, "", edge->length);
+            printf("%*sData: ", indent + 2, "");
+            uint8_t* edge_str = cache_get_edge_str(cache, edge);
+            for (int i = 0; i < edge->length; i++)
+            {
+                printf("%01x", edge_str[i]);
+            }
+            printf("\n");
+            cache_debug_print_node(cache, &edge->next, indent + 2);
+        }
+        break;
+
+    case TT_LEAF:
+        {
+            const struct TreeNodeLeaf* leaf = &cache->leaves.data[node->idx];
+            printf("%*sLeaf\n", indent, "");
+            printf("%*sValue: %lu\n", indent + 2, "", leaf->value);
+        }
+        break;
+
+    case TT_NONE:
+        {
+            printf("%*sNone\n", indent, "");
+        }
+    }
 }
 
 // /*
@@ -103,6 +147,7 @@ inline uint8_t cache_key_hash_idx(const HashDigest key, const uint64_t idx) {
 static void cache_debug_print(const Cache* cache)
 {
     printf("===============================<CACHE>=================================\n");
+    cache_debug_print_node(cache, &cache->root, 0);
 }
 
 static void cache_debug_print_idx(const HashDigest hash)
