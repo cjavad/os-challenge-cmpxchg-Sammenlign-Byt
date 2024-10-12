@@ -260,7 +260,7 @@ void cache_insert(Cache* cache, HashDigest key, const uint64_t value) {
                 // Delete old string and set edge data.
                 if (edge_node->length > CACHE_EDGE_SMALL_STR_SIZE && i <= CACHE_EDGE_SMALL_STR_SIZE) {
                     const uint32_t str_idx = edge_node->str_idx;
-                    memcpy(edge_node->data, edge_key, i);
+                    cache_copy_key_helper(edge_node->data, edge_key, 0, i);
                     freelist_remove(&cache->strings, str_idx);
                 }
 
