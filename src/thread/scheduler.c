@@ -130,6 +130,9 @@ void scheduler_job_notify(JobData* data, ProtocolResponse* response) {
         futex_post(&data->futex);
         break;
     }
+
+    // Cleanup job data once it is done.
+    free(data);
 }
 
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
