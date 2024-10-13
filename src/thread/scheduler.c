@@ -6,8 +6,6 @@
 
 #define SCHEDULER_BLOCK_SIZE (1 << 16)
 
-
-
 Scheduler* scheduler_create(const uint32_t cap) {
     Scheduler* scheduler = calloc(1, sizeof(Scheduler));
 
@@ -79,7 +77,7 @@ uint64_t scheduler_submit(Scheduler* scheduler, ProtocolRequest* req, JobData* d
     ringbuffer_push(&scheduler->pending_jobs, job);
 
     // Wake single thread per new submission.
-    pthread_cond_signal(&scheduler->waker);
+    pthread_cond_broadcast(&scheduler->waker);
 
     return job.id;
 }
