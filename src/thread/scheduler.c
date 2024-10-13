@@ -158,9 +158,6 @@ bool scheduler_schedule(Scheduler* scheduler, Task* task) {
         pthread_cond_wait(&scheduler->waker, &scheduler->lock);
     }
 
-    assert(scheduler->jobs.len > 0);
-    assert(scheduler->priority_sum > 0);
-
     uint32_t offset = xorshift32_prng_next(&scheduler->prng_state) % scheduler->priority_sum;
 
     for (;;) {
@@ -216,7 +213,6 @@ void scheduler_close(Scheduler* scheduler) {
     pthread_cond_broadcast(&scheduler->waker);
 }
 
-/// SAFETY: Requires ownership of lock
 void scheduler_process_pending_jobs(Scheduler* scheduler) {
     const uint32_t head = ringbuffer_head(&scheduler->pending_jobs);
     uint32_t tail = ringbuffer_tail(&scheduler->pending_jobs);

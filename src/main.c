@@ -1,4 +1,5 @@
 #include "hash.h"
+#include "server/epoll.h"
 #include "server/server.h"
 
 #include <stdint.h>
@@ -8,7 +9,7 @@
 
 int server(const int port) {
     Server server;
-    AsyncCtx ctx;
+    struct EpollServerCtx ctx;
     int ret = 0;
 
     if ((ret = server_init(&server, port)) < 0) {
@@ -23,13 +24,13 @@ int server(const int port) {
 
     printf("Listening on port 8080\n");
 
-    if ((ret = async_server_init(&server, &ctx)) < 0) {
+    if ((ret = epoll_server_init(&server, &ctx)) < 0) {
         printf("Failed to initialize async server: %s\n", strerror(-ret));
         return 1;
     }
 
     while (1) {
-        if ((ret = async_server_poll(&server, &ctx)) >= 0) {
+        if ((ret = epoll_server_poll(&server, &ctx)) >= 0) {
             continue;
         }
 
@@ -37,7 +38,7 @@ int server(const int port) {
         break;
     }
 
-    async_server_exit(&server, &ctx);
+    epoll_server_exit(&server, &ctx);
 
     printf("Closed server\n");
 

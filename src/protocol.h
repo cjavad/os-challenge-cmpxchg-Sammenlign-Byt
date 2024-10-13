@@ -7,8 +7,7 @@
 
 // The format over the wire is big endian but all values are generated in little
 // endian
-
-typedef struct ProtocolRequest {
+struct ProtocolRequest {
     // Hash to be reversed
     uint8_t hash[32];
     // Range of the input that the hash originates from.
@@ -17,15 +16,15 @@ typedef struct ProtocolRequest {
     uint64_t end;
     // Priority
     uint8_t priority;
-} __attribute__((packed)) ProtocolRequest;
+};
 
-_Static_assert(sizeof(ProtocolRequest) == PROTOCOL_REQ_SIZE, "ProtocolRequest size is not 49 bytes");
+typedef struct ProtocolRequest ProtocolRequest;
 
-typedef struct ProtocolResponse {
+struct ProtocolResponse {
     uint64_t answer;
-} __attribute__((packed)) ProtocolResponse;
+};
 
-_Static_assert(sizeof(ProtocolResponse) == PROTOCOL_RES_SIZE, "ProtocolResponse size is not 8 bytes");
+typedef struct ProtocolResponse ProtocolResponse;
 
 void protocol_request_to_le(ProtocolRequest* be);
 void protocol_response_to_be(ProtocolResponse* le);

@@ -1,16 +1,13 @@
-#include "server.h"
+#include "epoll.h"
 
-#include <errno.h>
-#include <stdio.h>
+void accept_client(const struct EpollServerCtx* ctx, union EpollEventData* data);
+void consume_request(const struct EpollServerCtx* ctx, const union EpollEventData* data);
+void remove_client(const struct EpollServerCtx* ctx, const union EpollEventData* data);
 
-void accept_client(AsyncCtx* ctx, AsyncData* data);
-void consume_request(AsyncCtx* ctx, const AsyncData* data);
-void remove_client(const AsyncCtx* ctx, const AsyncData* data);
-
-int async_server_init(const Server* server, AsyncCtx* ctx) {
+int epoll_server_init(const Server* server, struct EpollServerCtx* ctx) {
     int ret = 0;
 
-    bzero(ctx, sizeof(AsyncCtx));
+    bzero(ctx, sizeof(struct EpollServerCtx));
 
     ret = epoll_create(EPOLL_MAX_EVENTS);
 
@@ -20,12 +17,14 @@ int async_server_init(const Server* server, AsyncCtx* ctx) {
 
     // Setup server fd.
     ctx->epoll_fd = ret;
-    ctx->ev.events = EPOLLIN;
 
-    const AsyncData async_data = {.type = SERVER_ACCEPT, .fd = server->fd};
-    memcpy(&ctx->ev.data.u64, &async_data, sizeof(async_data));
+    struct epoll_event ev = {0};
+    ev.events = EPOLLIN;
 
-    if ((ret = epoll_ctl(ctx->epoll_fd, EPOLL_CTL_ADD, server->fd, &ctx->ev)) < 0) {
+    const union EpollEventData async_data = {.type = SERVER_ACCEPT, .fd = server->fd};
+    memcpy(&ev.data.u64, &async_data, sizeof(async_data));
+
+    if ((ret = epoll_ctl(ctx->epoll_fd, EPOLL_CTL_ADD, server->fd, &ev)) < 0) {
         return ret;
     }
 
@@ -36,16 +35,18 @@ int async_server_init(const Server* server, AsyncCtx* ctx) {
     return ret;
 }
 
-int async_server_poll(const Server* server, AsyncCtx* ctx) {
-    const int new_events = epoll_wait(ctx->epoll_fd, ctx->events, EPOLL_MAX_EVENTS, -1);
+int epoll_server_poll(const Server* server, const struct EpollServerCtx* ctx) {
+    struct epoll_event events[EPOLL_MAX_EVENTS];
+
+    const int32_t new_events = epoll_wait(ctx->epoll_fd, events, EPOLL_MAX_EVENTS, -1);
 
     if (new_events < 0) {
         return new_events;
     }
 
     for (int i = 0; i < new_events; i++) {
-        const struct epoll_event* event = &ctx->events[i];
-        AsyncData data;
+        const struct epoll_event* event = &events[i];
+        union EpollEventData data;
         memcpy(&data, &event->data.u64, sizeof(data));
 
         switch (data.type) {
@@ -73,7 +74,7 @@ int async_server_poll(const Server* server, AsyncCtx* ctx) {
     return 0;
 }
 
-int async_server_exit(const Server* server, const AsyncCtx* ctx) {
+int epoll_server_exit(const Server* server, const struct EpollServerCtx* ctx) {
     // it's *very* important that the worker pool is destroyed before the scheduler
     // since the worker threads are still running and may access the scheduler.
     worker_destroy_pool(ctx->worker_pool);
@@ -81,13 +82,13 @@ int async_server_exit(const Server* server, const AsyncCtx* ctx) {
     return close(ctx->epoll_fd) + close(server->fd);
 }
 
-void accept_client(AsyncCtx* ctx, AsyncData* data) {
+void accept_client(const struct EpollServerCtx* ctx, union EpollEventData* data) {
     int ret = 0;
 
     struct sockaddr_in addr;
-    unsigned int client_len = sizeof(addr);
+    uint32_t client_len = sizeof(addr);
 
-    const int client_fd = accept4(data->fd, (struct sockaddr*)&addr, &client_len, SOCK_NONBLOCK);
+    const int32_t client_fd = accept4(data->fd, (struct sockaddr*)&addr, &client_len, SOCK_NONBLOCK);
 
     if (client_fd < 0) {
         fprintf(stderr, "Failed to accept client: %s from %d\n", strerror(-client_fd), data->fd);
@@ -95,13 +96,15 @@ void accept_client(AsyncCtx* ctx, AsyncData* data) {
         return;
     }
 
+    struct epoll_event ev = {0};
+
     // Handle CLIENT_EVENT and CLIENT_CLOSED events.
-    ctx->ev.events = EPOLLIN | EPOLLHUP;
+    ev.events = EPOLLIN | EPOLLHUP;
 
-    const AsyncData async_data = {.type = CLIENT_EVENT, .fd = client_fd};
-    memcpy(&ctx->ev.data.u64, &async_data, sizeof(async_data));
+    const union EpollEventData async_data = {.type = CLIENT_EVENT, .fd = client_fd};
+    memcpy(&ev.data.u64, &async_data, sizeof(async_data));
 
-    if ((ret = epoll_ctl(ctx->epoll_fd, EPOLL_CTL_ADD, client_fd, &ctx->ev)) < 0) {
+    if ((ret = epoll_ctl(ctx->epoll_fd, EPOLL_CTL_ADD, client_fd, &ev)) < 0) {
 
         fprintf(stderr, "Failed to add client %d to epoll: %s\n", client_fd, strerror(ret));
 
@@ -109,7 +112,7 @@ void accept_client(AsyncCtx* ctx, AsyncData* data) {
     }
 }
 
-void consume_request(AsyncCtx* ctx, const AsyncData* data) {
+void consume_request(const struct EpollServerCtx* ctx, const union EpollEventData* data) {
     const int32_t client_fd = data->fd;
 
     ProtocolRequest request;
@@ -134,6 +137,6 @@ void consume_request(AsyncCtx* ctx, const AsyncData* data) {
     scheduler_submit(ctx->scheduler, &request, task_data);
 }
 
-void remove_client(const AsyncCtx* ctx, const AsyncData* data) {
+void remove_client(const struct EpollServerCtx* ctx, const union EpollEventData* data) {
     epoll_ctl(ctx->epoll_fd, EPOLL_CTL_DEL, data->fd, NULL);
 }

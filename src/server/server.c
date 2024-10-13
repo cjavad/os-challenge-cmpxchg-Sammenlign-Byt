@@ -35,7 +35,7 @@ int server_init(Server* server, const int port) {
 int server_listen(Server* server, const int backlog) {
     int ret = 0;
 
-    if ((ret = bind(server->fd, (netinet_socketaddr*)&server->addr, sizeof(netinet_socketaddr))) < 0) {
+    if ((ret = bind(server->fd, (struct sockaddr*)&server->addr, sizeof(struct sockaddr))) < 0) {
         return ret;
     }
 
