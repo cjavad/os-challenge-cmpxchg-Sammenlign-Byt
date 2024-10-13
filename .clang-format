@@ -8,4 +8,5 @@ AlignAfterOpenBracket: BlockIndent
 # clang docs lied to me
 # BinPackParameters: OnePerLine
 BreakBeforeBraces: Attach
-PointerAlignment: Left 
+PointerAlignment: Left
+AlignConsecutiveMacros: true

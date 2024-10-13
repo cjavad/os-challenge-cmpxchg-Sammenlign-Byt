@@ -67,17 +67,14 @@ struct Scheduler {
 
     bool running;
     pthread_cond_t waker;
-    pthread_mutex_t r_mutex;
-    pthread_mutex_t w_mutex;
+    pthread_mutex_t lock;
 
     /* cache */
     Cache* cache;
 
     /* task list */
-    Job* jobs;
-
-    uint32_t job_len;
-    uint32_t job_cap;
+    RingBuffer(Job) pending_jobs;
+    Vec(Job) jobs;
 
     uint64_t next_job_id;
 
@@ -98,14 +95,20 @@ Scheduler* scheduler_create(uint32_t cap);
 void scheduler_destroy(Scheduler* scheduler);
 
 JobData* scheduler_create_job_data(JobType type, uint32_t data);
+void scheduler_destroy_job_data(JobData* data);
 
 /// Submit a new request to the scheduler.
 /// JobData has to be accessible from other threads.
 uint64_t scheduler_submit(Scheduler* scheduler, ProtocolRequest* req, JobData* data);
 
+void scheduler_process_pending_jobs(Scheduler* scheduler);
+void scheduler_push_job(Scheduler* scheduler, const Job* job);
+void scheduler_remove_swap_job(Scheduler* scheduler, uint32_t idx);
+
 /// Notify the scheduler that a job is done.
 /// This performs notification of recipients waiting for the job to be done.
 void scheduler_job_done(const Scheduler* scheduler, const Task* task, ProtocolResponse* response);
+void scheduler_job_notify(JobData* data, ProtocolResponse* response);
 
 /// Terminate a job by its unique identifier.
 bool scheduler_terminate(Scheduler* scheduler, uint64_t job_id);

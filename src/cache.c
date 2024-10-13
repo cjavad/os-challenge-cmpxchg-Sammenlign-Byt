@@ -9,17 +9,16 @@
 
 TreeNodePointer cache_create_leaf_node(Cache* cache, uint64_t value);
 
-TreeNodePointer cache_create_edge_node(Cache* cache, const cache_key_t* key, cache_key_idx_t offset,
-                                       cache_key_idx_t length,
-                                       TreeNodePointer next);
+TreeNodePointer cache_create_edge_node(
+    Cache* cache, const cache_key_t* key, cache_key_idx_t offset, cache_key_idx_t length, TreeNodePointer next
+);
 
 TreeNodePointer cache_create_branch_node(Cache* cache);
 
 Cache* cache_create(const uint32_t default_cap) {
     Cache* cache = calloc(1, sizeof(Cache));
 
-    cache->lock = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
-
+    ringbuffer_init(&cache->pending, 1024);
     freelist_init(&cache->strings, default_cap);
     freelist_init(&cache->branches, default_cap / 16);
     freelist_init(&cache->edges, default_cap);
@@ -38,16 +37,9 @@ void cache_destroy(Cache* cache) {
     free(cache);
 }
 
-
-uint64_t cache_get(Cache* cache, HashDigest key) {
-    pthread_mutex_lock(&cache->lock);
-
+uint64_t cache_get(const Cache* cache, HashDigest key) {
     TreeNodePointer node = cache->root;
     cache_key_idx_t key_idx = 0;
-
-    if (node.type == TT_NONE) {
-        goto notfound;
-    }
 
     for (;;) {
         switch (node.type) {
@@ -63,8 +55,7 @@ uint64_t cache_get(Cache* cache, HashDigest key) {
             }
 
             node = edge_node->next;
-        }
-        break;
+        } break;
         case TT_BRANCH: {
             const struct TreeNodeBranch* branch_node = CACHE_BRANCH(cache, node);
             const cache_key_t hash = cache_key_hash_get(key, key_idx++);
@@ -75,14 +66,11 @@ uint64_t cache_get(Cache* cache, HashDigest key) {
             }
 
             node = next;
-        }
-        break;
+        } break;
         case TT_LEAF: {
             const struct TreeNodeLeaf* leaf = CACHE_LEAF(cache, node);
-            pthread_mutex_unlock(&cache->lock);
             return leaf->value;
-        }
-        break;
+        } break;
         default: {
             goto notfound;
         }
@@ -90,7 +78,6 @@ uint64_t cache_get(Cache* cache, HashDigest key) {
     }
 
 notfound:
-    pthread_mutex_unlock(&cache->lock);
     return 0;
 }
 
@@ -100,8 +87,9 @@ inline TreeNodePointer cache_create_leaf_node(Cache* cache, const uint64_t value
     return (TreeNodePointer){.type = TT_LEAF, .idx = idx};
 }
 
-inline void cache_copy_key_helper(cache_key_t* buffer, const cache_key_t* key, const cache_key_idx_t offset,
-                                  const cache_key_idx_t length) {
+inline void cache_copy_key_helper(
+    cache_key_t* buffer, const cache_key_t* key, const cache_key_idx_t offset, const cache_key_idx_t length
+) {
 
     if (offset % 2 == 0) {
         memcpy(buffer, key + (offset / 2), (length + 1) / 2);
@@ -113,15 +101,16 @@ inline void cache_copy_key_helper(cache_key_t* buffer, const cache_key_t* key, c
     }
 }
 
-inline TreeNodePointer cache_create_edge_node(Cache* cache, const cache_key_t* key, const cache_key_idx_t offset,
-                                              const cache_key_idx_t length,
-                                              const TreeNodePointer next) {
+inline TreeNodePointer cache_create_edge_node(
+    Cache* cache, const cache_key_t* key, const cache_key_idx_t offset, const cache_key_idx_t length,
+    const TreeNodePointer next
+) {
 
     const struct TreeNodeEdge edge = {.length = length, .next = next};
 
     const uint32_t idx = freelist_add(&cache->edges, edge);
 
-    if (edge.length > 8) {
+    if (edge.length > CACHE_EDGE_SMALL_STR_SIZE) {
         union TreeNodeKeyEntry str_buffer;
         // It is important that we copy before adding to the string freelist
         // as realloc will change the pointer and can invalidate key.
@@ -141,10 +130,7 @@ inline TreeNodePointer cache_create_branch_node(Cache* cache) {
     return (TreeNodePointer){.type = TT_BRANCH, .idx = idx};
 }
 
-
 void cache_insert(Cache* cache, HashDigest key, const uint64_t value) {
-    pthread_mutex_lock(&cache->lock);
-
     // Current node
     TreeNodePointer node = cache->root;
 
@@ -246,8 +232,8 @@ void cache_insert(Cache* cache, HashDigest key, const uint64_t value) {
 
                 // Also only create an edge if we have more characters left in the key
                 if (key_idx + 1 < CACHE_KEY_LENGTH) {
-                    new_node = cache_create_edge_node(cache, key, key_idx + 1, CACHE_KEY_LENGTH - key_idx - 1,
-                                                      new_node);
+                    new_node =
+                        cache_create_edge_node(cache, key, key_idx + 1, CACHE_KEY_LENGTH - key_idx - 1, new_node);
                     CACHE_EDGE_REFETCH(edge_node, cache, node);
                     CACHE_EDGE_FETCH_STR(edge_key, cache, edge_node);
                 }
@@ -272,8 +258,7 @@ void cache_insert(Cache* cache, HashDigest key, const uint64_t value) {
 
             prev = node;
             node = edge_node->next;
-        }
-        break;
+        } break;
         case TT_BRANCH: {
             struct TreeNodeBranch* branch_node = CACHE_BRANCH(cache, node);
             const cache_key_t hash = cache_key_hash_get(key, key_idx++);
@@ -282,8 +267,8 @@ void cache_insert(Cache* cache, HashDigest key, const uint64_t value) {
             // Just insert rest as edge + leaf into the branch
             if (next.type == 0) {
                 const TreeNodePointer leaf = cache_create_leaf_node(cache, value);
-                const TreeNodePointer edge = cache_create_edge_node(cache, key, key_idx, CACHE_KEY_LENGTH - key_idx,
-                                                                    leaf);
+                const TreeNodePointer edge =
+                    cache_create_edge_node(cache, key, key_idx, CACHE_KEY_LENGTH - key_idx, leaf);
                 branch_node->next[hash] = edge;
                 goto exit;
             }
@@ -291,8 +276,7 @@ void cache_insert(Cache* cache, HashDigest key, const uint64_t value) {
             prev = node;
             prev_idx = hash;
             node = next;
-        }
-        break;
+        } break;
 
         default:
             goto exit;
@@ -300,5 +284,23 @@ void cache_insert(Cache* cache, HashDigest key, const uint64_t value) {
     }
 
 exit:
-    pthread_mutex_unlock(&cache->lock);
+}
+
+void cache_process_pending(Cache* cache) {
+    // Only process up to the current tail at the time of the call.
+    struct TreeNodePendingInsert entry = {0};
+    const uint32_t head = ringbuffer_head(&cache->pending);
+    uint32_t tail = ringbuffer_tail(&cache->pending);
+
+    while (head != tail) {
+        ringbuffer_pop(&cache->pending, &entry);
+        tail = ringbuffer_tail(&cache->pending);
+        cache_insert(cache, entry.key, entry.value);
+    }
+}
+
+void cache_insert_pending(Cache* cache, const HashDigest key, const uint64_t value) {
+    const struct TreeNodePendingInsert entry = {.value = value};
+    memcpy(entry.key, key, sizeof(HashDigest));
+    ringbuffer_push(&cache->pending, entry);
 }

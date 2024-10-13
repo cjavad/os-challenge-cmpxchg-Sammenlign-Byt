@@ -119,7 +119,7 @@ void debug_print_uint4(const uint8_t* data, const size_t len) {
 void benchmark_test_vec() {
     getrandom(&BENCHMARK_PRNG_STATE, sizeof(BENCHMARK_PRNG_STATE), 0);
 
-    const uint64_t N = random_u64_in_range(0, 1000000);
+    const uint64_t N = 1000000;
     printf("Benchmarking vec with %lu elements\n", N);
 
     Cache* cache = cache_create(N);

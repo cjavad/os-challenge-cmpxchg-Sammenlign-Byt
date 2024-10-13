@@ -4,12 +4,9 @@
 
 #include <assert.h>
 
-#define SCHEDULER_BLOCK_SIZE (1<<16)
+#define SCHEDULER_BLOCK_SIZE (1 << 16)
 
-void scheduler_grow_jobs(Scheduler* scheduler);
-void scheduler_push_job(Scheduler* scheduler, const ProtocolRequest* req, uint64_t id, JobData* data);
-void scheduler_remove_swap_job(Scheduler* scheduler, uint32_t idx);
-void scheduler_job_notify(JobData* data, ProtocolResponse* response);
+
 
 Scheduler* scheduler_create(const uint32_t cap) {
     Scheduler* scheduler = calloc(1, sizeof(Scheduler));
@@ -18,14 +15,12 @@ Scheduler* scheduler_create(const uint32_t cap) {
     scheduler->running = true;
 
     scheduler->waker = (pthread_cond_t)PTHREAD_COND_INITIALIZER;
-    scheduler->r_mutex = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
-    scheduler->w_mutex = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
+    scheduler->lock = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
 
     scheduler->cache = cache_create(1024);
 
-    scheduler->jobs = calloc(cap, sizeof(Job));
-    scheduler->job_cap = cap;
-    scheduler->job_len = 0;
+    ringbuffer_init(&scheduler->pending_jobs, 1024);
+    vec_init(&scheduler->jobs, cap);
 
     scheduler->priority_sum = 0;
 
@@ -39,9 +34,11 @@ Scheduler* scheduler_create(const uint32_t cap) {
 
 void scheduler_destroy(Scheduler* scheduler) {
     pthread_cond_destroy(&scheduler->waker);
-    pthread_mutex_destroy(&scheduler->r_mutex);
-    pthread_mutex_destroy(&scheduler->r_mutex);
-    free(scheduler->jobs);
+    pthread_mutex_destroy(&scheduler->lock);
+
+    ringbuffer_destroy(&scheduler->pending_jobs);
+    vec_destroy(&scheduler->jobs);
+
     free(scheduler);
 }
 
@@ -51,8 +48,12 @@ JobData* scheduler_create_job_data(const JobType type, const uint32_t data) {
     job_data->data = data;
     return job_data;
 }
+void scheduler_destroy_job_data(JobData* data) { free(data); }
 
 uint64_t scheduler_submit(Scheduler* scheduler, ProtocolRequest* req, JobData* data) {
+    // Process pending cache entries.
+    cache_process_pending(scheduler->cache);
+
     const uint64_t cached_answer = cache_get(scheduler->cache, req->hash);
 
     if (cached_answer != 0) {
@@ -60,10 +61,8 @@ uint64_t scheduler_submit(Scheduler* scheduler, ProtocolRequest* req, JobData* d
         return 0;
     }
 
-    pthread_mutex_lock(&scheduler->w_mutex);
-
 #ifdef DEBUG
-    protocol_debug_print_request(req);
+    // protocol_debug_print_request(req);
 #endif
 
     // If the priority is 0, set it to 1
@@ -71,25 +70,27 @@ uint64_t scheduler_submit(Scheduler* scheduler, ProtocolRequest* req, JobData* d
         req->priority = 1;
     }
 
-    const uint64_t job_id = scheduler->next_job_id++;
+    const Job job = {
+        .start = req->start, .end = req->end, .priority = req->priority, .id = scheduler->next_job_id++, .data = data
+    };
 
-    scheduler_push_job(scheduler, req, job_id, data);
+    memcpy(job.hash, req->hash, sizeof(HashDigest));
 
-    pthread_mutex_unlock(&scheduler->w_mutex);
+    ringbuffer_push(&scheduler->pending_jobs, job);
 
     // Wake single thread per new submission.
-    pthread_cond_broadcast(&scheduler->waker);
+    pthread_cond_signal(&scheduler->waker);
 
-    return job_id;
+    return job.id;
 }
 
 bool scheduler_terminate(Scheduler* scheduler, const uint64_t job_id) {
     bool found = false;
 
-    pthread_mutex_lock(&scheduler->w_mutex);
+    pthread_mutex_lock(&scheduler->lock);
 
-    for (uint32_t i = 0; i < scheduler->job_len; i++) {
-        const Job* job = &scheduler->jobs[i];
+    for (uint32_t i = 0; i < scheduler->jobs.len; i++) {
+        const Job* job = &scheduler->jobs.data[i];
 
         if (job->id == job_id) {
             scheduler_remove_swap_job(scheduler, i);
@@ -101,7 +102,7 @@ bool scheduler_terminate(Scheduler* scheduler, const uint64_t job_id) {
         }
     }
 
-    pthread_mutex_unlock(&scheduler->w_mutex);
+    pthread_mutex_unlock(&scheduler->lock);
 
     return found;
 }
@@ -111,8 +112,8 @@ void scheduler_job_done(const Scheduler* scheduler, const Task* task, ProtocolRe
     scheduler_job_notify(task->data, response);
 
     // Store cache entry.
-    // TODO: Fix temp workaround where we switch endianess back.
-    cache_insert(scheduler->cache, task->hash, __builtin_bswap64(response->answer));
+    // TODO: Fix temp workaround where we switch endianness back.
+    cache_insert_pending(scheduler->cache, task->hash, __builtin_bswap64(response->answer));
 }
 
 void scheduler_job_notify(JobData* data, ProtocolResponse* response) {
@@ -132,47 +133,44 @@ void scheduler_job_notify(JobData* data, ProtocolResponse* response) {
     }
 
     // Cleanup job data once it is done.
-    free(data);
+    scheduler_destroy_job_data(data);
 }
 
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 
 bool scheduler_schedule(Scheduler* scheduler, Task* task) {
-    pthread_mutex_lock(&scheduler->r_mutex);
-    pthread_mutex_lock(&scheduler->w_mutex);
+    pthread_mutex_lock(&scheduler->lock);
 
-    while (scheduler->job_len == 0) {
-        // Give up the w_mutex to allow new jobs to come in.
-        pthread_mutex_unlock(&scheduler->w_mutex);
-
+    while (1) {
         // Check if we are still running.
         if (!scheduler->running) {
-            pthread_mutex_unlock(&scheduler->r_mutex);
+            pthread_mutex_unlock(&scheduler->lock);
             return false;
         }
 
-        // Wait for new jobs to come in.
-        pthread_cond_wait(&scheduler->waker, &scheduler->r_mutex);
+        // Process pending jobs.
+        scheduler_process_pending_jobs(scheduler);
 
-        // Attempt to reclaim w_mutex, this can only race with job submission
-        // not other worker threads as they are still waiting on r_mutex.
-        pthread_mutex_lock(&scheduler->w_mutex);
+        // When new jobs are submitted we check if any are pending.
+        if (scheduler->jobs.len > 0) {
+            break;
+        }
+
+        // Give up the lock to allow new jobs to come in.
+        pthread_cond_wait(&scheduler->waker, &scheduler->lock);
     }
 
-    // Give up the r_mutex so another waiter can queue up.
-    pthread_mutex_unlock(&scheduler->r_mutex);
-
-    assert(scheduler->job_len > 0);
+    assert(scheduler->jobs.len > 0);
     assert(scheduler->priority_sum > 0);
 
     uint32_t offset = xorshift32_prng_next(&scheduler->prng_state) % scheduler->priority_sum;
 
     for (;;) {
-        const Job* current = &scheduler->jobs[scheduler->task_idx];
+        const Job* current = &scheduler->jobs.data[scheduler->task_idx];
         const uint32_t remaining = current->priority - scheduler->priority_idx;
 
         if (remaining < offset) {
-            scheduler->task_idx = (scheduler->task_idx + 1) % scheduler->job_len;
+            scheduler->task_idx = (scheduler->task_idx + 1) % scheduler->jobs.len;
             scheduler->priority_idx = 0;
 
             offset -= remaining;
@@ -183,7 +181,7 @@ bool scheduler_schedule(Scheduler* scheduler, Task* task) {
         break;
     }
 
-    Job* current = &scheduler->jobs[scheduler->task_idx];
+    Job* current = &scheduler->jobs.data[scheduler->task_idx];
 
     task->job_id = current->id;
     task->start = current->start;
@@ -203,78 +201,65 @@ bool scheduler_schedule(Scheduler* scheduler, Task* task) {
         scheduler->priority_idx = 0;
     }
 
-    pthread_mutex_unlock(&scheduler->w_mutex);
+    pthread_mutex_unlock(&scheduler->lock);
 
     return true;
 }
 
 void scheduler_close(Scheduler* scheduler) {
-    pthread_mutex_lock(&scheduler->w_mutex);
+    pthread_mutex_lock(&scheduler->lock);
 
     scheduler->running = false;
-    scheduler->job_len = 0;
+    scheduler->jobs.len = 0;
     scheduler->priority_sum = 0;
 
-    pthread_mutex_unlock(&scheduler->w_mutex);
+    pthread_mutex_unlock(&scheduler->lock);
 
     pthread_cond_broadcast(&scheduler->waker);
 }
 
+/// SAFETY: Requires ownership of lock
+void scheduler_process_pending_jobs(Scheduler* scheduler) {
+    const uint32_t head = ringbuffer_head(&scheduler->pending_jobs);
+    uint32_t tail = ringbuffer_tail(&scheduler->pending_jobs);
+    Job pending_job;
+
+    while (head != tail) {
+        ringbuffer_pop(&scheduler->pending_jobs, &pending_job);
+        tail = ringbuffer_tail(&scheduler->pending_jobs);
+
+        scheduler_push_job(scheduler, &pending_job);
+    }
+}
+
+// SAFETY: Requires ownership of lock
+void scheduler_push_job(Scheduler* scheduler, const Job* job) {
+    // It is important we increment the priority sum before the job_len.
+    scheduler->priority_sum += job->priority;
+    vec_push(&scheduler->jobs, *job);
+}
+
+// SAFETY: Requires ownership of lock
+void scheduler_remove_swap_job(Scheduler* scheduler, const uint32_t idx) {
+    Job* task = &scheduler->jobs.data[idx];
+    const Job* last = &scheduler->jobs.data[scheduler->jobs.len - 1];
+
+    scheduler->priority_sum -= task->priority;
+    scheduler->jobs.len -= 1;
+
+    memcpy(task, last, sizeof(Job));
+}
+
 void scheduler_debug_print(const Scheduler* scheduler) {
-    printf("Scheduler: job_len=%u job_cap=%u\n", scheduler->job_len, scheduler->job_cap);
+    printf("Scheduler: job_len=%u job_cap=%u\n", scheduler->jobs.len, scheduler->jobs.cap);
     printf("           task_idx=%u priority_idx=%u\n", scheduler->task_idx, scheduler->priority_idx);
 
-    for (uint32_t i = 0; i < scheduler->job_len; i++) {
-        const Job* job = &scheduler->jobs[i];
+    for (uint32_t i = 0; i < scheduler->jobs.len; i++) {
+        const Job* job = &scheduler->jobs.data[i];
         scheduler_debug_print_job(job);
     }
 }
 
 void scheduler_debug_print_job(const Job* job) {
     printf("Job: id=%lu start=%lu end=%lu priority=%u\n", job->id, job->start, job->end, job->priority);
-}
-
-// SAFETY: Requires ownership of w_mutex
-void scheduler_grow_jobs(Scheduler* scheduler) {
-    const uint32_t new_cap = scheduler->job_cap * 2;
-    Job* new_jobs = reallocarray(scheduler->jobs, new_cap, sizeof(Job));
-
-    if (new_jobs == NULL) {
-        fprintf(stderr, "Failed to grow jobs array - segfault imminent\n");
-        return;
-    }
-
-    scheduler->jobs = new_jobs;
-    scheduler->job_cap = new_cap;
-}
-
-// SAFETY: Requires ownership of w_mutex
-void scheduler_push_job(Scheduler* scheduler, const ProtocolRequest* req, const uint64_t id, JobData* data) {
-    if (scheduler->job_len >= scheduler->job_cap) {
-        scheduler_grow_jobs(scheduler);
-    }
-
-    Job* job = &scheduler->jobs[scheduler->job_len];
-    memcpy(&job->hash, req->hash, sizeof(HashDigest));
-
-    job->start = req->start;
-    job->end = req->end;
-    job->priority = req->priority;
-    job->id = id;
-    job->data = data;
-
-    // It is important we increment the priority sum before the job_len.
-    scheduler->priority_sum += req->priority;
-    scheduler->job_len += 1;
-}
-
-// SAFETY: Requires ownership of w_mutex
-void scheduler_remove_swap_job(Scheduler* scheduler, const uint32_t idx) {
-    Job* task = &scheduler->jobs[idx];
-    const Job* last = &scheduler->jobs[scheduler->job_len - 1];
-
-    scheduler->priority_sum -= task->priority;
-    scheduler->job_len -= 1;
-
-    memcpy(task, last, sizeof(Job));
 }
