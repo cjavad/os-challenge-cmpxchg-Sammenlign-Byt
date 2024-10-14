@@ -1,8 +1,10 @@
 #pragma once
 
 #include "../cache.h"
+#include "../vec.h"
 #include "../prng.h"
 #include "../protocol.h"
+#include "../ringbuffer.h"
 #include "../sha256/sha256.h"
 #include <pthread.h>
 #include <stdbool.h>

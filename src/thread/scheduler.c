@@ -52,7 +52,7 @@ uint64_t scheduler_submit(Scheduler* scheduler, ProtocolRequest* req, JobData* d
     // Process pending cache entries.
     cache_process_pending(scheduler->cache);
 
-    const uint64_t cached_answer = cache_get(scheduler->cache, req->hash);
+    const uint64_t cached_answer = radix_tree_get(&scheduler->cache->tree, req->hash);
 
     if (cached_answer != 0) {
         scheduler_job_notify(data, &(ProtocolResponse){.answer = cached_answer});

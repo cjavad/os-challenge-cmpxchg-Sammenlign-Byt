@@ -1,8 +1,8 @@
 #include "benchmark.h"
-
 #include "cache.h"
 #include "hash.h"
 #include "prng.h"
+#include "radix_tree.h"
 #include "sha256/sha256.h"
 #include "sha256/x4/sha256x4.h"
 #include "sha256/x4x2/sha256x4x2.h"
@@ -14,7 +14,7 @@
 
 #include <sys/random.h>
 
-static uint64_t BENCHMARK_PRNG_STATE = 0x1;
+static uint64_t BENCHMARK_PRNG_STATE = 0x131232;
 
 uint64_t random_u64() { return xorshift64_prng_next(&BENCHMARK_PRNG_STATE); }
 
@@ -36,21 +36,21 @@ void benchmark_hash() {
 
     D_BENCHMARK_TIME_START()
 
-        BENCHMARK_SHA256_ALL
-        // BENCHMARK_SHA256X8_ALL
-        BENCHMARK_SHA256X4_ALL
-        // BENCHMARK_SHA256X4(sha256x4_asm)
-        // BENCHMARK_SHA256X4X2_ALL
+    BENCHMARK_SHA256_ALL
+    // BENCHMARK_SHA256X8_ALL
+    BENCHMARK_SHA256X4_ALL
+    // BENCHMARK_SHA256X4(sha256x4_asm)
+    // BENCHMARK_SHA256X4X2_ALL
 
-        // BENCHMARK_REVERSE_HASH_ALL(0, 30000001, 30000000)
+    // BENCHMARK_REVERSE_HASH_ALL(0, 30000001, 30000000)
 
-        // BENCHMARK_SHA256X4(sha256x4_cyclic)
-        // printf("warmup done\n");
+    // BENCHMARK_SHA256X4(sha256x4_cyclic)
+    // printf("warmup done\n");
 
-        // BENCHMARK_SHA256(sha256_optim)
-        // BENCHMARK_SHA256X4(sha256x4_optim)
-        // BENCHMARK_SHA256X4X2(sha256x4x2_optim)
-        // BENCHMARK_SHA256X8(sha256x8_optim)
+    // BENCHMARK_SHA256(sha256_optim)
+    // BENCHMARK_SHA256X4(sha256x4_optim)
+    // BENCHMARK_SHA256X4X2(sha256x4x2_optim)
+    // BENCHMARK_SHA256X8(sha256x8_optim)
 
     D_BENCHMARK_TIME_END("sha256")
 }
@@ -59,8 +59,8 @@ void benchmark_reference_block_time(ProtocolRequest* req) {
     printf("single thread reference block time\n");
     protocol_debug_print_request(req);
     D_BENCHMARK_TIME_START()
-        uint64_t s = reverse_hash_x4(req->start, req->end, req->hash);
-        printf("answer: %lu\n", s);
+    uint64_t s = reverse_hash_x4(req->start, req->end, req->hash);
+    printf("answer: %lu\n", s);
     D_BENCHMARK_TIME_END("sha256 solve reference")
 }
 
@@ -89,9 +89,9 @@ void benchmark_scheduler() {
     WorkerPool* pool = worker_create_pool(cpu_core_count(), scheduler);
 
     D_BENCHMARK_TIME_START()
-        for (int i = 0; i < count; i++) {
-            futex_wait(&data[i]->futex);
-        }
+    for (int i = 0; i < count; i++) {
+        futex_wait(&data[i]->futex);
+    }
     D_BENCHMARK_TIME_END("scheduler")
 
     free(data);
@@ -111,7 +111,7 @@ void benchmark_random_entry(struct Entry* entry) {
 
 void debug_print_uint4(const uint8_t* data, const size_t len) {
     for (size_t i = 0; i < len; i++) {
-        printf("%01x", cache_key_hash_get(data, i));
+        printf("%01x", radix_tree_key_unpack(data, i));
     }
     printf("\n");
 }
@@ -122,7 +122,8 @@ void benchmark_test_vec() {
     const uint64_t N = 1000000;
     printf("Benchmarking vec with %lu elements\n", N);
 
-    Cache* cache = cache_create(N);
+    RadixTree(uint64_t, SHA256_DIGEST_LENGTH) tree;
+    radix_tree_create(&tree, N);
 
     struct Entry* entries = calloc(N, sizeof(struct Entry));
 
@@ -131,28 +132,36 @@ void benchmark_test_vec() {
     }
 
     D_BENCHMARK_TIME_START()
-        for (int i = 0; i < N; i++) {
-            cache_insert(cache, entries[i].key, entries[i].data);
-        }
+    for (int i = 0; i < N; i++) {
+        radix_tree_insert(&tree, entries[i].key, entries[i].data);
+    }
     D_BENCHMARK_TIME_END("cache insert")
 
-    printf("[Strings] cap: %d, free: %d usage %f%%\n", cache->strings.cap, cache->strings.free,
-           (float)cache->strings.free / (float)cache->strings.cap * 100);
-    printf("[Edges] cap: %d, free: %d usage %f%%\n", cache->edges.cap, cache->edges.free,
-           (float)cache->edges.free / (float)cache->edges.cap * 100);
-    printf("[Branches] cap: %d, free: %d usage %f%%\n", cache->branches.cap, cache->branches.free,
-           (float)cache->branches.free / (float)cache->branches.cap * 100);
-    printf("[Leaf] cap: %d, free: %d usage %f%%\n", cache->leaves.cap, cache->leaves.free,
-           (float)cache->leaves.free / (float)cache->leaves.cap * 100);
+    printf(
+        "[Strings] cap: %d, free: %d usage %f%%\n", tree.strings.cap, tree.strings.free,
+        (float)tree.strings.free / (float)tree.strings.cap * 100
+    );
+    printf(
+        "[Edges] cap: %d, free: %d usage %f%%\n", tree.edges.cap, tree.edges.free,
+        (float)tree.edges.free / (float)tree.edges.cap * 100
+    );
+    printf(
+        "[Branches] cap: %d, free: %d usage %f%%\n", tree.branches.cap, tree.branches.free,
+        (float)tree.branches.free / (float)tree.branches.cap * 100
+    );
+    printf(
+        "[Leaf] cap: %d, free: %d usage %f%%\n", tree.leaves.cap, tree.leaves.free,
+        (float)tree.leaves.free / (float)tree.leaves.cap * 100
+    );
 
     uint32_t used_strs = 0;
 
-    for (uint32_t i = 0; i < cache->strings.cap; i++) {
+    for (uint32_t i = 0; i < tree.strings.cap; i++) {
         // ignore all zero
         int sum = 0;
 
         for (int k = 0; k < SHA256_DIGEST_LENGTH; k++) {
-            sum += cache->strings.data[i].str[k];
+            sum += tree.strings.data[i].string[k];
         }
 
         if (sum == 0) {
@@ -165,12 +174,14 @@ void benchmark_test_vec() {
     printf("[Strings] used: %d\n", used_strs);
 
     D_BENCHMARK_TIME_START()
-        for (int i = 0; i < N; i++) {
-            const uint64_t g = cache_get(cache, entries[i].key);
+    for (int i = 0; i < N; i++) {
+        const uint64_t g = radix_tree_get(&tree, entries[i].key);
 
-            if (g != entries[i].data) {
-                printf("Index %d failed to get data, expected %lu, got %lu\n", i, entries[i].data, g);
-            }
+        if (g != entries[i].data) {
+            printf("Index %d failed to get data, expected %lu, got %lu\n", i, entries[i].data, g);
         }
+    }
     D_BENCHMARK_TIME_END("cache get")
+
+    radix_tree_destroy(&tree);
 }

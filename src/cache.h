@@ -1,121 +1,36 @@
 #pragma once
 
+#include "radix_tree.h"
+#include "ringbuffer.h"
 #include "sha256/sha256.h"
-#include "vec.h"
 #include <assert.h>
 #include <pthread.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 
-#define CACHE_KEY_LENGTH_PACKED   (SHA256_DIGEST_LENGTH)
-#define CACHE_KEY_LENGTH          (SHA256_DIGEST_LENGTH * 2)
-#define CACHE_KEY_HASH_MAX        16
-#define CACHE_EDGE_SMALL_STR_SIZE 14
+#define CACHE_KEY_LENGTH_PACKED (SHA256_DIGEST_LENGTH)
+#define CACHE_KEY_LENGTH        (SHA256_DIGEST_LENGTH * 2)
 
-typedef uint8_t cache_key_t;
-typedef uint8_t cache_key_idx_t;
-
-enum TreeNodeType {
-    TT_NONE = 0,
-    TT_BRANCH = 1,
-    TT_EDGE = 2,
-    TT_LEAF = 3,
-};
-
-struct TreeNodePointer {
-    uint32_t type : 2;
-    uint32_t idx : 30;
-};
-
-typedef struct TreeNodePointer TreeNodePointer;
-
-struct TreeNodeBranch {
-    TreeNodePointer next[CACHE_KEY_HASH_MAX];
-};
-
-struct TreeNodeEdge {
-    TreeNodePointer next;
-
-    // Take advantage of the fact that the edge
-    // node struct will always be 4-byte aligned
-    // so we have an extra 3 bytes of data we can
-    // use (7 bytes in total) before we need to
-    // use the string buffer. This is typically not
-    // important for our use case but for general keys
-    // it is very nice.
-    union {
-        struct {
-            cache_key_t data[7];
-        } __attribute__((packed));
-        struct {
-            uint32_t str_idx;
-            uint8_t padding[3];
-        } __attribute__((packed));
-    };
-
-    cache_key_idx_t length;
-};
-
-struct TreeNodeLeaf {
-    uint64_t value;
-};
-
-union TreeNodeKeyEntry {
-    cache_key_t str[CACHE_KEY_LENGTH_PACKED];
-};
-
-struct TreeNodePendingInsert {
-    cache_key_t key[CACHE_KEY_LENGTH_PACKED];
+struct PendingCacheEntry {
+    radix_key_t key[CACHE_KEY_LENGTH_PACKED];
     uint64_t value;
 };
 
 struct Cache {
-    TreeNodePointer root;
-
-    RingBuffer(struct TreeNodePendingInsert) pending;
-
-    FreeList(union TreeNodeKeyEntry) strings;
-
-    FreeList(struct TreeNodeBranch) branches;
-
-    FreeList(struct TreeNodeEdge) edges;
-
-    FreeList(struct TreeNodeLeaf) leaves;
+    RingBuffer(struct PendingCacheEntry) pending;
+    RadixTree(uint64_t, CACHE_KEY_LENGTH) tree;
 };
 
 typedef struct Cache Cache;
 
-#define CACHE_LEAF(cache, node)   (&(cache)->leaves.data[(node).idx])
-#define CACHE_EDGE(cache, node)   (&(cache)->edges.data[(node).idx])
-#define CACHE_BRANCH(cache, node) (&(cache)->branches.data[(node).idx])
-
-#define CACHE_EDGE_FETCH_STR(variable, cache, edge)                                                                    \
-    (variable) =                                                                                                       \
-        ((edge)->length > CACHE_EDGE_SMALL_STR_SIZE ? (cache)->strings.data[(edge)->str_idx].str : (edge)->data)
-
-#define CACHE_LEAF_REFETCH(variable, cache, node)   (variable) = CACHE_LEAF(cache, node)
-#define CACHE_EDGE_REFETCH(variable, cache, node)   (variable) = CACHE_EDGE(cache, node)
-#define CACHE_BRANCH_REFETCH(variable, cache, node) (variable) = CACHE_BRANCH(cache, node)
-
 Cache* cache_create(uint32_t default_cap);
 void cache_destroy(Cache* cache);
-
-uint64_t cache_get(const Cache* cache, HashDigest key);
-void cache_insert(Cache* cache, HashDigest key, uint64_t value);
 
 void cache_process_pending(Cache* cache);
 void cache_insert_pending(Cache* cache, const HashDigest key, uint64_t value);
 
-inline cache_key_t cache_key_hash_get(const cache_key_t* hash, const uint32_t idx) {
-    return (hash[idx >> 1] >> ((~idx & 1) << 2)) & 0xf;
-}
-
-inline void cache_key_hash_set(cache_key_t* const hash, const uint32_t idx, const cache_key_t value) {
-    hash[idx >> 1] = (hash[idx >> 1] & (0xf << ((idx & 1) << 2))) | (value << ((~idx & 1) << 2));
-}
-
-static void cache_debug_print_node(const Cache* cache, const TreeNodePointer* node, const int indent) {
+/*static void cache_debug_print_node(const Cache* cache, const TreeNodePointer* node, const int indent) {
     switch (node->type) {
     case TT_BRANCH: {
         const struct TreeNodeBranch* branch = CACHE_BRANCH(cache, *node);
@@ -176,4 +91,4 @@ static void cache_debug_print_idx(const HashDigest hash) {
         printf("%01x%01x ", cache_key_hash_get(hash, i * 2), cache_key_hash_get(hash, i * 2 + 1));
     }
     printf("\n");
-};
+};*/

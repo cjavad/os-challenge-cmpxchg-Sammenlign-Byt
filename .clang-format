@@ -10,3 +10,4 @@ AlignAfterOpenBracket: BlockIndent
 BreakBeforeBraces: Attach
 PointerAlignment: Left
 AlignConsecutiveMacros: true
+PenaltyReturnTypeOnItsOwnLine: 10000

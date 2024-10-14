@@ -48,7 +48,9 @@ int server(const int port) {
 int benchmark() {
     // benchmark_hash();
     // benchmark_scheduler();
-    benchmark_test_vec();
+    for (int i = 0; i < 10; i++) {
+        benchmark_test_vec();
+    }
     return 0;
 }
 
