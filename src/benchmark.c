@@ -14,7 +14,7 @@
 
 #include <sys/random.h>
 
-static uint64_t BENCHMARK_PRNG_STATE = 0x131232;
+static uint64_t BENCHMARK_PRNG_STATE = 4450047650846432970;
 
 uint64_t random_u64() { return xorshift64_prng_next(&BENCHMARK_PRNG_STATE); }
 
@@ -100,13 +100,14 @@ void benchmark_scheduler() {
 }
 
 struct Entry {
-    HashDigest key;
-    uint64_t data;
+    uint8_t key[2];
+    char* data;
 };
 
 void benchmark_random_entry(struct Entry* entry) {
-    entry->data = random_u64();
-    sha256_custom(entry->key, (uint8_t*)&entry->data);
+    entry->key[0] = random_u64() % 256;
+    entry->key[1] = random_u64() % 256;
+    entry->data = "Hello world from the cache!";
 }
 
 void debug_print_uint4(const uint8_t* data, const size_t len) {
@@ -120,9 +121,9 @@ void benchmark_test_vec() {
     getrandom(&BENCHMARK_PRNG_STATE, sizeof(BENCHMARK_PRNG_STATE), 0);
 
     const uint64_t N = 1000000;
-    printf("Benchmarking vec with %lu elements\n", N);
+    printf("Benchmarking vec with %lu elements with seed %lu\n", N, BENCHMARK_PRNG_STATE);
 
-    RadixTree(uint64_t, SHA256_DIGEST_LENGTH) tree;
+    RadixTree(char*, 2) tree;
     radix_tree_create(&tree, N);
 
     struct Entry* entries = calloc(N, sizeof(struct Entry));
@@ -175,10 +176,10 @@ void benchmark_test_vec() {
 
     D_BENCHMARK_TIME_START()
     for (int i = 0; i < N; i++) {
-        const uint64_t g = radix_tree_get(&tree, entries[i].key);
+        const __auto_type g = radix_tree_get(&tree, entries[i].key);
 
         if (g != entries[i].data) {
-            printf("Index %d failed to get data, expected %lu, got %lu\n", i, entries[i].data, g);
+            printf("Index %d failed to get data, expected %s, got %s\n", i, entries[i].data, g);
         }
     }
     D_BENCHMARK_TIME_END("cache get")

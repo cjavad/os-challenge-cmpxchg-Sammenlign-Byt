@@ -1,7 +1,11 @@
 #pragma once
 
 #include "freelist.h"
+
+#include <assert.h>
 #include <stdint.h>
+#include <stdio.h>
+#include <unistd.h>
 
 typedef uint8_t radix_key_t;
 typedef uint8_t radix_key_idx_t;
@@ -24,6 +28,8 @@ inline void radix_tree_key_pack(radix_key_t* key, const radix_key_idx_t idx, con
 inline void radix_tree_copy_key(
     radix_key_t* dest, const radix_key_t* src, const radix_key_idx_t offset, const radix_key_idx_t length
 ) {
+    assert(length != 255);
+
     if (offset % 2 == 0) {
         memcpy(dest, src + (offset / 2), (length + 1) / 2);
         return;
@@ -98,13 +104,13 @@ struct RadixTreeEdgeNode {
 #define radix_tree_refetch_edge_str(variable, tree, edge)                                                              \
     { (variable) = radix_tree_fetch_edge_str(tree, edge); }
 
-#define radix_tree_key_length(tree)  (sizeof((tree)->strings.data[0].string))
-#define radix_tree_RTalue_type(tree) typeof((tree)->leaves.data[0])
+#define radix_tree_key_length(tree) (sizeof((tree)->strings.data[0].string))
+#define radix_tree_value_type(tree) typeof((tree)->leaves.data[0])
 
 #define radix_tree_create(tree, default_cap)                                                                           \
     {                                                                                                                  \
         (tree)->root.type = RTT_NONE;                                                                                  \
-        freelist_init(&(tree)->strings, default_cap);                                                                  \
+        freelist_init(&(tree)->strings, radix_tree_key_length(tree) > RADIX_TREE_SMALL_STR_SIZE ? default_cap : 1);    \
         freelist_init(&(tree)->branches, (default_cap + 16) / 16);                                                     \
         freelist_init(&(tree)->edges, default_cap);                                                                    \
         freelist_init(&(tree)->leaves, default_cap);                                                                   \
@@ -263,10 +269,13 @@ struct RadixTreeEdgeNode {
                 const radix_key_t _RT(key_branch, c) = radix_tree_key_unpack(key, _RT(keyidx, c)++);                   \
                 const struct RadixTreeNodePtr _RT(next, c) = _RT(branch, c)->next[_RT(key_branch, c)];                 \
                 if (_RT(next, c).type == RTT_NONE) {                                                                   \
-                    const struct RadixTreeNodePtr _RT(leaf, c) = radix_tree_create_leaf_node(tree, value);             \
-                    _RT(branch, c)->next[_RT(key_branch, c)] = radix_tree_create_edge_node(                            \
-                        tree, key, _RT(keyidx, c), radix_tree_key_length(tree) - _RT(keyidx, c), _RT(leaf, c)          \
-                    );                                                                                                 \
+                    struct RadixTreeNodePtr _RT(new_node, c) = radix_tree_create_leaf_node(tree, value);               \
+                    if (radix_tree_key_length(tree) - _RT(keyidx, c) > 0) {                                            \
+                        _RT(new_node, c) = radix_tree_create_edge_node(                                                \
+                            tree, key, _RT(keyidx, c), radix_tree_key_length(tree) - _RT(keyidx, c), _RT(new_node, c)  \
+                        );                                                                                             \
+                    }                                                                                                  \
+                    _RT(branch, c)->next[_RT(key_branch, c)] = _RT(new_node, c);                                       \
                     goto _RT(exit, c);                                                                                 \
                 }                                                                                                      \
                 _RT(prev, c) = _RT(node, c);                                                                           \
@@ -285,7 +294,7 @@ struct RadixTreeEdgeNode {
 
 #define ____radix_tree_get(tree, key, c)                                                                               \
     ({                                                                                                                 \
-        radix_tree_RTalue_type(tree) _RT(ret, c);                                                                      \
+        radix_tree_value_type(tree) _RT(ret, c);                                                                       \
         memset(&_RT(ret, c), 0, sizeof(_RT(ret, c)));                                                                  \
         struct RadixTreeNodePtr _RT(node, c) = (tree)->root;                                                           \
         radix_key_idx_t _RT(keyidx, c) = 0;                                                                            \
@@ -320,3 +329,50 @@ struct RadixTreeEdgeNode {
     })
 
 #define radix_tree_get(tree, key) ____radix_tree_get(tree, key, __COUNTER__)
+
+static void radix_tree_debug_node(
+    void* tree, const struct RadixTreeNodePtr node, FILE* stream, const uint32_t indent, const uint32_t key_length,
+    const uint32_t value_length
+) {
+    const RadixTree(void*, 0)* radix_tree = tree;
+
+    switch (node.type) {
+    case RTT_BRANCH: {
+        const struct RadixTreeBranchNode* branch = radix_tree_fetch_branch(radix_tree, node);
+        for (uint32_t i = 0; i < RADIX_TREE_KEY_BRANCHES; i++) {
+            if (branch->next[i].type != RTT_NONE) {
+                fprintf(stream, "%*s[%x]\n", indent + 2, "", i);
+                radix_tree_debug_node(tree, branch->next[i], stream, indent + 2, key_length, value_length);
+            }
+        }
+    } break;
+    case RTT_EDGE: {
+        const struct RadixTreeEdgeNode* edge = radix_tree_fetch_edge(radix_tree, node);
+        fprintf(stream, "%*sEdge\n", indent, "");
+        fprintf(stream, "%*sLength: %d\n", indent + 2, "", edge->length);
+        fprintf(stream, "%*sData: ", indent + 2, "");
+        const radix_key_t* edge_str = radix_tree_fetch_edge_str(radix_tree, edge);
+        for (uint32_t i = 0; i < edge->length; i++) {
+            fprintf(stream, "%01x", radix_tree_key_unpack(edge_str, i));
+        }
+        fprintf(stream, "\n");
+        if (edge->next.type == RTT_NONE) {
+            return;
+        }
+        radix_tree_debug_node(tree, edge->next, stream, indent + 2, key_length, value_length);
+    } break;
+    case RTT_LEAF: {
+        const void* leaf = radix_tree_fetch_leaf(radix_tree, node);
+        fprintf(stream, "%*sLeaf\n", indent, "");
+        fprintf(stream, "%*sValue: %p\n", indent + 2, "", leaf);
+    } break;
+    case RTT_NONE: {
+        fprintf(stream, "%*sNone\n", indent, "");
+    } break;
+    }
+}
+
+#define radix_tree_debug(tree, stream)                                                                                 \
+    radix_tree_debug_node(                                                                                             \
+        (void*)tree, (tree)->root, stream, 0, radix_tree_key_length(tree), sizeof(radix_tree_value_type(tree))         \
+    )
