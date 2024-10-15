@@ -14,7 +14,7 @@
 
 #include <sys/random.h>
 
-static uint64_t BENCHMARK_PRNG_STATE = 4450047650846432970;
+static uint64_t BENCHMARK_PRNG_STATE = 149805091633046746;
 
 uint64_t random_u64() { return xorshift64_prng_next(&BENCHMARK_PRNG_STATE); }
 
@@ -100,14 +100,13 @@ void benchmark_scheduler() {
 }
 
 struct Entry {
-    uint8_t key[2];
-    char* data;
+    HashDigest key;
+    uint64_t data;
 };
 
 void benchmark_random_entry(struct Entry* entry) {
-    entry->key[0] = random_u64() % 256;
-    entry->key[1] = random_u64() % 256;
-    entry->data = "Hello world from the cache!";
+    entry->data = random_u64();
+    sha256_custom(entry->key, (uint8_t*)&entry->data);
 }
 
 void debug_print_uint4(const uint8_t* data, const size_t len) {
@@ -123,7 +122,7 @@ void benchmark_test_vec() {
     const uint64_t N = 1000000;
     printf("Benchmarking vec with %lu elements with seed %lu\n", N, BENCHMARK_PRNG_STATE);
 
-    RadixTree(char*, 2) tree;
+    RadixTree(uint64_t, SHA256_DIGEST_LENGTH) tree;
     radix_tree_create(&tree, N);
 
     struct Entry* entries = calloc(N, sizeof(struct Entry));
@@ -134,7 +133,7 @@ void benchmark_test_vec() {
 
     D_BENCHMARK_TIME_START()
     for (int i = 0; i < N; i++) {
-        radix_tree_insert(&tree, entries[i].key, entries[i].data);
+        radix_tree_insert(&tree, entries[i].key, &entries[i].data);
     }
     D_BENCHMARK_TIME_END("cache insert")
 
@@ -157,12 +156,12 @@ void benchmark_test_vec() {
 
     uint32_t used_strs = 0;
 
-    for (uint32_t i = 0; i < tree.strings.cap; i++) {
+    for (uint32_t i = 0; i < tree.strings.cap; i += SHA256_DIGEST_LENGTH) {
         // ignore all zero
         int sum = 0;
 
         for (int k = 0; k < SHA256_DIGEST_LENGTH; k++) {
-            sum += tree.strings.data[i].string[k];
+            sum += tree.strings.data[i + k];
         }
 
         if (sum == 0) {
@@ -176,10 +175,10 @@ void benchmark_test_vec() {
 
     D_BENCHMARK_TIME_START()
     for (int i = 0; i < N; i++) {
-        const __auto_type g = radix_tree_get(&tree, entries[i].key);
+        const uint64_t ga = radix_tree_get(&tree, entries[i].key);
 
-        if (g != entries[i].data) {
-            printf("Index %d failed to get data, expected %s, got %s\n", i, entries[i].data, g);
+        if (ga != entries[i].data) {
+            printf("Index %d failed to get data, expected %lu, got %lu\n", i, entries[i].data, ga);
         }
     }
     D_BENCHMARK_TIME_END("cache get")

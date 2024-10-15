@@ -29,7 +29,7 @@ void cache_process_pending(Cache* cache) {
     while (head != tail) {
         ringbuffer_pop(&cache->pending, &entry);
         tail = ringbuffer_tail(&cache->pending);
-        radix_tree_insert(&cache->tree, entry.key, entry.value);
+        radix_tree_insert(&cache->tree, entry.key, &entry.value);
     }
 }
 
