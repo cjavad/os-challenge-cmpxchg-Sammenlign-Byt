@@ -162,7 +162,7 @@ void benchmark_radix_tree_stats(const _RadixTreeBase* tree, const uint8_t key_le
 }
 
 void debug_print_uint4(const uint8_t* data, const size_t len) {
-    for (size_t i = 0; i < (len * 2); i++) {
+    for (size_t i = 0; i < (len * RADIX_TREE_KEY_RATIO); i++) {
         printf("%01x", radix_tree_key_unpack(data, i));
     }
     printf("\n");

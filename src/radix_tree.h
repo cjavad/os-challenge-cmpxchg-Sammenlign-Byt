@@ -11,6 +11,8 @@
 typedef uint8_t radix_key_t;
 typedef uint32_t radix_key_idx_t;
 
+#define RADIX_TREE_KEY_BITS       4
+#define RADIX_TREE_KEY_RATIO      2
 #define RADIX_TREE_KEY_BRANCHES   16
 #define RADIX_TREE_SMALL_STR_SIZE 8
 
@@ -29,7 +31,7 @@ static void radix_tree_copy_key(
     radix_key_t* dest, const radix_key_t* src, const radix_key_idx_t offset, const radix_key_idx_t length
 ) {
     if (offset & 1 == 0) {
-        memcpy(dest, src + (offset / 2), (length + 1) / 2);
+        memcpy(dest, src + (offset / RADIX_TREE_KEY_RATIO), (length + 1) / RADIX_TREE_KEY_RATIO);
         return;
     }
 
@@ -183,7 +185,7 @@ void radix_tree_debug_node(
         } else {                                                                                                       \
             memcpy(                                                                                                    \
                 (tree)->edges.data[____RT_TEMP(idx, c)].data, ____RT_TEMP(buf, c),                                     \
-                ((____RT_TEMP(edge, c).length + 1) / 2)                                                                \
+                ((____RT_TEMP(edge, c).length + 1) / RADIX_TREE_KEY_RATIO)                                                                \
             );                                                                                                         \
         }                                                                                                              \
         (struct RadixTreeNodePtr){.type = RTT_EDGE, .idx = ____RT_TEMP(idx, c)};                                       \
@@ -194,13 +196,14 @@ void radix_tree_debug_node(
 
 #define radix_tree_insert(tree, key, key_len, value)                                                                   \
     _radix_tree_insert(                                                                                                \
-        (_RadixTreeBase*)tree, key, (key_len) * 2, radix_tree_key_length(tree), value, radix_tree_value_size(tree)     \
+        (_RadixTreeBase*)tree, key, (key_len) * RADIX_TREE_KEY_RATIO, radix_tree_key_length(tree), value,              \
+        radix_tree_value_size(tree)                                                                                    \
     )
 
 #define radix_tree_get(tree, key, key_len, dptrval)                                                                    \
     _radix_tree_get(                                                                                                   \
-        (_RadixTreeBase*)(tree), key, (key_len) * 2, radix_tree_key_length(tree), (void**)(dptrval),                   \
-        radix_tree_value_size(tree)                                                                                    \
+        (_RadixTreeBase*)(tree), key, (key_len) * RADIX_TREE_KEY_RATIO, radix_tree_key_length(tree),                   \
+        (void**)(dptrval), radix_tree_value_size(tree)                                                                 \
     );
 
 #define radix_tree_debug(tree, stream)                                                                                 \
