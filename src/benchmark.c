@@ -14,7 +14,7 @@
 
 #include <sys/random.h>
 
-static uint64_t BENCHMARK_PRNG_STATE = 149805091633046746;
+static uint64_t BENCHMARK_PRNG_STATE = 5225682921121941594;
 
 uint64_t random_u64() { return xorshift64_prng_next(&BENCHMARK_PRNG_STATE); }
 
@@ -99,69 +99,56 @@ void benchmark_scheduler() {
     scheduler_destroy(scheduler);
 }
 
-struct Entry {
+struct EntrySha256 {
     HashDigest key;
     uint64_t data;
 };
 
-void benchmark_random_entry(struct Entry* entry) {
+struct EntryRandomKeyLength {
+    uint8_t key[255];
+    uint8_t length;
+    uint64_t data;
+};
+
+void benchmark_random_sha256_entry(struct EntrySha256* entry) {
     entry->data = random_u64();
     sha256_custom(entry->key, (uint8_t*)&entry->data);
 }
 
-void debug_print_uint4(const uint8_t* data, const size_t len) {
-    for (size_t i = 0; i < len; i++) {
-        printf("%01x", radix_tree_key_unpack(data, i));
+void benchmark_random_random_key_length_entry(struct EntryRandomKeyLength* entry) {
+    entry->length = random_u64_in_range(1, 255);
+    for (int i = 0; i < entry->length; i++) {
+        entry->key[i] = random_u64() % 256;
     }
-    printf("\n");
+    entry->data = random_u64();
 }
 
-void benchmark_test_vec() {
-    getrandom(&BENCHMARK_PRNG_STATE, sizeof(BENCHMARK_PRNG_STATE), 0);
-
-    const uint64_t N = 1000000;
-    printf("Benchmarking vec with %lu elements with seed %lu\n", N, BENCHMARK_PRNG_STATE);
-
-    RadixTree(uint64_t, SHA256_DIGEST_LENGTH) tree;
-    radix_tree_create(&tree, N);
-
-    struct Entry* entries = calloc(N, sizeof(struct Entry));
-
-    for (int i = 0; i < N; i++) {
-        benchmark_random_entry(&entries[i]);
-    }
-
-    D_BENCHMARK_TIME_START()
-    for (int i = 0; i < N; i++) {
-        radix_tree_insert(&tree, entries[i].key, &entries[i].data);
-    }
-    D_BENCHMARK_TIME_END("cache insert")
-
+void benchmark_radix_tree_stats(const _RadixTreeBase* tree, const uint8_t key_length) {
     printf(
-        "[Strings] cap: %d, free: %d usage %f%%\n", tree.strings.cap, tree.strings.free,
-        (float)tree.strings.free / (float)tree.strings.cap * 100
+        "[Strings] cap: %d, free: %d usage %f%%\n", tree->strings.cap, tree->strings.free,
+        (float)tree->strings.free / (float)tree->strings.cap * 100
     );
     printf(
-        "[Edges] cap: %d, free: %d usage %f%%\n", tree.edges.cap, tree.edges.free,
-        (float)tree.edges.free / (float)tree.edges.cap * 100
+        "[Edges] cap: %d, free: %d usage %f%%\n", tree->edges.cap, tree->edges.free,
+        (float)tree->edges.free / (float)tree->edges.cap * 100
     );
     printf(
-        "[Branches] cap: %d, free: %d usage %f%%\n", tree.branches.cap, tree.branches.free,
-        (float)tree.branches.free / (float)tree.branches.cap * 100
+        "[Branches] cap: %d, free: %d usage %f%%\n", tree->branches.cap, tree->branches.free,
+        (float)tree->branches.free / (float)tree->branches.cap * 100
     );
     printf(
-        "[Leaf] cap: %d, free: %d usage %f%%\n", tree.leaves.cap, tree.leaves.free,
-        (float)tree.leaves.free / (float)tree.leaves.cap * 100
+        "[Leaf] cap: %d, free: %d usage %f%%\n", tree->leaves.cap, tree->leaves.free,
+        (float)tree->leaves.free / (float)tree->leaves.cap * 100
     );
 
     uint32_t used_strs = 0;
 
-    for (uint32_t i = 0; i < tree.strings.cap; i += SHA256_DIGEST_LENGTH) {
+    for (uint32_t i = 0; i < tree->strings.cap; i += key_length) {
         // ignore all zero
         int sum = 0;
 
-        for (int k = 0; k < SHA256_DIGEST_LENGTH; k++) {
-            sum += tree.strings.data[i + k];
+        for (int k = 0; k < key_length; k++) {
+            sum += tree->strings.data[i + k];
         }
 
         if (sum == 0) {
@@ -172,17 +159,117 @@ void benchmark_test_vec() {
     }
 
     printf("[Strings] used: %d\n", used_strs);
+}
+
+void debug_print_uint4(const uint8_t* data, const size_t len) {
+    for (size_t i = 0; i < (len * 2); i++) {
+        printf("%01x", radix_tree_key_unpack(data, i));
+    }
+    printf("\n");
+}
+
+void benchmark_sha256_radix_tree_lookup() {
+    getrandom(&BENCHMARK_PRNG_STATE, sizeof(BENCHMARK_PRNG_STATE), 0);
+
+    const uint64_t N = 1000000;
+    printf("Benchmarking sha256 radix tree with %lu elements with seed %lu\n", N, BENCHMARK_PRNG_STATE);
+
+    RadixTree(uint64_t, SHA256_DIGEST_LENGTH) tree;
+    radix_tree_create(&tree, N);
+
+    struct EntrySha256* entries = calloc(N, sizeof(struct EntrySha256));
+
+    for (int i = 0; i < N; i++) {
+        benchmark_random_sha256_entry(&entries[i]);
+    }
+
+    D_BENCHMARK_TIME_START()
+    for (int i = 0; i < N; i++) {
+        radix_tree_insert(&tree, entries[i].key, SHA256_DIGEST_LENGTH, &entries[i].data);
+    }
+    D_BENCHMARK_TIME_END("cache insert")
+
+    benchmark_radix_tree_stats((_RadixTreeBase*)&tree, SHA256_DIGEST_LENGTH);
 
     D_BENCHMARK_TIME_START()
     for (int i = 0; i < N; i++) {
         const uint64_t* ga;
-        radix_tree_get(&tree, entries[i].key, &ga);
+        radix_tree_get(&tree, entries[i].key, SHA256_DIGEST_LENGTH, &ga);
 
         if (ga == NULL || *ga != entries[i].data) {
-            printf("Index %d failed to get data, expected %lu, got %lu\n", i, entries[i].data, *ga);
+            printf("Index %d failed to get data, expected %lu, got %p\n", i, entries[i].data, ga);
         }
     }
     D_BENCHMARK_TIME_END("cache get")
 
     radix_tree_destroy(&tree);
+    free(entries);
+}
+
+void benchmark_random_key_radix_tree_lookup() {
+    getrandom(&BENCHMARK_PRNG_STATE, sizeof(BENCHMARK_PRNG_STATE), 0);
+
+    // BENCHMARK_PRNG_STATE = 8111887784597664444;
+    const uint64_t N = 100000;
+
+    printf("Benchmarking random key length radix tree with %lu elements with seed %lu\n", N, BENCHMARK_PRNG_STATE);
+
+    RadixTree(uint64_t, 255) tree;
+    radix_tree_create(&tree, N);
+
+    struct EntryRandomKeyLength* entries = calloc(N, sizeof(struct EntryRandomKeyLength));
+    for (int i = 0; i < N; i++) {
+        benchmark_random_random_key_length_entry(&entries[i]);
+    }
+
+    // Find all duplicate keys and set length to 0
+    for (int i = 0; i < N; i++) {
+        for (int j = i + 1; j < N; j++) {
+            if (entries[i].length == entries[j].length &&
+                memcmp(entries[i].key, entries[j].key, entries[i].length) == 0) {
+                entries[j].length = 0;
+            }
+        }
+    }
+
+    // struct EntryRandomKeyLength entries[] = {
+    //     {.key = {0xb8, 0x71, 0x8a}, .length = 3},
+    //     {.key = {0xb8, 0xae, 0x70}, .length = 3},
+    //     {.key = {0xb8}, .length = 1},
+    // };
+
+    // Print all entries key: value
+    for (int i = 0; i < N; i++) {
+        // printf("Entry %d: ", i);
+        // debug_print_uint4(entries[i].key, entries[i].length);
+        // printf("Value: %lu\n", entries[i].data);
+    }
+
+    D_BENCHMARK_TIME_START()
+    for (int i = 0; i < N; i++) {
+        radix_tree_insert(&tree, entries[i].key, entries[i].length, &entries[i].data);
+    }
+    D_BENCHMARK_TIME_END("random cache insert")
+
+    // radix_tree_debug(&tree, stdout);
+    benchmark_radix_tree_stats((_RadixTreeBase*)&tree, 255);
+
+    D_BENCHMARK_TIME_START()
+    for (int i = 0; i < N; i++) {
+        if (entries[i].length == 0) {
+            continue;
+        }
+
+        const uint64_t* ga;
+        radix_tree_get(&tree, entries[i].key, entries[i].length, &ga);
+
+        if (ga == NULL || *ga != entries[i].data) {
+            printf("Index %d failed to get data, expected %lu, got %p\n", i, entries[i].data, ga);
+            exit(60);
+        }
+    }
+    D_BENCHMARK_TIME_END("random cache get")
+
+    radix_tree_destroy(&tree);
+    free(entries);
 }

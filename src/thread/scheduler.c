@@ -54,7 +54,7 @@ uint64_t scheduler_submit(Scheduler* scheduler, ProtocolRequest* req, JobData* d
 
     const uint64_t* cached_answer;
 
-    radix_tree_get(&scheduler->cache->tree, req->hash, &cached_answer);
+    radix_tree_get(&scheduler->cache->tree, req->hash, SHA256_DIGEST_LENGTH, &cached_answer);
 
     if (cached_answer != NULL) {
         scheduler_job_notify(data, &(ProtocolResponse){.answer = *cached_answer});
