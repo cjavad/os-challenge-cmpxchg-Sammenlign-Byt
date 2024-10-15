@@ -96,7 +96,7 @@ void _radix_tree_insert(
 );
 
 void _radix_tree_get(
-    const _RadixTreeBase* tree, const radix_key_t* key, radix_key_idx_t key_length, void* value, uint32_t value_size
+    const _RadixTreeBase* tree, const radix_key_t* key, radix_key_idx_t key_length, void** value, uint32_t value_size
 );
 
 void radix_tree_debug_node(
@@ -188,16 +188,10 @@ void radix_tree_debug_node(
 #define radix_tree_insert(tree, key, value)                                                                            \
     _radix_tree_insert((_RadixTreeBase*)tree, key, radix_tree_key_length(tree), value, radix_tree_value_size(tree))
 
-#define ____radix_tree_get(tree, key, c)                                                                               \
-    ({                                                                                                                 \
-        radix_tree_value_type(tree) ____RT_TEMP(val, c);                                                               \
-        _radix_tree_get(                                                                                               \
-            (_RadixTreeBase*)tree, key, radix_tree_key_length(tree), &____RT_TEMP(val, c), radix_tree_value_size(tree) \
-        );                                                                                                             \
-        ____RT_TEMP(val, c);                                                                                           \
-    })
-
-#define radix_tree_get(tree, key) ____radix_tree_get(tree, key, __COUNTER__)
+#define radix_tree_get(tree, key, dptrval)                                                                             \
+    _radix_tree_get(                                                                                                   \
+        (_RadixTreeBase*)(tree), (key), radix_tree_key_length(tree), (void**)(dptrval), radix_tree_value_size(tree)    \
+    );
 
 #define radix_tree_debug(tree, stream)                                                                                 \
     radix_tree_debug_node(                                                                                             \

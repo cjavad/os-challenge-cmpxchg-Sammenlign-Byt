@@ -175,10 +175,11 @@ void benchmark_test_vec() {
 
     D_BENCHMARK_TIME_START()
     for (int i = 0; i < N; i++) {
-        const uint64_t ga = radix_tree_get(&tree, entries[i].key);
+        const uint64_t* ga;
+        radix_tree_get(&tree, entries[i].key, &ga);
 
-        if (ga != entries[i].data) {
-            printf("Index %d failed to get data, expected %lu, got %lu\n", i, entries[i].data, ga);
+        if (ga == NULL || *ga != entries[i].data) {
+            printf("Index %d failed to get data, expected %lu, got %lu\n", i, entries[i].data, *ga);
         }
     }
     D_BENCHMARK_TIME_END("cache get")

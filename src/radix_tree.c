@@ -146,7 +146,7 @@ void _radix_tree_insert(
 }
 
 void _radix_tree_get(
-    const _RadixTreeBase* tree, const radix_key_t* key, const radix_key_idx_t key_length, void* value,
+    const _RadixTreeBase* tree, const radix_key_t* key, const radix_key_idx_t key_length, void** value,
     const uint32_t value_size
 ) {
     struct RadixTreeNodePtr node = tree->root;
@@ -174,7 +174,7 @@ void _radix_tree_get(
             node = branch->next[radix_tree_key_unpack(key, key_idx++)];
         } break;
         case RTT_LEAF: {
-            memcpy(value, radix_tree_fetch_leaf_unsafe(tree, node, value_size), value_size);
+            *value = radix_tree_fetch_leaf_unsafe(tree, node, value_size);
             return;
         } break;
         default:
@@ -183,7 +183,7 @@ void _radix_tree_get(
     }
 
 notfound:
-    memset(value, 0, value_size);
+    *value = NULL;
 }
 
 void radix_tree_debug_node(
