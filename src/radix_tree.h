@@ -30,16 +30,20 @@ typedef uint16_t radix_key_idx_t;
 
 /// Unpack a 0-255 (8 bits) value into two 0-15 (4 bit) values
 /// We do this by indexing twice the length of the key
-inline radix_key_t radix_tree_key_unpack(const radix_key_t* key, const radix_key_idx_t idx) {
+__attribute__((always_inline)) inline radix_key_t radix_tree_key_unpack(
+    const radix_key_t* key, const radix_key_idx_t idx
+) {
     return (key[idx >> 1] >> ((~idx & 1) << 2)) & 0xf;
 }
 /// Pack two 0-15 (4 bit) values into a 0-255 (8 bit) value
-inline void radix_tree_key_pack(radix_key_t* key, const radix_key_idx_t idx, const radix_key_t value) {
+__attribute__((always_inline)) inline void radix_tree_key_pack(
+    radix_key_t* key, const radix_key_idx_t idx, const radix_key_t value
+) {
     key[idx >> 1] = (key[idx >> 1] & (0xf << ((idx & 1) << 2))) | (value << ((~idx & 1) << 2));
 }
 
 /// Copy a packed key respecting overlapping 4-bit chunks.
-static void radix_tree_copy_key(
+__attribute__((always_inline)) inline void radix_tree_copy_key(
     radix_key_t* dest, const radix_key_t* src, const radix_key_idx_t offset, const radix_key_idx_t length
 ) {
     if ((offset & 1) == 0) {
@@ -251,7 +255,7 @@ void radix_tree_debug_node(
     {                                                                                                                  \
         if ((edge)->length > RADIX_TREE_SMALL_STR_SIZE && (old_idx) <= RADIX_TREE_SMALL_STR_SIZE) {                    \
             const uint32_t ____RT_TEMP(old_str_idx, c) = (edge)->string_idx;                                           \
-            radix_tree_copy_key((edge)->data, old_key, 0, (old_idx));                                                  \
+            memcpy((edge)->data, old_key, (old_idx) + 1 / RADIX_TREE_KEY_RATIO);                                       \
             freelist_remove(&(tree)->strings, ____RT_TEMP(old_str_idx, c));                                            \
         }                                                                                                              \
     }

@@ -213,7 +213,7 @@ void benchmark_sha256_radix_tree_lookup() {
 void benchmark_random_key_radix_tree_lookup() {
     getrandom(&BENCHMARK_PRNG_STATE, sizeof(BENCHMARK_PRNG_STATE), 0);
 
-    const uint64_t N = 100000;
+    const uint64_t N = 1000000;
 
     printf("Benchmarking random key length radix tree with %lu elements with seed %lu\n", N, BENCHMARK_PRNG_STATE);
 
@@ -223,16 +223,6 @@ void benchmark_random_key_radix_tree_lookup() {
     struct EntryRandomKeyLength* entries = calloc(N, sizeof(struct EntryRandomKeyLength));
     for (int i = 0; i < N; i++) {
         benchmark_random_random_key_length_entry(&entries[i]);
-    }
-
-    // Find all duplicate keys and set length to 0
-    for (int i = 0; i < N; i++) {
-        for (int j = i + 1; j < N; j++) {
-            if (entries[i].length == entries[j].length &&
-                memcmp(entries[i].key, entries[j].key, entries[i].length) == 0) {
-                entries[j].length = 0;
-            }
-        }
     }
 
     D_BENCHMARK_TIME_START()
@@ -245,16 +235,9 @@ void benchmark_random_key_radix_tree_lookup() {
 
     D_BENCHMARK_TIME_START()
     for (int i = 0; i < N; i++) {
-        if (entries[i].length == 0) {
-            continue;
-        }
-
         const uint64_t* ga;
         radix_tree_get(&tree, entries[i].key, entries[i].length, &ga);
-
-        if (ga == NULL || *ga != entries[i].data) {
-            printf("Index %d failed to get data, expected %lu, got %p\n", i, entries[i].data, ga);
-        }
+        assert(ga != NULL);
     }
     D_BENCHMARK_TIME_END("random cache get")
 
@@ -285,23 +268,13 @@ void benchmark_manual_radix_tree() {
     }
     D_BENCHMARK_TIME_END("manual cache insert")
 
-    radix_tree_debug(&tree, stdout);
     benchmark_radix_tree_stats((_RadixTreeBase*)&tree, 10);
 
     D_BENCHMARK_TIME_START()
     for (int i = 0; i < N; i++) {
-        if (entries[i].length == 0) {
-            continue;
-        }
-
         const uint64_t* ga;
         radix_tree_get(&tree, entries[i].key, entries[i].length, &ga);
-
-        if (ga == NULL || *ga != entries[i].data) {
-            printf("Index %d failed to get data, expected %lu, got %p\n", i, entries[i].data, ga);
-        } else {
-            printf("Index %d got data %lu\n", i, *ga);
-        }
+        assert(ga != NULL);
     }
     D_BENCHMARK_TIME_END("manual cache get")
 
