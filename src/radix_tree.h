@@ -13,8 +13,18 @@ typedef uint16_t radix_key_idx_t;
 #define RADIX_TREE_KEY_BITS     4
 #define RADIX_TREE_KEY_RATIO    2
 #define RADIX_TREE_KEY_BRANCHES 16
+#define RADIX_TREE_MALLOC_STRS  0
 // Allow us to change the radix_key_idx_t size to gain more string space in the edge node.
-#define RADIX_TREE_SMALL_STR_SIZE ((4 + (4 - sizeof(radix_key_idx_t))) * RADIX_TREE_KEY_RATIO)
+#if RADIX_TREE_MALLOC_STRS
+#define RADIX_TREE_EDGE_PADDING   (12 - sizeof(radix_key_t*) - sizeof(radix_key_idx_t))
+#define RADIX_TREE_EDGE_DATA_SIZE (sizeof(radix_key_t*) + RADIX_TREE_EDGE_PADDING)
+#else
+#define RADIX_TREE_EDGE_PADDING   (4 - sizeof(radix_key_idx_t))
+#define RADIX_TREE_EDGE_DATA_SIZE (4 + RADIX_TREE_EDGE_PADDING)
+#endif
+
+#define RADIX_TREE_SMALL_STR_SIZE (RADIX_TREE_EDGE_DATA_SIZE * RADIX_TREE_KEY_RATIO)
+
 // 16 branches + 1 immediate
 #define RADIX_BRANCH_IMMEDIATE RADIX_TREE_KEY_BRANCHES
 
@@ -71,17 +81,30 @@ struct RadixTreeEdgeNode {
     // it is very nice.
     union {
         struct {
-            radix_key_t data[4 + (4 - sizeof(radix_key_idx_t))];
+            radix_key_t data[RADIX_TREE_EDGE_DATA_SIZE];
         } __attribute__((packed));
         struct {
+#if RADIX_TREE_MALLOC_STRS
+            radix_key_t* string_ptr;
+#else
             uint32_t string_idx;
-            uint8_t padding[(4 - sizeof(radix_key_idx_t))];
+#endif
+            uint8_t padding[RADIX_TREE_EDGE_PADDING];
         } __attribute__((packed));
     };
 
     radix_key_idx_t length;
 };
 
+#if RADIX_TREE_MALLOC_STRS
+#define RadixTree(value_type, key_length)                                                                              \
+    struct {                                                                                                           \
+        struct RadixTreeNodePtr root;                                                                                  \
+        FreeList(struct RadixTreeBranchNode) branches;                                                                 \
+        FreeList(struct RadixTreeEdgeNode) edges;                                                                      \
+        FreeList(value_type) leaves;                                                                                   \
+    }
+#else
 #define RadixTree(value_type, key_length)                                                                              \
     struct {                                                                                                           \
         struct RadixTreeNodePtr root;                                                                                  \
@@ -93,8 +116,18 @@ struct RadixTreeEdgeNode {
             char _[key_length];                                                                                        \
         } kl[0];                                                                                                       \
     }
+#endif
 
 typedef RadixTree(void*, 0) _RadixTreeBase;
+
+struct RadixTreeNodePtr radix_tree_create_branch_node(_RadixTreeBase* tree);
+
+struct RadixTreeNodePtr radix_tree_create_leaf_node(_RadixTreeBase* tree, const void* value_ptr, uint32_t value_size);
+
+struct RadixTreeNodePtr radix_tree_create_edge_node(
+    _RadixTreeBase* tree, const radix_key_t* key, radix_key_idx_t key_size, radix_key_idx_t offset,
+    radix_key_idx_t key_length, struct RadixTreeNodePtr next
+);
 
 void _radix_tree_insert(
     _RadixTreeBase* tree, const radix_key_t* new_key, radix_key_idx_t key_len, radix_key_idx_t key_size,
@@ -111,28 +144,49 @@ void radix_tree_debug_node(
     uint32_t value_size
 );
 
-#define radix_tree_fetch_branch(tree, ptr)            (&(tree)->branches.data[(ptr).idx])
 #define radix_tree_fetch_leaf_unsafe(tree, ptr, size) freelist_get_unsafe(&(tree)->leaves, (ptr).idx, (size))
 
-#define radix_tree_fetch_edge(tree, ptr) (&(tree)->edges.data[(ptr).idx])
+#define radix_tree_fetch_branch(tree, ptr) (&(tree)->branches.data[(ptr).idx])
+#define radix_tree_refetch_branch(variable, tree, ptr)                                                                 \
+    { (variable) = radix_tree_fetch_branch(tree, ptr); }
 
+#define radix_tree_fetch_edge(tree, ptr) (&(tree)->edges.data[(ptr).idx])
+#define radix_tree_refetch_edge(variable, tree, ptr)                                                                   \
+    { (variable) = radix_tree_fetch_edge(tree, ptr); }
+
+#if RADIX_TREE_MALLOC_STRS
+#define radix_tree_fetch_edge_str_unsafe(tree, edge, key_size)                                                         \
+    ((edge)->length > RADIX_TREE_SMALL_STR_SIZE ? (edge)->string_ptr : (radix_key_t*)(edge)->data)
+#define radix_tree_refetch_edge_str_unsafe
+
+#else
 #define radix_tree_fetch_edge_str_unsafe(tree, edge, key_size)                                                         \
     ((edge)->length > RADIX_TREE_SMALL_STR_SIZE                                                                        \
          ? (freelist_get_unsafe(&(tree)->strings, (edge)->string_idx, (key_size)))                                     \
          : (radix_key_t*)(edge)->data)
 
-#define radix_tree_refetch_edge(variable, tree, ptr)                                                                   \
-    { (variable) = radix_tree_fetch_edge(tree, ptr); }
 #define radix_tree_refetch_edge_str_unsafe(variable, tree, edge, key_size)                                             \
     { (variable) = radix_tree_fetch_edge_str_unsafe(tree, edge, key_size); }
+#endif
 
-#define radix_tree_refetch_branch(variable, tree, ptr)                                                                 \
-    { (variable) = radix_tree_fetch_branch(tree, ptr); }
-
+#if RADIX_TREE_MALLOC_STRS
+#define radix_tree_key_length(tree) (0)
+#else
 #define radix_tree_key_length(tree) (sizeof((tree)->kl[0]._))
+#endif
+
 #define radix_tree_value_type(tree) typeof((tree)->leaves.data[0])
 #define radix_tree_value_size(tree) (sizeof((tree)->leaves.data[0]))
 
+#if RADIX_TREE_MALLOC_STRS
+#define radix_tree_create(tree, default_cap)                                                                           \
+    {                                                                                                                  \
+        (tree)->root.type = RTT_NONE;                                                                                  \
+        freelist_init(&(tree)->branches, (default_cap + 16) / 16);                                                     \
+        freelist_init(&(tree)->edges, default_cap);                                                                    \
+        freelist_init(&(tree)->leaves, default_cap);                                                                   \
+    }
+#else
 #define radix_tree_create(tree, default_cap)                                                                           \
     {                                                                                                                  \
         (tree)->root.type = RTT_NONE;                                                                                  \
@@ -144,7 +198,16 @@ void radix_tree_debug_node(
             radix_tree_key_length(tree)                                                                                \
         );                                                                                                             \
     }
+#endif
 
+#if RADIX_TREE_MALLOC_STRS
+#define radix_tree_destroy(tree)                                                                                       \
+    {                                                                                                                  \
+        freelist_destroy(&(tree)->branches);                                                                           \
+        freelist_destroy(&(tree)->edges);                                                                              \
+        freelist_destroy(&(tree)->leaves);                                                                             \
+    }
+#else
 #define radix_tree_destroy(tree)                                                                                       \
     {                                                                                                                  \
         freelist_destroy(&(tree)->strings);                                                                            \
@@ -152,49 +215,9 @@ void radix_tree_debug_node(
         freelist_destroy(&(tree)->edges);                                                                              \
         freelist_destroy(&(tree)->leaves);                                                                             \
     }
+#endif
 
 #define ____RT_TEMP(x, c) ____CONCAT(____CONCAT(____CONCAT(____rt_temp, x), ____), c)
-
-#define ____radix_tree_create_leaf_node(tree, value_ptr, value_size, c)                                                \
-    ({                                                                                                                 \
-        const __auto_type ____RT_TEMP(tmp, c) = (value_ptr);                                                           \
-        const uint32_t idx = freelist_insert_unsafe(&(tree)->leaves, (____RT_TEMP(tmp, c)), (value_size));             \
-        (struct RadixTreeNodePtr){.type = RTT_LEAF, .idx = idx};                                                       \
-    })
-
-#define radix_tree_create_leaf_node(tree, value_ptr, value_size)                                                       \
-    ____radix_tree_create_leaf_node(tree, value_ptr, value_size, __COUNTER__)
-
-#define ____radix_tree_create_branch_node(tree, c)                                                                     \
-    ({                                                                                                                 \
-        const __auto_type ____RT_TEMP(tmp, c) = ((const struct RadixTreeBranchNode){0});                               \
-        const uint32_t idx = freelist_insert(&(tree)->branches, (____RT_TEMP(tmp, c)));                                \
-        (struct RadixTreeNodePtr){.type = RTT_BRANCH, .idx = idx};                                                     \
-    })
-
-#define radix_tree_create_branch_node(tree) ____radix_tree_create_branch_node(tree, __COUNTER__)
-
-#define ____radix_tree_create_edge_node(tree, key, key_size, offset, cur_key_length, next_node, c)                     \
-    ({                                                                                                                 \
-        const __auto_type ____RT_TEMP(edge, c) =                                                                       \
-            ((struct RadixTreeEdgeNode){.length = (cur_key_length), .next = (next_node)});                             \
-        radix_key_t ____RT_TEMP(buf, c)[key_size];                                                                     \
-        radix_tree_copy_key(____RT_TEMP(buf, c), key, offset, ____RT_TEMP(edge, c).length);                            \
-        const uint32_t ____RT_TEMP(idx, c) = freelist_insert(&(tree)->edges, (____RT_TEMP(edge, c)));                  \
-        if (____RT_TEMP(edge, c).length > RADIX_TREE_SMALL_STR_SIZE) {                                                 \
-            (tree)->edges.data[____RT_TEMP(idx, c)].string_idx =                                                       \
-                freelist_insert_unsafe(&(tree)->strings, ____RT_TEMP(buf, c), (key_size));                             \
-        } else {                                                                                                       \
-            memcpy(                                                                                                    \
-                (tree)->edges.data[____RT_TEMP(idx, c)].data, ____RT_TEMP(buf, c),                                     \
-                ((____RT_TEMP(edge, c).length + 1) / RADIX_TREE_KEY_RATIO)                                             \
-            );                                                                                                         \
-        }                                                                                                              \
-        (struct RadixTreeNodePtr){.type = RTT_EDGE, .idx = ____RT_TEMP(idx, c)};                                       \
-    })
-
-#define radix_tree_create_edge_node(tree, key, key_size, offset, length, next)                                         \
-    ____radix_tree_create_edge_node(tree, key, key_size, offset, length, next, __COUNTER__)
 
 #define radix_tree_set_prev(tree, prev, prev_branch_val, new_node)                                                     \
     {                                                                                                                  \
@@ -214,6 +237,16 @@ void radix_tree_debug_node(
         }                                                                                                              \
     }
 
+#if RADIX_TREE_MALLOC_STRS
+#define ____radix_tree_edge_maybe_move_str(tree, edge, old_key, old_idx, c)                                            \
+    {                                                                                                                  \
+        if ((edge)->length > RADIX_TREE_SMALL_STR_SIZE && (old_idx) <= RADIX_TREE_SMALL_STR_SIZE) {                    \
+            radix_key_t* ____RT_TEMP(old_str_ptr, c) = (edge)->string_ptr;                                             \
+            memcpy((edge)->data, ____RT_TEMP(old_str_ptr, c), (old_idx) + 1 / RADIX_TREE_KEY_RATIO);                   \
+            free(____RT_TEMP(old_str_ptr, c));                                                                         \
+        }                                                                                                              \
+    }
+#else
 #define ____radix_tree_edge_maybe_move_str(tree, edge, old_key, old_idx, c)                                            \
     {                                                                                                                  \
         if ((edge)->length > RADIX_TREE_SMALL_STR_SIZE && (old_idx) <= RADIX_TREE_SMALL_STR_SIZE) {                    \
@@ -222,16 +255,26 @@ void radix_tree_debug_node(
             freelist_remove(&(tree)->strings, ____RT_TEMP(old_str_idx, c));                                            \
         }                                                                                                              \
     }
+#endif
 
 #define radix_tree_edge_maybe_move_str(tree, edge, old_key, old_idx)                                                   \
     ____radix_tree_edge_maybe_move_str(tree, edge, old_key, old_idx, __COUNTER__)
 
+#if RADIX_TREE_MALLOC_STRS
+#define radix_tree_edge_maybe_remove_str(tree, edge)                                                                   \
+    {                                                                                                                  \
+        if ((edge)->length > RADIX_TREE_SMALL_STR_SIZE) {                                                              \
+            free((edge)->string_ptr);                                                                                  \
+        }                                                                                                              \
+    }
+#else
 #define radix_tree_edge_maybe_remove_str(tree, edge)                                                                   \
     {                                                                                                                  \
         if ((edge)->length > RADIX_TREE_SMALL_STR_SIZE) {                                                              \
             freelist_remove(&(tree)->strings, (edge)->string_idx);                                                     \
         }                                                                                                              \
     }
+#endif
 
 #define radix_tree_insert(tree, key, key_len, value)                                                                   \
     _radix_tree_insert(                                                                                                \

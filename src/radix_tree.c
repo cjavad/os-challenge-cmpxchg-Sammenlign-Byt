@@ -1,5 +1,38 @@
 #include "radix_tree.h"
 
+__attribute__((always_inline)) struct RadixTreeNodePtr radix_tree_create_leaf_node(
+    _RadixTreeBase* tree, const void* value_ptr, const uint32_t value_size
+) {
+    const uint32_t idx = freelist_insert_unsafe(&(tree)->leaves, value_ptr, value_size);
+    return (struct RadixTreeNodePtr){.type = RTT_LEAF, .idx = idx};
+}
+
+__attribute__((always_inline)) struct RadixTreeNodePtr radix_tree_create_branch_node(_RadixTreeBase* tree) {
+    const uint32_t idx = freelist_insert(&(tree)->branches, (struct RadixTreeBranchNode){0});
+    return (struct RadixTreeNodePtr){.type = RTT_BRANCH, .idx = idx};
+}
+
+__attribute__((always_inline)) struct RadixTreeNodePtr radix_tree_create_edge_node(
+    _RadixTreeBase* tree, const radix_key_t* key, const radix_key_idx_t key_size, const radix_key_idx_t offset,
+    const radix_key_idx_t key_length, const struct RadixTreeNodePtr next
+) {
+    const struct RadixTreeEdgeNode edge = {.length = key_length, .next = next};
+    const uint32_t idx = freelist_insert(&tree->edges, edge);
+    if (edge.length > RADIX_TREE_SMALL_STR_SIZE) {
+#if RADIX_TREE_MALLOC_STRS
+        tree->edges.data[idx].string_ptr = malloc((edge.length + 1) / RADIX_TREE_KEY_RATIO);
+        radix_tree_copy_key(tree->edges.data[idx].string_ptr, key, offset, edge.length);
+#else
+        radix_key_t buf[key_size];
+        radix_tree_copy_key(buf, key, offset, edge.length);
+        tree->edges.data[idx].string_idx = freelist_insert_unsafe(&tree->strings, buf, key_size);
+#endif
+    } else {
+        radix_tree_copy_key(tree->edges.data[idx].data, key, offset, edge.length);
+    }
+    return (struct RadixTreeNodePtr){.type = RTT_EDGE, .idx = idx};
+}
+
 void _radix_tree_insert(
     _RadixTreeBase* tree, const radix_key_t* new_key, const radix_key_idx_t key_len, const radix_key_idx_t key_size,
     const void* value, const uint32_t value_size

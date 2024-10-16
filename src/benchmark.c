@@ -124,10 +124,12 @@ void benchmark_random_random_key_length_entry(struct EntryRandomKeyLength* entry
 }
 
 void benchmark_radix_tree_stats(const _RadixTreeBase* tree, const uint8_t key_length) {
+#if !RADIX_TREE_MALLOC_STRS
     printf(
         "[Strings] cap: %d, free: %d usage %f%%\n", tree->strings.cap, tree->strings.free,
         (float)tree->strings.free / (float)tree->strings.cap * 100
     );
+#endif
     printf(
         "[Edges] cap: %d, free: %d usage %f%%\n", tree->edges.cap, tree->edges.free,
         (float)tree->edges.free / (float)tree->edges.cap * 100
@@ -140,6 +142,7 @@ void benchmark_radix_tree_stats(const _RadixTreeBase* tree, const uint8_t key_le
         "[Leaf] cap: %d, free: %d usage %f%%\n", tree->leaves.cap, tree->leaves.free,
         (float)tree->leaves.free / (float)tree->leaves.cap * 100
     );
+#if !RADIX_TREE_MALLOC_STRS
 
     uint32_t used_strs = 0;
 
@@ -159,6 +162,7 @@ void benchmark_radix_tree_stats(const _RadixTreeBase* tree, const uint8_t key_le
     }
 
     printf("[Strings] used: %d\n", used_strs);
+#endif
 }
 
 void debug_print_uint4(const uint8_t* data, const size_t len) {
