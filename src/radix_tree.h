@@ -2,7 +2,6 @@
 
 #include "freelist.h"
 
-#include <assert.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -212,6 +211,25 @@ void radix_tree_debug_node(
         default: {                                                                                                     \
             __builtin_unreachable();                                                                                   \
         }                                                                                                              \
+        }                                                                                                              \
+    }
+
+#define ____radix_tree_edge_maybe_move_str(tree, edge, old_key, old_idx, c)                                            \
+    {                                                                                                                  \
+        if ((edge)->length > RADIX_TREE_SMALL_STR_SIZE && (old_idx) <= RADIX_TREE_SMALL_STR_SIZE) {                    \
+            const uint32_t ____RT_TEMP(old_str_idx, c) = (edge)->string_idx;                                           \
+            radix_tree_copy_key((edge)->data, old_key, 0, (old_idx));                                                  \
+            freelist_remove(&(tree)->strings, ____RT_TEMP(old_str_idx, c));                                            \
+        }                                                                                                              \
+    }
+
+#define radix_tree_edge_maybe_move_str(tree, edge, old_key, old_idx)                                                   \
+    ____radix_tree_edge_maybe_move_str(tree, edge, old_key, old_idx, __COUNTER__)
+
+#define radix_tree_edge_maybe_remove_str(tree, edge)                                                                   \
+    {                                                                                                                  \
+        if ((edge)->length > RADIX_TREE_SMALL_STR_SIZE) {                                                              \
+            freelist_remove(&(tree)->strings, (edge)->string_idx);                                                     \
         }                                                                                                              \
     }
 

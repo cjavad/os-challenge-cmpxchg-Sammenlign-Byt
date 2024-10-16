@@ -11,7 +11,6 @@ void _radix_tree_insert(
     radix_key_t prev_branch_val = RADIX_BRANCH_IMMEDIATE;
 
     for (;;) {
-    handle_next_node:
         switch (node.type) {
         case RTT_EDGE: {
             struct RadixTreeEdgeNode* edge = radix_tree_fetch_edge(tree, node);
@@ -48,9 +47,7 @@ void _radix_tree_insert(
                 branch->next[new_val] = new_node;
 
                 // Remove old edge and potentially string
-                if (edge->length > RADIX_TREE_SMALL_STR_SIZE) {
-                    freelist_remove(&tree->strings, edge->string_idx);
-                }
+                radix_tree_edge_maybe_remove_str(tree, edge);
 
                 freelist_remove(&tree->edges, node.idx);
 
@@ -106,11 +103,7 @@ void _radix_tree_insert(
                 radix_tree_refetch_edge_str_unsafe(old_key, tree, edge, key_size);
 
                 // Move string into local buffer if it's a small string
-                if (edge->length > RADIX_TREE_SMALL_STR_SIZE && old_idx <= RADIX_TREE_SMALL_STR_SIZE) {
-                    const uint32_t old_str_idx = edge->string_idx;
-                    radix_tree_copy_key(edge->data, old_key, 0, old_idx);
-                    freelist_remove(&tree->strings, old_str_idx);
-                }
+                radix_tree_edge_maybe_move_str(tree, edge, old_key, old_idx);
 
                 edge->length = old_idx;
                 edge->next = radix_tree_create_branch_node(tree);
@@ -146,11 +139,8 @@ void _radix_tree_insert(
                 new_branch->next[branch_val] = old_node;
 
                 // Move string into local buffer if it's a small string
-                if (edge->length > RADIX_TREE_SMALL_STR_SIZE && old_idx <= RADIX_TREE_SMALL_STR_SIZE) {
-                    const uint32_t old_str_idx = edge->string_idx;
-                    radix_tree_copy_key(edge->data, old_key, 0, old_idx);
-                    freelist_remove(&tree->strings, old_str_idx);
-                }
+                radix_tree_edge_maybe_move_str(tree, edge, old_key, old_idx);
+
                 edge->length = old_idx;
                 edge->next = new_branch_node;
 
@@ -246,10 +236,7 @@ void _radix_tree_insert(
                 radix_tree_refetch_edge(edge, tree, next);
 
                 // Since we have to delete the old edge we need to clean up if it contains a string
-                if (edge->length > RADIX_TREE_SMALL_STR_SIZE) {
-                    freelist_remove(&tree->strings, edge->string_idx);
-                }
-
+                radix_tree_edge_maybe_remove_str(tree, edge);
                 freelist_remove(&tree->edges, next.idx);
 
                 branch->next[prev_branch_val] = new_branch_node;
@@ -271,7 +258,7 @@ void _radix_tree_insert(
                 node = next_branch->next[prev_branch_val];
 
                 // Break two levels to handle the next node.
-                goto handle_next_node;
+                continue;
             } break;
             case RTT_LEAF: {
                 if (!key_has_remainder) {
@@ -298,13 +285,10 @@ void _radix_tree_insert(
                 }
 
                 new_branch->next[new_key_val] = new_node;
-
                 branch->next[prev_branch_val] = new_branch_node;
-
                 return;
             } break;
             case RTT_NONE: {
-                // We go to this node.
             } break;
             default: {
                 __builtin_unreachable();
@@ -381,7 +365,6 @@ void _radix_tree_get(
 
             // Always take branch, if it is none we hit the default case.
             node = branch->next[val];
-
         } break;
         case RTT_LEAF: {
             *value = radix_tree_fetch_leaf_unsafe(tree, node, value_size);
