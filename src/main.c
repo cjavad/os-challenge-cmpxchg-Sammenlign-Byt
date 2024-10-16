@@ -48,8 +48,9 @@ int server(const int port) {
 int benchmark() {
     // benchmark_hash();
     // benchmark_scheduler();
+    benchmark_manual_radix_tree();
     benchmark_sha256_radix_tree_lookup();
-    // benchmark_random_key_radix_tree_lookup();
+    benchmark_random_key_radix_tree_lookup();
     return 0;
 }
 

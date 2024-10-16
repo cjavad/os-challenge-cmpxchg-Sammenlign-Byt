@@ -9,12 +9,15 @@
 #include <unistd.h>
 
 typedef uint8_t radix_key_t;
-typedef uint32_t radix_key_idx_t;
+typedef uint16_t radix_key_idx_t;
 
-#define RADIX_TREE_KEY_BITS       4
-#define RADIX_TREE_KEY_RATIO      2
-#define RADIX_TREE_KEY_BRANCHES   16
-#define RADIX_TREE_SMALL_STR_SIZE 8
+#define RADIX_TREE_KEY_BITS     4
+#define RADIX_TREE_KEY_RATIO    2
+#define RADIX_TREE_KEY_BRANCHES 16
+// Allow us to change the radix_key_idx_t size to gain more string space in the edge node.
+#define RADIX_TREE_SMALL_STR_SIZE ((4 + (4 - sizeof(radix_key_idx_t))) * RADIX_TREE_KEY_RATIO)
+// 16 branches + 1 immediate
+#define RADIX_BRANCH_IMMEDIATE RADIX_TREE_KEY_BRANCHES
 
 /// Unpack a 0-255 (8 bits) value into two 0-15 (4 bit) values
 /// We do this by indexing twice the length of the key
@@ -30,7 +33,7 @@ inline void radix_tree_key_pack(radix_key_t* key, const radix_key_idx_t idx, con
 static void radix_tree_copy_key(
     radix_key_t* dest, const radix_key_t* src, const radix_key_idx_t offset, const radix_key_idx_t length
 ) {
-    if (offset & 1 == 0) {
+    if ((offset & 1) == 0) {
         memcpy(dest, src + (offset / RADIX_TREE_KEY_RATIO), (length + 1) / RADIX_TREE_KEY_RATIO);
         return;
     }
@@ -54,8 +57,7 @@ struct RadixTreeNodePtr {
 };
 
 struct RadixTreeBranchNode {
-    struct RadixTreeNodePtr next[RADIX_TREE_KEY_BRANCHES];
-    struct RadixTreeNodePtr immediate;
+    struct RadixTreeNodePtr next[RADIX_TREE_KEY_BRANCHES + 1];
 };
 
 struct RadixTreeEdgeNode {
@@ -70,10 +72,11 @@ struct RadixTreeEdgeNode {
     // it is very nice.
     union {
         struct {
-            radix_key_t data[4];
+            radix_key_t data[4 + (4 - sizeof(radix_key_idx_t))];
         } __attribute__((packed));
         struct {
             uint32_t string_idx;
+            uint8_t padding[(4 - sizeof(radix_key_idx_t))];
         } __attribute__((packed));
     };
 
@@ -185,7 +188,7 @@ void radix_tree_debug_node(
         } else {                                                                                                       \
             memcpy(                                                                                                    \
                 (tree)->edges.data[____RT_TEMP(idx, c)].data, ____RT_TEMP(buf, c),                                     \
-                ((____RT_TEMP(edge, c).length + 1) / RADIX_TREE_KEY_RATIO)                                                                \
+                ((____RT_TEMP(edge, c).length + 1) / RADIX_TREE_KEY_RATIO)                                             \
             );                                                                                                         \
         }                                                                                                              \
         (struct RadixTreeNodePtr){.type = RTT_EDGE, .idx = ____RT_TEMP(idx, c)};                                       \
@@ -193,6 +196,24 @@ void radix_tree_debug_node(
 
 #define radix_tree_create_edge_node(tree, key, key_size, offset, length, next)                                         \
     ____radix_tree_create_edge_node(tree, key, key_size, offset, length, next, __COUNTER__)
+
+#define radix_tree_set_prev(tree, prev, prev_branch_val, new_node)                                                     \
+    {                                                                                                                  \
+        switch ((prev).type) {                                                                                         \
+        case RTT_EDGE: {                                                                                               \
+            radix_tree_fetch_edge(tree, prev)->next = new_node;                                                        \
+        } break;                                                                                                       \
+        case RTT_BRANCH: {                                                                                             \
+            radix_tree_fetch_branch(tree, prev)->next[prev_branch_val] = new_node;                                     \
+        } break;                                                                                                       \
+        case RTT_NONE: {                                                                                               \
+            (tree)->root = new_node;                                                                                   \
+        } break;                                                                                                       \
+        default: {                                                                                                     \
+            __builtin_unreachable();                                                                                   \
+        }                                                                                                              \
+        }                                                                                                              \
+    }
 
 #define radix_tree_insert(tree, key, key_len, value)                                                                   \
     _radix_tree_insert(                                                                                                \
