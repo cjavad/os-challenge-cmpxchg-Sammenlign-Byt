@@ -167,7 +167,7 @@ void radix_tree_get_branch(
 );
 void radix_tree_get_branch4(const struct RadixTreeBranch4Node* branch, radix_key_t key, struct RadixTreeNodePtr* node);
 void radix_tree_get_branch8(const struct RadixTreeBranch8Node* branch, radix_key_t key, struct RadixTreeNodePtr* node);
-void radix_tree_get_branch_16(
+void radix_tree_get_branch16(
     const struct RadixTreeBranch16Node* branch, radix_key_t key, struct RadixTreeNodePtr* node
 );
 void radix_tree_get_branch_full(

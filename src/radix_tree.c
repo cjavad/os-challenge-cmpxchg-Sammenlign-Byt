@@ -65,7 +65,7 @@ inline void radix_tree_get_branch(
         radix_tree_get_branch8(radix_tree_fetch_branch8(tree, *node), key, out);
     } break;
     case RTT_BRANCH_16: {
-        radix_tree_get_branch_16(radix_tree_fetch_branch16(tree, *node), key, out);
+        radix_tree_get_branch16(radix_tree_fetch_branch16(tree, *node), key, out);
     } break;
     case RTT_BRANCH_FULL: {
         radix_tree_get_branch_full(radix_tree_fetch_branch_full(tree, *node), key, out);
@@ -101,7 +101,7 @@ inline void radix_tree_get_branch8(
     *node = (struct RadixTreeNodePtr){.type = RTT_NONE};
 }
 
-inline void radix_tree_get_branch_16(
+inline void radix_tree_get_branch16(
     const struct RadixTreeBranch16Node* branch, const radix_key_t key, struct RadixTreeNodePtr* node
 ) {
     if (key == RADIX_BRANCH_IMMEDIATE) {
@@ -679,6 +679,7 @@ void _radix_tree_get(
         case RTT_EDGE: {
             const struct RadixTreeEdgeNode* edge = radix_tree_fetch_edge(tree, node);
             const radix_key_t* edge_key = radix_tree_fetch_edge_str_unsafe(tree, edge, key_size);
+            __builtin_prefetch(edge_key);
 
             if (edge->length > key_len - key_idx) {
                 goto notfound;
@@ -719,7 +720,7 @@ void _radix_tree_get(
         } break;
         case RTT_BRANCH_16: {
             const struct RadixTreeBranch16Node* branch = radix_tree_fetch_branch16(tree, node);
-            radix_tree_get_branch_16(branch, radix_tree_key_unpack(key, key_idx++), &node);
+            radix_tree_get_branch16(branch, radix_tree_key_unpack(key, key_idx++), &node);
         } break;
         case RTT_BRANCH_FULL: {
             const struct RadixTreeBranchFullNode* branch = radix_tree_fetch_branch_full(tree, node);
