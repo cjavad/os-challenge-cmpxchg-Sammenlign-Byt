@@ -329,6 +329,8 @@ void _radix_tree_insert(
         case RTT_EDGE: {
             struct RadixTreeEdgeNode* edge = radix_tree_fetch_edge(tree, node);
             const radix_key_t* old_key = radix_tree_fetch_edge_str_unsafe(tree, edge, key_size);
+            __builtin_prefetch(old_key, 0, 0);
+
             radix_key_idx_t old_idx = 0;
 
             bool old_has_remainder = true;
@@ -679,7 +681,7 @@ void _radix_tree_get(
         case RTT_EDGE: {
             const struct RadixTreeEdgeNode* edge = radix_tree_fetch_edge(tree, node);
             const radix_key_t* edge_key = radix_tree_fetch_edge_str_unsafe(tree, edge, key_size);
-            __builtin_prefetch(edge_key);
+            __builtin_prefetch(edge_key, 0, 0);
 
             if (edge->length > key_len - key_idx) {
                 goto notfound;

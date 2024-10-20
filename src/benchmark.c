@@ -129,6 +129,43 @@ void debug_print_uint4(const uint8_t* data, const size_t len) {
     }
 }
 
+void debug_tree_stats(_RadixTreeBase* tree) {
+    printf(
+        "[Edges] cap: %u, free: %u, free: %f%%\n", tree->edges.cap, tree->edges.free,
+        (float)tree->edges.free / tree->edges.cap * 100
+    );
+
+    printf(
+        "[Branches4] cap: %u, free: %u, free: %f%%\n", tree->branches4.cap, tree->branches4.free,
+        (float)tree->branches4.free / tree->branches4.cap * 100
+    );
+
+    printf(
+        "[Branches8] cap: %u, free: %u, free: %f%%\n", tree->branches8.cap, tree->branches8.free,
+        (float)tree->branches8.free / tree->branches8.cap * 100
+    );
+
+    printf(
+        "[Branches16] cap: %u, free: %u, free: %f%%\n", tree->branches16.cap, tree->branches16.free,
+        (float)tree->branches16.free / tree->branches16.cap * 100
+    );
+
+    printf(
+        "[BranchesFull] cap: %u, free: %u, free: %f%%\n", tree->branches_full.cap, tree->branches_full.free,
+        (float)tree->branches_full.free / tree->branches_full.cap * 100
+    );
+
+    printf(
+        "[Strings] cap: %u, free: %u, free: %f%%\n", tree->strings.cap, tree->strings.free,
+        (float)tree->strings.free / tree->strings.cap * 100
+    );
+
+    printf(
+        "[Leaves] cap: %u, free: %u, free: %f%%\n", tree->leaves.cap, tree->leaves.free,
+        (float)tree->leaves.free / tree->leaves.cap * 100
+    );
+}
+
 void benchmark_sha256_radix_tree_lookup() {
     getrandom(&BENCHMARK_PRNG_STATE, sizeof(BENCHMARK_PRNG_STATE), 0);
 
@@ -151,6 +188,8 @@ void benchmark_sha256_radix_tree_lookup() {
         radix_tree_insert(&tree, entries[i].key, SHA256_DIGEST_LENGTH, &entries[i].data);
     }
     D_BENCHMARK_TIME_END("cache insert")
+
+    debug_tree_stats((_RadixTreeBase*)&tree);
 
     D_BENCHMARK_TIME_START()
     for (int i = 0; i < N; i++) {

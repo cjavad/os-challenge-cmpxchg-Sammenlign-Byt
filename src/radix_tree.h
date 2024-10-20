@@ -273,7 +273,7 @@ void radix_tree_debug_node(
         freelist_init(&(tree)->branches4, (default_cap + 32) / 32);                                                    \
         freelist_init(&(tree)->branches8, (default_cap + 32) / 32);                                                    \
         freelist_init(&(tree)->branches16, (default_cap + 32) / 32);                                                   \
-        freelist_init(&(tree)->branches_full, (default_cap + 32) / 32);                                                \
+        freelist_init(&(tree)->branches_full, (default_cap + 128) / 128);                                                \
         freelist_init(&(tree)->edges, default_cap);                                                                    \
         freelist_init(&(tree)->leaves, default_cap);                                                                   \
         freelist_init_unsafe(                                                                                          \
