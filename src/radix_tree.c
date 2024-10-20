@@ -33,6 +33,8 @@ inline struct RadixTreeNodePtr radix_tree_create_edge_node(
     _RadixTreeBase* tree, const radix_key_t* key, const radix_key_idx_t key_size, const radix_key_idx_t offset,
     const radix_key_idx_t key_length, const struct RadixTreeNodePtr next
 ) {
+    __builtin_prefetch(key, 0, 0);
+
     const struct RadixTreeEdgeNode edge = {.length = key_length, .next = next};
 
     // Always copy out the key from the buffer before inserting a new edge

@@ -105,7 +105,7 @@ struct EntrySha256 {
 };
 
 struct EntryRandomKeyLength {
-    uint8_t key[255];
+    uint8_t key[32];
     uint8_t length;
     uint64_t data;
 };
@@ -116,9 +116,9 @@ void benchmark_random_sha256_entry(struct EntrySha256* entry) {
 }
 
 void benchmark_random_random_key_length_entry(struct EntryRandomKeyLength* entry) {
-    entry->length = random_u64_in_range(1, 255);
+    entry->length = random_u64_in_range(1, sizeof(entry->key));
     for (int i = 0; i < entry->length; i++) {
-        entry->key[i] = random_u64() % 256;
+        entry->key[i] = random_u64() % sizeof(entry->key);
     }
     entry->data = random_u64();
 }
@@ -213,7 +213,7 @@ void benchmark_random_key_radix_tree_lookup() {
 
     printf("Benchmarking random key length radix tree with %lu elements with seed %lu\n", N, BENCHMARK_PRNG_STATE);
 
-    RadixTree(uint64_t, 255) tree;
+    RadixTree(uint64_t, 32) tree;
     radix_tree_create(&tree, N);
 
     struct EntryRandomKeyLength* entries = calloc(N, sizeof(struct EntryRandomKeyLength));
@@ -239,8 +239,21 @@ void benchmark_random_key_radix_tree_lookup() {
     }
     D_BENCHMARK_TIME_END("random cache get")
 
+    struct EntryRandomKeyLength* uninserted = calloc(N, sizeof(struct EntryRandomKeyLength));
+    for (int i = 0; i < N; i++) {
+        benchmark_random_random_key_length_entry(&uninserted[i]);
+    }
+
+    D_BENCHMARK_TIME_START()
+    for (int i = 0; i < N; i++) {
+        const uint64_t* ga;
+        radix_tree_get(&tree, uninserted[i].key, uninserted[i].length, &ga);
+    }
+    D_BENCHMARK_TIME_END("random cache get (missed)")
+
     radix_tree_destroy(&tree);
     free(entries);
+    free(uninserted);
 }
 
 void benchmark_manual_radix_tree() {
