@@ -16,30 +16,37 @@ static const uint32_t k[64] = {
     0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2};
 
 
+__attribute__((unused))
 static uint32_t rotr(const uint32_t x, const uint32_t n) {
     return (x >> n) | (x << (32 - n));
 }
 
+__attribute__((unused))
 static uint32_t s0(const uint32_t w) {
     return rotr(w, 7) ^ rotr(w, 18) ^ (w >> 3);
 }
 
+__attribute__((unused))
 static uint32_t s1(const uint32_t w) {
     return rotr(w, 17) ^ rotr(w, 19) ^ (w >> 10);
 }
 
+__attribute__((unused))
 static uint32_t ch(const uint32_t e, const uint32_t f, const uint32_t g) {
     return (e & f) ^ ((~e) & g);
 }
 
+__attribute__((unused))
 static uint32_t maj(const uint32_t a, const uint32_t b, const uint32_t c) {
     return (a & b) ^ (a & c) ^ (b & c);
 }
 
+__attribute__((unused))
 static uint32_t S0(const uint32_t a) {
     return rotr(a, 2) ^ rotr(a, 13) ^ rotr(a, 22);
 }
 
+__attribute__((unused))
 static uint32_t S1(const uint32_t e) {
     return rotr(e, 6) ^ rotr(e, 11) ^ rotr(e, 25);
 }
