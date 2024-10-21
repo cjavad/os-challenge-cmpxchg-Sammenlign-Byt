@@ -27,7 +27,7 @@ int server(const int port) {
     }
 
     while (1) {
-        if ((ret = epoll_server_poll(&server, &ctx)) >= 0) {
+        if ((ret = epoll_server_poll(&ctx)) >= 0) {
             continue;
         }
 

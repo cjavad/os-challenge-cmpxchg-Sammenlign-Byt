@@ -11,19 +11,22 @@ inline struct RadixTreeNodePtr radix_tree_create_branch_node(
     _RadixTreeBase* tree, const enum RadixTreeNodeType branch_type
 ) {
     switch (branch_type) {
-
-    case RTT_BRANCH_4:
-        return (struct RadixTreeNodePtr
-        ){.type = branch_type, .idx = freelist_insert(&tree->branches4, (const struct RadixTreeBranch4Node){0})};
-    case RTT_BRANCH_8:
-        return (struct RadixTreeNodePtr
-        ){.type = branch_type, .idx = freelist_insert(&tree->branches8, (const struct RadixTreeBranch8Node){0})};
-    case RTT_BRANCH_16:
-        return (struct RadixTreeNodePtr
-        ){.type = branch_type, .idx = freelist_insert(&tree->branches16, (const struct RadixTreeBranch16Node){0})};
-    case RTT_BRANCH_FULL:
-        return (struct RadixTreeNodePtr
-        ){.type = branch_type, .idx = freelist_insert(&tree->branches_full, (const struct RadixTreeBranchFullNode){0})};
+    case RTT_BRANCH_4: {
+        const uint32_t idx = freelist_insert(&tree->branches4, (const struct RadixTreeBranch4Node){0});
+        return (struct RadixTreeNodePtr){.type = branch_type, .idx = idx};
+    }
+    case RTT_BRANCH_8: {
+        const uint32_t idx = freelist_insert(&tree->branches8, (const struct RadixTreeBranch8Node){0});
+        return (struct RadixTreeNodePtr){.type = branch_type, .idx = idx};
+    }
+    case RTT_BRANCH_16: {
+        const uint32_t idx = freelist_insert(&tree->branches16, (const struct RadixTreeBranch16Node){0});
+        return (struct RadixTreeNodePtr){.type = branch_type, .idx = idx};
+    }
+    case RTT_BRANCH_FULL: {
+        const uint32_t idx = freelist_insert(&tree->branches_full, (const struct RadixTreeBranchFullNode){0});
+        return (struct RadixTreeNodePtr){.type = branch_type, .idx = idx};
+    }
     default:
         __builtin_unreachable();
     }
@@ -192,7 +195,7 @@ inline struct RadixTreeNodePtr radix_tree_insert_into_branch_or_grow(
     } break;
     case RTT_BRANCH_FULL: {
         struct RadixTreeBranchFullNode* branch = radix_tree_fetch_branch_full(tree, branch_node);
-        radix_tree_insert_into_branch_full(tree, branch, key, node);
+        radix_tree_insert_into_branch_full(branch, key, node);
     } break;
     default: {
         __builtin_unreachable();
@@ -298,8 +301,7 @@ inline struct RadixTreeNodePtr radix_tree_insert_into_branch16_or_grow(
 }
 
 inline void radix_tree_insert_into_branch_full(
-    _RadixTreeBase* tree, struct RadixTreeBranchFullNode* branch, const radix_key_t key,
-    const struct RadixTreeNodePtr node
+    struct RadixTreeBranchFullNode* branch, const radix_key_t key, const struct RadixTreeNodePtr node
 ) {
     branch->entries[key] = node;
 }

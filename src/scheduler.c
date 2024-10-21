@@ -66,7 +66,7 @@ uint64_t scheduler_submit(Scheduler* scheduler, ProtocolRequest* req, JobData* d
         req->priority = 1;
     }
 
-    const Job job = {
+    Job job = {
         .start = req->start, .end = req->end, .priority = req->priority, .id = scheduler->next_job_id++, .data = data
     };
 

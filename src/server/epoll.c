@@ -35,7 +35,7 @@ int epoll_server_init(const Server* server, struct EpollServerCtx* ctx) {
     return ret;
 }
 
-int epoll_server_poll(const Server* server, const struct EpollServerCtx* ctx) {
+int epoll_server_poll(const struct EpollServerCtx* ctx) {
     struct epoll_event events[EPOLL_MAX_EVENTS];
 
     const int32_t new_events = epoll_wait(ctx->epoll_fd, events, EPOLL_MAX_EVENTS, -1);

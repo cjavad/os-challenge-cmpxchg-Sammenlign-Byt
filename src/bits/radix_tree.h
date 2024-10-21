@@ -193,7 +193,7 @@ struct RadixTreeNodePtr radix_tree_insert_into_branch16_or_grow(
 );
 
 void radix_tree_insert_into_branch_full(
-    _RadixTreeBase* tree, struct RadixTreeBranchFullNode* branch, radix_key_t key, struct RadixTreeNodePtr node
+    struct RadixTreeBranchFullNode* branch, radix_key_t key, struct RadixTreeNodePtr node
 );
 
 void radix_tree_push_prev(_RadixTreeBase* tree, struct RadixTreeNodePtr node, radix_key_idx_t branch_val);

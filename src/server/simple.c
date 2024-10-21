@@ -1,7 +1,7 @@
 #include "simple.h"
 
 // Simple server implementation.
-int simple_server_init(Server* server) { return 0; }
+int simple_server_init() { return 0; }
 
 int simple_server_poll(const Server* server) {
     struct sockaddr_in addr = {0};

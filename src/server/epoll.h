@@ -30,5 +30,5 @@ union EpollEventData {
 _Static_assert(sizeof(union EpollEventData) <= sizeof(uint64_t), "UserData struct is too large");
 
 int epoll_server_init(const Server* server, struct EpollServerCtx* ctx);
-int epoll_server_poll(const Server* server, const struct EpollServerCtx* ctx);
+int epoll_server_poll(const struct EpollServerCtx* ctx);
 int epoll_server_exit(const Server* server, const struct EpollServerCtx* ctx);

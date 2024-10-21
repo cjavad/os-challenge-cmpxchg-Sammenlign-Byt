@@ -29,7 +29,7 @@ void cache_process_pending(Cache* cache) {
 }
 
 void cache_insert_pending(Cache* cache, const HashDigest key, const uint64_t value) {
-    const struct PendingCacheEntry entry = {.value = value};
+    struct PendingCacheEntry entry = {.value = value};
     memcpy(entry.key, key, sizeof(HashDigest));
     ringbuffer_push(&cache->pending, entry);
 }
