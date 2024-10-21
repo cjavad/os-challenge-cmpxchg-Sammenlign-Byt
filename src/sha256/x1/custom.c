@@ -1,4 +1,4 @@
-#include "sha256.h"
+#include "sha256x1.h"
 
 // Precompute SHA-256 constants and initialization vector, keep in memory
 static const uint32_t K[64] = {
@@ -31,7 +31,6 @@ static const uint32_t H_INIT[8] = {0x6a09e667, 0xbb67ae85, 0x3c6ef372,
 
 // Optimized SHA-256 padding and preprocessing for 64-bit data (8 bytes)
 // Optimized final hash calculation for fixed 64-bit input
-SHA256_GCC_OPT_ATTR
 void sha256_custom(HashDigest hash, const HashInput data) {
     uint32_t W[64];
 

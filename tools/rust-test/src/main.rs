@@ -103,10 +103,10 @@ fn benchmark_btreemap(seed: u64, num_entries: usize) {
 
 fn main() {
     let seed = 123456789; // Replace with custom seed
-    let num_entries = 1_000_000;
+    let num_entries = 10_000_000;
 
     println!("Benchmarking HashMap:");
-    benchmark_hashmap(seed, num_entries);
+    // benchmark_hashmap(seed, num_entries);
 
     println!("Benchmarking BTreeMap:");
     benchmark_btreemap(seed, num_entries);

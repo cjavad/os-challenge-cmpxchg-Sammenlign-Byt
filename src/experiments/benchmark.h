@@ -1,5 +1,5 @@
 #pragma once
-
+/*
 #include "protocol.h"
 #include "sort.h"
 
@@ -49,6 +49,26 @@
     printf("[%s] %lu ns\n", name, (et.tv_sec - st.tv_sec) * 1000000000 + (et.tv_nsec - st.tv_nsec));                   \
     }
 
+#define SHA256_BENCHMARK_ITERATIONS 30000000
+#define BENCHMARK_SHA256(func)                                                                                         \
+printf("benchmarking %s\n", #func);                                                                                \
+D_BENCHMARK_START(1, SHA256_BENCHMARK_ITERATIONS)                                                                  \
+uint8_t hash[SHA256_DIGEST_LENGTH] __attribute__((aligned(16)));                                                   \
+uint64_t data[1] __attribute__((aligned(16))) = {0};                                                               \
+D_BENCHMARK_WARMUP(1000000) { (func)(hash, (uint8_t*)data); }                                                      \
+D_BENCHMARK_LOOP_START()                                                                                           \
+(func)(hash, (uint8_t*)data);                                                                                      \
+data[0] += 1;                                                                                                      \
+D_BENCHMARK_LOOP_END()                                                                                             \
+D_BENCHMARK_END()
+
+#define BENCHMARK_SHA256_ALL                                                                                           \
+BENCHMARK_SHA256(sha256_custom)                                                                                    \
+BENCHMARK_SHA256(sha256_optim)                                                                                     \
+BENCHMARK_SHA256(sha256_fused)                                                                                     \
+BENCHMARK_SHA256(sha256_fullyfused)
+
+
 void benchmark_random_req(ProtocolRequest* req, bool worst_case);
 
 void benchmark_hash();
@@ -56,3 +76,4 @@ void benchmark_scheduler();
 void benchmark_sha256_radix_tree_lookup();
 void benchmark_random_key_radix_tree_lookup();
 void benchmark_manual_radix_tree();
+*/

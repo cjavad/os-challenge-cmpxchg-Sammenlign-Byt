@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../sha256.h"
+#include "../types.h"
 #include <stdint.h>
 
 // can figure out how to set proper alignment requirements for compiler

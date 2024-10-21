@@ -1,7 +1,7 @@
 #pragma once
 
 #include "../sha256/sha256.h"
-#include "../thread/worker.h"
+#include "../worker.h"
 #include <arpa/inet.h>
 #include <fcntl.h>
 #include <linux/version.h>

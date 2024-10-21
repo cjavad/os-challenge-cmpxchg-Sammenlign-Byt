@@ -1,9 +1,4 @@
-//
-// Created by javad on 10-10-24.
-//
-
 #include "cache.h"
-#include <string.h>
 
 Cache* cache_create(const uint32_t default_cap) {
     Cache* cache = calloc(1, sizeof(Cache));

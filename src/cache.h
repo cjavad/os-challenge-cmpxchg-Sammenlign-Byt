@@ -1,12 +1,13 @@
 #pragma once
 
-#include "radix_tree.h"
-#include "ringbuffer.h"
-#include "sha256/sha256.h"
+#include "bits/radix_tree.h"
+#include "bits/ringbuffer.h"
+#include "sha256/types.h"
 #include <assert.h>
 #include <pthread.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <string.h>
 
 struct PendingCacheEntry {
     HashDigest key;

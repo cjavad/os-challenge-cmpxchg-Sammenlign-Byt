@@ -1,9 +1,5 @@
 #include "scheduler.h"
 
-#include "futex.h"
-
-#include <assert.h>
-
 #define SCHEDULER_BLOCK_SIZE (1 << 16)
 
 Scheduler* scheduler_create(const uint32_t cap) {

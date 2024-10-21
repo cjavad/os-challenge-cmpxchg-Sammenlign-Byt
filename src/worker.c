@@ -46,7 +46,7 @@ void* worker_thread(void* arguments) {
 
         ProtocolResponse response;
 
-        response.answer = reverse_hash_x4(task.start, task.end, task.hash);
+        response.answer = reverse_sha256_x4(task.start, task.end, task.hash);
 
         // Task did not find answer for job.
         if (response.answer == 0) {

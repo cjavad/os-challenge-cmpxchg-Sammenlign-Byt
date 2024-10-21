@@ -1,5 +1,7 @@
 #pragma once
 
+#include "sha256/types.h"
+
 #define PROTOCOL_REQ_SIZE 49
 #define PROTOCOL_RES_SIZE 8
 
@@ -9,7 +11,7 @@
 // endian
 struct ProtocolRequest {
     // Hash to be reversed
-    uint8_t hash[32];
+    HashDigest hash;
     // Range of the input that the hash originates from.
     // 64-bit unsigned integers
     uint64_t start;

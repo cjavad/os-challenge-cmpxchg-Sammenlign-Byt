@@ -1,7 +1,3 @@
-//
-// Created by javad on 11-09-24.
-//
-
 #include "futex.h"
 
 int64_t futex(

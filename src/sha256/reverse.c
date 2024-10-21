@@ -1,13 +1,9 @@
-#include "hash.h"
-
-#include "sha256/sha256.h"
-#include "sha256/x4/sha256x4.h"
-#include <string.h>
+#include "sha256.h"
 
 #define HASH_COMPARE_U64(ptr, target)                                                                                  \
     (ptr[0] == target[0] && ptr[1] == target[1] && ptr[2] == target[2] && ptr[3] == target[3])
 
-uint64_t reverse_hash(const uint64_t start, const uint64_t end, const HashDigest target) {
+uint64_t reverse_sha256(const uint64_t start, const uint64_t end, const HashDigest target) {
 
     const uint64_t* target_u64 = (const uint64_t*)target;
 
@@ -24,7 +20,7 @@ uint64_t reverse_hash(const uint64_t start, const uint64_t end, const HashDigest
     return 0;
 }
 
-uint64_t reverse_hash_x4(const uint64_t start, const uint64_t end, const HashDigest target) {
+uint64_t reverse_sha256_x4(const uint64_t start, const uint64_t end, const HashDigest target) {
     const uint64_t* target_u64 = (const uint64_t*)target;
     uint64_t data[4] = {start, start + 1, start + 2, start + 3};
 

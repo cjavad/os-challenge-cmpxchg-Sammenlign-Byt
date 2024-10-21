@@ -1,11 +1,8 @@
-#include "hash.h"
 #include "server/epoll.h"
 #include "server/server.h"
 
 #include <stdint.h>
 #include <stdio.h>
-
-#include "benchmark.h"
 
 int server(const int port) {
     Server server;
@@ -46,11 +43,6 @@ int server(const int port) {
 }
 
 int benchmark() {
-    // benchmark_hash();
-    // benchmark_scheduler();
-    // benchmark_manual_radix_tree();
-    benchmark_sha256_radix_tree_lookup();
-    // benchmark_random_key_radix_tree_lookup();
     return 0;
 }
 

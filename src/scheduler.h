@@ -1,17 +1,19 @@
 #pragma once
 
-#include "../cache.h"
-#include "../vec.h"
-#include "../prng.h"
-#include "../protocol.h"
-#include "../ringbuffer.h"
-#include "../sha256/sha256.h"
+#include "cache.h"
+#include "bits/vec.h"
+#include "bits/prng.h"
+#include "bits/futex.h"
+#include "bits/ringbuffer.h"
+#include "sha256/types.h"
+#include "protocol.h"
 #include <pthread.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <unistd.h>
+#include <assert.h>
 
 enum JobType {
     JOB_TYPE_FUTEX,

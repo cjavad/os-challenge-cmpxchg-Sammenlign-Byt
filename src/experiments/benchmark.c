@@ -1,19 +1,8 @@
 #include "benchmark.h"
-#include "cache.h"
-#include "hash.h"
-#include "prng.h"
-#include "radix_tree.h"
-#include "sha256/sha256.h"
-#include "sha256/x4/sha256x4.h"
-#include "sha256/x4x2/sha256x4x2.h"
-#include "sha256/x8/sha256x8.h"
-#include "thread/futex.h"
-#include "thread/scheduler.h"
-#include "thread/worker.h"
-#include "vec.h"
 
 #include <sys/random.h>
 
+/*
 static uint64_t BENCHMARK_PRNG_STATE = 5225682921121941594;
 
 uint64_t random_u64() { return xorshift64_prng_next(&BENCHMARK_PRNG_STATE); }
@@ -164,6 +153,58 @@ void debug_tree_stats(_RadixTreeBase* tree) {
         "[Leaves] cap: %u, free: %u, free: %f%%\n", tree->leaves.cap, tree->leaves.free,
         (float)tree->leaves.free / tree->leaves.cap * 100
     );
+
+    // calculate actual memory usage
+    size_t total = 0;
+    size_t total_without_free = 0;
+
+    size_t edge_size = tree->edges.cap * sizeof(struct RadixTreeEdgeNode);
+    total += edge_size;
+    total_without_free += edge_size - tree->edges.free * sizeof(struct RadixTreeEdgeNode);
+
+    size_t branch4_size = tree->branches4.cap * sizeof(struct RadixTreeBranch4Node);
+    total += branch4_size;
+    total_without_free += branch4_size - tree->branches4.free * sizeof(struct RadixTreeBranch4Node);
+
+    size_t branch8_size = tree->branches8.cap * sizeof(struct RadixTreeBranch8Node);
+    total += branch8_size;
+
+    size_t branch16_size = tree->branches16.cap * sizeof(struct RadixTreeBranch16Node);
+    total += branch16_size;
+    total_without_free += branch16_size - tree->branches16.free * sizeof(struct RadixTreeBranch16Node);
+
+    size_t branch_full_size = tree->branches_full.cap * sizeof(struct RadixTreeBranchFullNode);
+    total += branch_full_size;
+    total_without_free += branch_full_size - tree->branches_full.free * sizeof(struct RadixTreeBranchFullNode);
+
+    size_t leaves_size = tree->leaves.cap * 8;
+    total += leaves_size - tree->leaves.free * 8;
+
+    size_t strings_size = tree->strings.cap * 32;
+    total += strings_size;
+
+    // Calculate "true" strings size by adding up all lengths divided by RATIO
+    size_t strings_true_size = 0;
+    for (size_t i = 0; i < tree->edges.cap; i++) {
+        // Technically we have to ignore items that are freed that is just too expensive to check atm.
+
+        if (tree->edges.data[i].length <= RADIX_TREE_SMALL_STR_SIZE) {
+            continue;
+        }
+
+        strings_true_size += tree->edges.data[i].length;
+
+    outer:
+    }
+
+    total_without_free += strings_true_size / RADIX_TREE_KEY_RATIO;
+
+    printf("Total memory usage: %lu bytes, without free: %lu bytes\n", total, total_without_free);
+    // Print "per entry" / per leaf node memory usage
+    printf(
+        "Per entry memory usage: %f bytes, without free: %f bytes\n", (float)total / tree->leaves.cap,
+        (float)total_without_free / tree->leaves.cap
+    );
 }
 
 void benchmark_sha256_radix_tree_lookup() {
@@ -171,7 +212,7 @@ void benchmark_sha256_radix_tree_lookup() {
 
     // BENCHMARK_PRNG_STATE = 5397888409141263140;
 
-    const uint64_t N = 1000000;
+    const uint64_t N = 30000000;
     printf("Benchmarking sha256 radix tree with %lu elements with seed %lu\n", N, BENCHMARK_PRNG_STATE);
 
     RadixTree(uint64_t, SHA256_DIGEST_LENGTH) tree;
@@ -291,4 +332,4 @@ void benchmark_manual_radix_tree() {
     D_BENCHMARK_TIME_END("manual cache get")
 
     radix_tree_destroy(&tree);
-}
+}*/

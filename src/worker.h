@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../hash.h"
+#include "sha256/sha256.h"
 #include "scheduler.h"
 #include <pthread.h>
 
