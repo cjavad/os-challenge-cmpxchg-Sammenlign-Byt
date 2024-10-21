@@ -39,7 +39,7 @@ endif
 D_FILES := $(patsubst $(SRCDIR)/%.c, $(DEPDIR)/%.d, $(C_FILES))
 O_FILES := $(patsubst $(SRCDIR)/%.c, $(OBJDIR)/%.o, $(C_FILES))
 
-ifneq (,$(findstring purge,$(MAKECMDGOALS)))
+ifneq (,$(findstring burn,$(MAKECMDGOALS)))
 	D_FILES := 
 else ifneq (,$(findstring clean,$(MAKECMDGOALS)))
 	D_FILES :=
@@ -52,7 +52,7 @@ endif
 
 all: release
 
-.PHONY: build release clean run lines purge
+.PHONY: build release clean run lines burn
 
 include $(D_FILES)
 
@@ -65,11 +65,11 @@ release: CFLAGS += -O3 -Wall -Wextra
 release: PPFLAGS += -DRELEASE
 release: link
 
-clean:
+burn:
 	@rm -f $(BINDIR)/$(EXECUTABLE)
 	@rm -rf $(OBJDIR)
 
-purge: clean
+clean: burn
 	@rm -rf $(DEPDIR)
 
 run:
