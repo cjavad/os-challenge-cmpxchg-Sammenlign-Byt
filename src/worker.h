@@ -25,6 +25,4 @@ void worker_destroy_pool(WorkerPool* pool);
 
 void* worker_thread(void* arguments);
 
-int worker_pool_submit(const WorkerPool* pool, Task* state);
-
 int cpu_core_count();

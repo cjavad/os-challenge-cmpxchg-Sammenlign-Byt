@@ -14,9 +14,9 @@ int simple_server_poll(const Server* server) {
     }
 
     // Read struct BEProtocolRequest
-    ProtocolRequest req;
+    struct ProtocolRequest req;
 
-    if (read(client_fd, &req, sizeof(ProtocolRequest)) != sizeof(ProtocolRequest)) {
+    if (read(client_fd, &req, sizeof(struct ProtocolRequest)) != sizeof(struct ProtocolRequest)) {
         return -1;
     }
 
@@ -24,15 +24,15 @@ int simple_server_poll(const Server* server) {
 
     protocol_debug_print_request(&req);
 
-    ProtocolResponse resp;
+    struct ProtocolResponse resp;
 
-    bzero(&resp, sizeof(ProtocolResponse));
+    bzero(&resp, sizeof(struct ProtocolResponse));
 
     resp.answer = 0x69;
 
     protocol_debug_print_response(&resp);
 
-    if (write(client_fd, &resp, sizeof(ProtocolResponse)) != sizeof(ProtocolResponse)) {
+    if (write(client_fd, &resp, sizeof(struct ProtocolResponse)) != sizeof(struct ProtocolResponse)) {
         return -1;
     }
 

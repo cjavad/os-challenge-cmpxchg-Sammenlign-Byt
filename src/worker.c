@@ -1,5 +1,6 @@
 #include "worker.h"
 
+#include <stdatomic.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -37,28 +38,46 @@ void worker_destroy_pool(WorkerPool* pool) {
 void* worker_thread(void* arguments) {
     const WorkerState* worker_state = arguments;
 
-    while (worker_state->running) {
-        Task task;
+    const Scheduler* scheduler = worker_state->scheduler;
 
-        if (!scheduler_schedule(worker_state->scheduler, &task)) {
+    while (worker_state->running) {
+
+        Job* job = scheduler->next_job;
+
+        while (job != NULL) {
+            if (!job->done || job->block_idx < job->block_count) {
+                break;
+            }
+
+            job = job->next;
+        }
+
+        if (job == NULL) {
+            // todo yield pls
             continue;
         }
 
-        ProtocolResponse response;
+        const uint64_t block_idx = atomic_fetch_add(&job->block_idx, 1);
 
-        response.answer = reverse_sha256_x4(task.start, task.end, task.hash);
+        if (block_idx >= job->block_count) {
+            continue;
+        }
+
+        const uint64_t start = job->start + block_idx * SCHEDULER_BLOCK_SIZE;
+        const uint64_t end = MIN(start + SCHEDULER_BLOCK_SIZE, job->end);
+
+        const uint64_t answer = reverse_sha256_x4(start, end, job->hash);
 
         // Task did not find answer for job.
-        if (response.answer == 0) {
+        if (answer == 0) {
             continue;
         }
 
-        // Task did find answer for job.
-        if (!scheduler_terminate(worker_state->scheduler, task.job_id)) {
-        }
+        job->answer = answer;
+        job->done = 1;
 
         // Notify the scheduler that the job is done.
-        scheduler_job_done(worker_state->scheduler, &task, &response);
+        scheduler_job_done(worker_state->scheduler, job);
     }
 
     return NULL;

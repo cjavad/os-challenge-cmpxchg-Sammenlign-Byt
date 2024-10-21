@@ -20,16 +20,12 @@ struct ProtocolRequest {
     uint8_t priority;
 };
 
-typedef struct ProtocolRequest ProtocolRequest;
-
 struct ProtocolResponse {
     uint64_t answer;
 };
 
-typedef struct ProtocolResponse ProtocolResponse;
+void protocol_request_to_le(struct ProtocolRequest* be);
+void protocol_response_to_be(struct ProtocolResponse* le);
 
-void protocol_request_to_le(ProtocolRequest* be);
-void protocol_response_to_be(ProtocolResponse* le);
-
-void protocol_debug_print_request(const ProtocolRequest* req);
-void protocol_debug_print_response(const ProtocolResponse* resp);
+void protocol_debug_print_request(const struct ProtocolRequest* req);
+void protocol_debug_print_response(const struct ProtocolResponse* resp);

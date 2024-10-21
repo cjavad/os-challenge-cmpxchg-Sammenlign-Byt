@@ -115,7 +115,7 @@ void accept_client(const struct EpollServerCtx* ctx, union EpollEventData* data)
 void consume_request(const struct EpollServerCtx* ctx, const union EpollEventData* data) {
     const int32_t client_fd = data->fd;
 
-    ProtocolRequest request;
+    struct ProtocolRequest request;
 
     const int64_t bytes_received = recv(client_fd, &request, PROTOCOL_REQ_SIZE, 0);
 
@@ -133,8 +133,7 @@ void consume_request(const struct EpollServerCtx* ctx, const union EpollEventDat
 
     protocol_request_to_le(&request);
 
-    JobData* task_data = scheduler_create_job_data(JOB_TYPE_FD, client_fd);
-    scheduler_submit(ctx->scheduler, &request, task_data);
+    scheduler_submit(ctx->scheduler, &request, JOB_TYPE_FD, client_fd);
 }
 
 void remove_client(const struct EpollServerCtx* ctx, const union EpollEventData* data) {
