@@ -15,24 +15,12 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
-#define SCHEDULER_BLOCK_SIZE (1 << 16)
-#define MIN(a, b) ((a) < (b) ? (a) : (b))
+#define SCHEDULER_BLOCK_SIZE (1024)
+#define MIN(a, b)            ((a) < (b) ? (a) : (b))
 
 struct Job {
-    HashDigest hash;
-    uint64_t start;
-    uint64_t end;
-    uint8_t priority;
-
-    volatile uint64_t block_idx;
-    uint64_t block_count;
-
-    volatile uint32_t done;
-
-    enum JobType {
-        JOB_TYPE_FUTEX,
-        JOB_TYPE_FD,
-    } type;
+    uint64_t block_idx;
+    uint32_t done;
 
     union {
         uint32_t data;
@@ -40,9 +28,21 @@ struct Job {
         int32_t fd;
     } notifier;
 
-    volatile uint64_t answer;
+    HashDigest hash;
+    uint64_t start;
+    uint64_t end;
+    uint8_t priority;
 
-    struct Job* volatile next;
+    enum JobType {
+        JOB_TYPE_FUTEX,
+        JOB_TYPE_FD,
+    } type;
+
+    uint64_t block_count;
+
+    uint64_t answer;
+
+    struct Job* next;
 };
 
 typedef struct Job Job;
@@ -50,7 +50,10 @@ typedef struct Job Job;
 struct Scheduler {
     bool running;
     Cache* cache;
-    Job* volatile next_job;
+    Job* next_job;
+
+    pthread_mutex_t mutex;
+    pthread_cond_t waker;
 };
 
 typedef struct Scheduler Scheduler;

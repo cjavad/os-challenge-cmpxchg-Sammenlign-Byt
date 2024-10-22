@@ -38,7 +38,7 @@ void worker_destroy_pool(WorkerPool* pool) {
 void* worker_thread(void* arguments) {
     const WorkerState* worker_state = arguments;
 
-    const Scheduler* scheduler = worker_state->scheduler;
+    Scheduler* scheduler = worker_state->scheduler;
 
     while (worker_state->running) {
 
@@ -53,7 +53,9 @@ void* worker_thread(void* arguments) {
         }
 
         if (job == NULL) {
-            // todo yield pls
+            pthread_mutex_lock(&scheduler->mutex);
+            pthread_cond_wait(&scheduler->waker, &scheduler->mutex);
+            pthread_mutex_unlock(&scheduler->mutex);
             continue;
         }
 

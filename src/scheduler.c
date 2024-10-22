@@ -1,11 +1,13 @@
 #include "scheduler.h"
 
-
 Scheduler* scheduler_create(const uint32_t cap) {
     Scheduler* scheduler = calloc(1, sizeof(Scheduler));
 
     scheduler->running = true;
     scheduler->cache = cache_create(1024);
+
+    scheduler->waker = (pthread_cond_t)PTHREAD_COND_INITIALIZER;
+    scheduler->mutex = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
 
     return scheduler;
 }
@@ -61,7 +63,7 @@ uint64_t scheduler_submit(Scheduler* scheduler, const struct ProtocolRequest* re
 
     if (scheduler->next_job == NULL) {
         scheduler->next_job = new_job;
-        return 0;
+        goto wake;
     }
 
     Job* prev = NULL;
@@ -78,14 +80,16 @@ uint64_t scheduler_submit(Scheduler* scheduler, const struct ProtocolRequest* re
     if (prev == NULL) {
         new_job->next = job;
         scheduler->next_job = new_job;
-        return 0;
+        goto wake;
     }
 
     new_job->next = job;
     prev->next = new_job;
 
+wake:
+    pthread_cond_broadcast(&scheduler->waker);
     return 0;
- }
+}
 
 void scheduler_job_done(const Scheduler* scheduler, Job* job) {
     // Notify client of response.
@@ -106,6 +110,5 @@ void scheduler_job_notify(const uint64_t answer, const int32_t fd) {
 
     // TODO FREE JOB??!?!?
 }
-
 
 void scheduler_close(Scheduler* scheduler) { scheduler->running = false; }
