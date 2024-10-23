@@ -56,8 +56,8 @@ all: release
 
 include $(D_FILES)
 
-build: CFLAGS += -O1 -Wall -Wextra -ggdb
-build: LFLAGS += -ggdb
+build: CFLAGS += -O1 -Wall -Wextra -ggdb -fsanitize=memory -fsanitize=leak -fsanitize=address -fsanitize=undefined -fPIE -pie -fno-omit-frame-pointer
+build: LFLAGS += -ggdb -fsanitize=leak,address,undefined -fPIE -pie -fno-omit-frame-pointer
 build: PPFLAGS += -DDEBUG
 build: link
 
