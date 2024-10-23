@@ -693,16 +693,18 @@ void _radix_tree_get(
 
             radix_key_idx_t old_idx = edge->length & ~1;
 
-            const radix_key_idx_t byte_len = old_idx / RADIX_TREE_KEY_RATIO;
+            if (old_idx > 0) {
+                const radix_key_idx_t byte_len = old_idx / RADIX_TREE_KEY_RATIO;
 
-            radix_key_t aligned_key[byte_len];
-            radix_tree_copy_key(aligned_key, key, key_idx, old_idx);
+                radix_key_t aligned_key[byte_len];
+                radix_tree_copy_key(aligned_key, key, key_idx, old_idx);
 
-            if (memcmp(edge_key, aligned_key, byte_len) != 0) {
-                goto notfound;
+                if (memcmp(edge_key, aligned_key, byte_len) != 0) {
+                    goto notfound;
+                }
+
+                key_idx += old_idx;
             }
-
-            key_idx += old_idx;
 
             for (; old_idx < edge->length; old_idx++) {
                 if (radix_tree_key_unpack(edge_key, old_idx) != radix_tree_key_unpack(key, key_idx++)) {
