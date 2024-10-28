@@ -40,44 +40,36 @@ void* worker_thread(void* arguments) {
 
     Scheduler* scheduler = worker_state->scheduler;
 
-    JobPriorityHeap local_sched_jobs;
-    uint32_t local_sched_jobs_version = 0;
-
     HashDigest hash;
-    uint32_t prev_job_idx = UINT32_MAX;
+    uint32_t last_job_id = UINT32_MAX;
+    struct ScheduledJobs local_sched_jobs = {0};
 
     while (worker_state->running) {
         uint32_t job_idx;
         uint64_t start;
         uint64_t end;
 
-        if (!scheduler_schedule(scheduler, &local_sched_jobs, &local_sched_jobs_version, &job_idx, &start, &end)) {
+        if (!scheduler_schedule(scheduler, &local_sched_jobs, &last_job_id, hash, &job_idx, &start, &end)) {
             continue;
         }
 
-        SCHEDULER_JOBS_REF_INC(scheduler, job_idx)
-
-        if (prev_job_idx != job_idx) {
-            // Copy the hash to the local worker state.
-            SCHEDULER_READ_JOBS(scheduler)
-            memcpy(&hash, scheduler->jobs.data[job_idx].req.hash, SHA256_DIGEST_LENGTH);
-            SCHEDULER_READ_JOBS_END(scheduler)
-
-            prev_job_idx = job_idx;
-        }
+        scheduler_job_rc_enter(scheduler, job_idx);
 
         const uint64_t answer = reverse_sha256_x4(start, end, hash);
 
         // Task did not find answer for job.
         if (answer == 0) {
-            SCHEDULER_JOBS_REF_DEC(scheduler, job_idx);
+            scheduler_job_rc_leave(scheduler, job_idx);
             continue;
         }
 
         // Notify the scheduler that the job is done.
         scheduler_job_done(worker_state->scheduler, job_idx, answer);
 
-        SCHEDULER_JOBS_REF_DEC(scheduler, job_idx);
+        // Store cache entry.
+        cache_insert_pending(scheduler->cache, hash, answer);
+
+        scheduler_job_rc_leave(scheduler, job_idx);
     }
 
     return NULL;

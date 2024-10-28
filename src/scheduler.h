@@ -5,6 +5,7 @@
 #include "bits/futex.h"
 #include "bits/priority_heap.h"
 #include "bits/prng.h"
+#include "bits/spin.h"
 #include "cache.h"
 #include "protocol.h"
 #include "sha256/types.h"
@@ -42,72 +43,61 @@ struct Job {
     uint64_t block_count;
 
     uint32_t rc;
+    uint32_t id;
 };
 
 #define scheduler_job_is_done(job) ((job)->block_idx >= (job)->block_count)
 
-typedef PriorityHeap(uint32_t) JobPriorityHeap;
+typedef PriorityHeap(uint32_t) IndexPriorityHeap;
+typedef PriorityHeapNode(uint32_t) IndexPriorityHeapNode;
+
+struct ScheduledJobs {
+    IndexPriorityHeap p;
+    uint32_t v;
+    struct SRWLock l;
+};
 
 struct Scheduler {
-    struct Cache* cache;
-    FreeList(struct Job) jobs;
-    JobPriorityHeap* sched_jobs;   // Read-only heap
-    JobPriorityHeap* sched_jobs_w; // Write-only heap
-    uint32_t sched_jobs_version;
-    bool running;
-
     pthread_mutex_t mutex;
     pthread_cond_t waker;
-    // These locks need to HEAVILY favor the writer.
-    pthread_rwlock_t jobs_swap_lock;
-    pthread_rwlock_t jobs_grow_lock;
+
+    struct Cache* cache;
+
+    FreeList(struct Job) jobs;
+
+    struct ScheduledJobs* sched_jobs_r;
+    struct ScheduledJobs* sched_jobs_w;
+
+    struct SRWLock jobs_rwlock; // Prevents jobs ptr from being invalidated by growing.
+    struct SRWLock swap_rwlock; // Prevents jobs ptr form being swapped.
+
+    uint32_t job_id;
+    bool running;
 };
 
 typedef struct Scheduler Scheduler;
 
-#define __PTHREAD_CRITICAL_SECTION(lock_name, lockfn, lock_var)                                                        \
-    {                                                                                                                  \
-        pthread_##lock_name##_##lockfn(lock_var);
+// Increment job reference count.
+static void scheduler_job_rc_enter(Scheduler* scheduler, const uint32_t job_idx) {
+    spin_rwlock_rdlock(&scheduler->jobs_rwlock);
+    __atomic_add_fetch(&(scheduler)->jobs.data[job_idx].rc, 1, __ATOMIC_RELAXED);
+    spin_rwlock_rdunlock(&scheduler->jobs_rwlock);
+}
 
-#define __PTHREAD_CRITICAL_SECTION_END(lock_name, lock_var)                                                            \
-    pthread_##lock_name##_unlock(lock_var);                                                                            \
+// Decrement job reference count and remove job if no references are left.
+static void scheduler_job_rc_leave(Scheduler* scheduler, const uint32_t job_idx) {
+    spin_rwlock_rdlock(&scheduler->jobs_rwlock);
+
+    const struct Job* job = &scheduler->jobs.data[job_idx];
+    const uint32_t rc = __atomic_sub_fetch(&job->rc, 1, __ATOMIC_RELAXED);
+
+    if (scheduler_job_is_done(job) && rc == 0) {
+        // Thread safe remove.
+        scheduler->jobs.indicices[__atomic_fetch_add(&scheduler->jobs.free, 1, __ATOMIC_RELAXED)] = job_idx;
     }
 
-#define SCHEDULER_READ_JOBS(scheduler) __PTHREAD_CRITICAL_SECTION(rwlock, rdlock, &(scheduler)->jobs_swap_lock)
-
-#define SCHEDULER_READ_JOBS_END(scheduler) __PTHREAD_CRITICAL_SECTION_END(rwlock, &(scheduler)->jobs_swap_lock)
-
-#define SCHEDULER_READ_PRIO(scheduler) __PTHREAD_CRITICAL_SECTION(rwlock, rdlock, &(scheduler)->jobs_grow_lock)
-
-#define SCHEDULER_READ_PRIO_END(scheduler) __PTHREAD_CRITICAL_SECTION_END(rwlock, &(scheduler)->jobs_grow_lock)
-
-#define SCHEDULER_WRITE_JOBS(scheduler) __PTHREAD_CRITICAL_SECTION(rwlock, wrlock, &(scheduler)->jobs_swap_lock)
-
-#define SCHEDULER_WRITE_JOBS_END(scheduler) __PTHREAD_CRITICAL_SECTION_END(rwlock, &(scheduler)->jobs_swap_lock)
-
-#define SCHEDULER_WRITE_PRIO(scheduler) __PTHREAD_CRITICAL_SECTION(rwlock, wrlock, &(scheduler)->jobs_grow_lock)
-
-#define SCHEDULER_WRITE_PRIO_END(scheduler) __PTHREAD_CRITICAL_SECTION_END(rwlock, &(scheduler)->jobs_grow_lock)
-
-#define SCHEDULER_JOBS_REF_INC(scheduler, job_idx)                                                                     \
-    {                                                                                                                  \
-        SCHEDULER_READ_JOBS(scheduler)                                                                                 \
-        __atomic_add_fetch(&(scheduler)->jobs.data[job_idx].rc, 1, __ATOMIC_RELAXED);                                  \
-        SCHEDULER_READ_JOBS_END(scheduler)                                                                             \
-    }
-
-// Remove job once it is done and no references are left.
-#define __SCHEDULER_JOBS_REF_DEC(scheduler, job_idx, c)                                                                \
-    {                                                                                                                  \
-        SCHEDULER_READ_JOBS(scheduler)                                                                                 \
-        uint32_t __CONCAT(__ref__, c) = __atomic_sub_fetch(&(scheduler)->jobs.data[job_idx].rc, 1, __ATOMIC_RELAXED);  \
-        if (scheduler_job_is_done(&(scheduler)->jobs.data[job_idx]) && __CONCAT(__ref__, c) == 0) {                    \
-            freelist_remove(&(scheduler)->jobs, job_idx);                                                              \
-        }                                                                                                              \
-        SCHEDULER_READ_JOBS_END(scheduler)                                                                             \
-    }
-
-#define SCHEDULER_JOBS_REF_DEC(scheduler, job_idx) __SCHEDULER_JOBS_REF_DEC(scheduler, job_idx, __COUNTER__)
+    spin_rwlock_rdunlock(&scheduler->jobs_rwlock);
+}
 
 Scheduler* scheduler_create(uint32_t cap);
 void scheduler_destroy(Scheduler* scheduler);
@@ -121,8 +111,8 @@ void scheduler_submit(Scheduler* scheduler, const struct ProtocolRequest* req, s
 /// Request a new task from the scheduler, returns fall if no task is
 /// available.
 bool scheduler_schedule(
-    Scheduler* scheduler, JobPriorityHeap* local_sched_jobs, uint32_t* local_sched_jobs_version, uint32_t* job_idx,
-    uint64_t* start, uint64_t* end
+    Scheduler* scheduler, struct ScheduledJobs* local_sched_jobs, uint32_t* last_job_id, HashDigest target,
+    uint32_t* job_idx, uint64_t* start, uint64_t* end
 );
 
 /// Notify the scheduler that a job is done.

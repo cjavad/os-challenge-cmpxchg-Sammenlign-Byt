@@ -5,19 +5,21 @@ Scheduler* scheduler_create(const uint32_t cap) {
 
     scheduler->cache = cache_create(cap);
 
-    scheduler->sched_jobs = calloc(1, sizeof(JobPriorityHeap));
-    scheduler->sched_jobs_w = calloc(1, sizeof(JobPriorityHeap));
+    scheduler->sched_jobs_r = calloc(1, sizeof(struct ScheduledJobs));
+    scheduler->sched_jobs_w = calloc(1, sizeof(struct ScheduledJobs));
 
-    priority_heap_init(scheduler->sched_jobs, cap);
-    priority_heap_init(scheduler->sched_jobs_w, cap);
+    priority_heap_init(&scheduler->sched_jobs_r->p, cap);
+    priority_heap_init(&scheduler->sched_jobs_w->p, cap);
+
+    spin_rwlock_init(&scheduler->jobs_rwlock);
+    spin_rwlock_init(&scheduler->swap_rwlock);
+
     freelist_init(&scheduler->jobs, cap);
 
     scheduler->running = true;
 
     scheduler->waker = (pthread_cond_t)PTHREAD_COND_INITIALIZER;
     scheduler->mutex = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
-    scheduler->jobs_swap_lock = (pthread_rwlock_t)PTHREAD_RWLOCK_INITIALIZER;
-    scheduler->jobs_grow_lock = (pthread_rwlock_t)PTHREAD_RWLOCK_INITIALIZER;
 
     return scheduler;
 }
@@ -25,14 +27,11 @@ Scheduler* scheduler_create(const uint32_t cap) {
 void scheduler_destroy(Scheduler* scheduler) {
     pthread_mutex_destroy(&scheduler->mutex);
     pthread_cond_destroy(&scheduler->waker);
-    pthread_rwlock_destroy(&scheduler->jobs_swap_lock);
-    pthread_rwlock_destroy(&scheduler->jobs_grow_lock);
-
     cache_destroy(scheduler->cache);
-    priority_heap_destroy(scheduler->sched_jobs);
-    priority_heap_destroy(scheduler->sched_jobs_w);
     freelist_destroy(&scheduler->jobs);
-    free(scheduler->sched_jobs);
+    priority_heap_destroy(&scheduler->sched_jobs_r->p);
+    priority_heap_destroy(&scheduler->sched_jobs_w->p);
+    free(scheduler->sched_jobs_r);
     free(scheduler->sched_jobs_w);
     free(scheduler);
 }
@@ -53,6 +52,7 @@ void scheduler_submit(Scheduler* scheduler, const struct ProtocolRequest* req, s
     radix_tree_get(&scheduler->cache->tree, req->hash, SHA256_DIGEST_LENGTH, &cached_answer);
 
     if (cached_answer != NULL) {
+        data->answer = *cached_answer;
         scheduler_job_notify(data);
         return;
     }
@@ -60,58 +60,76 @@ void scheduler_submit(Scheduler* scheduler, const struct ProtocolRequest* req, s
 #ifdef DEBUG
     // protocol_debug_print_request(req);
 #endif
-
     const uint64_t block_size = 1024;
 
     struct Job job = {
         .data = data,
         .block_size = block_size,
         .block_count = ((req->end - req->start) + (block_size - 1)) / block_size,
+        .id = scheduler->job_id++,
     };
 
     memcpy(&job.req, req, sizeof(struct ProtocolRequest));
 
     uint32_t idx;
 
+    // Insert job into freelist.
     if (scheduler->jobs.free == 0) {
-        SCHEDULER_WRITE_JOBS(scheduler)
+        spin_rwlock_wrlock(&scheduler->jobs_rwlock);
         idx = freelist_insert(&scheduler->jobs, job);
-        SCHEDULER_WRITE_JOBS_END(scheduler)
+        spin_rwlock_wrunlock(&scheduler->jobs_rwlock);
     } else {
         idx = freelist_insert(&scheduler->jobs, job);
     }
 
     // Ensure writer buffer is up-to-date.
-    priority_heap_copy(scheduler->sched_jobs_w, scheduler->sched_jobs);
-    // Update writer buffer.
-    priority_heap_insert(scheduler->sched_jobs_w, &idx, req->priority);
+    priority_heap_copy(&(scheduler->sched_jobs_w->p), &(scheduler->sched_jobs_r->p));
+    scheduler->sched_jobs_w->v = scheduler->sched_jobs_r->v;
+
+    // Purge all from priority heap where job is done.
+    for (uint32_t i = 0; i < scheduler->sched_jobs_w->p.len; i++) {
+        const struct Job* some_job = &scheduler->jobs.data[scheduler->sched_jobs_w->p.data[i].elem];
+
+        if (scheduler_job_is_done(some_job)) {
+            priority_heap_remove(&scheduler->sched_jobs_w->p, i);
+            i--;
+        }
+    }
+
+    // Update writer buffer with the newest job submission.
+    priority_heap_insert(&scheduler->sched_jobs_w->p, &idx, req->priority);
+
+    // Increment version.
+    scheduler->sched_jobs_w->v++;
 
     // Perform swap under lock.
-    SCHEDULER_WRITE_PRIO(scheduler)
-    JobPriorityHeap* tmp = scheduler->sched_jobs;
-    scheduler->sched_jobs = scheduler->sched_jobs_w;
+    spin_rwlock_wrlock(&scheduler->swap_rwlock);
+    struct ScheduledJobs* tmp = scheduler->sched_jobs_r;
+    scheduler->sched_jobs_r = scheduler->sched_jobs_w;
     scheduler->sched_jobs_w = tmp;
-    scheduler->sched_jobs_version++;
-    SCHEDULER_WRITE_PRIO_END(scheduler)
+    spin_rwlock_wrunlock(&scheduler->swap_rwlock);
 
+    // Wake up workers.
     pthread_cond_broadcast(&scheduler->waker);
 }
 
 bool scheduler_schedule(
-    Scheduler* scheduler, JobPriorityHeap* local_sched_jobs, uint32_t* local_sched_jobs_version, uint32_t* job_idx,
-    uint64_t* start, uint64_t* end
+    Scheduler* scheduler, struct ScheduledJobs* local_sched_jobs, uint32_t* last_job_id, HashDigest target,
+    uint32_t* job_idx, uint64_t* start, uint64_t* end
 ) {
-    if (scheduler->sched_jobs_version > *local_sched_jobs_version) {
-        SCHEDULER_READ_PRIO(scheduler)
-        priority_heap_copy(local_sched_jobs, scheduler->sched_jobs);
-        *local_sched_jobs_version = scheduler->sched_jobs_version;
-        SCHEDULER_READ_PRIO_END(scheduler)
+    spin_rwlock_rdlock(&scheduler->swap_rwlock);
+
+    if (scheduler->sched_jobs_r->v > local_sched_jobs->v) {
+        priority_heap_copy(&local_sched_jobs->p, &scheduler->sched_jobs_r->p);
+        local_sched_jobs->v = scheduler->sched_jobs_r->v;
     }
+
+    spin_rwlock_rdunlock(&scheduler->swap_rwlock);
 
     *job_idx = UINT32_MAX;
 
     while (1) {
-        const PriorityHeapNode(uint32_t)* node = (void*)priority_heap_get_max(local_sched_jobs);
+        const PriorityHeapNode(uint32_t)* node = (void*)priority_heap_get_max(&local_sched_jobs->p);
 
         if (node == NULL) {
             break;
@@ -119,7 +137,8 @@ bool scheduler_schedule(
 
         *job_idx = node->elem;
 
-        SCHEDULER_READ_JOBS(scheduler)
+        spin_rwlock_rdlock(&scheduler->jobs_rwlock);
+
         const struct Job* job = &scheduler->jobs.data[*job_idx];
 
         if (!scheduler_job_is_done(job)) {
@@ -127,11 +146,20 @@ bool scheduler_schedule(
             *start = job->req.start + block_idx * job->block_size;
             *end = MIN(job->req.end, *start + job->block_size);
 
+            // Keep target up to date.
+            if (*last_job_id != job->id) {
+                memcpy(target, job->req.hash, SHA256_DIGEST_LENGTH);
+                *last_job_id = job->id;
+            }
+
+            spin_rwlock_rdunlock(&scheduler->jobs_rwlock);
+
             return true;
         }
-        SCHEDULER_READ_JOBS_END(scheduler)
 
-        priority_heap_pop_max(local_sched_jobs);
+        spin_rwlock_rdunlock(&scheduler->jobs_rwlock);
+
+        priority_heap_pop_max(&local_sched_jobs->p);
     }
 
     // Wait for new jobs.
@@ -145,15 +173,13 @@ bool scheduler_schedule(
 void scheduler_job_done(Scheduler* scheduler, const uint32_t job_idx, const uint64_t answer) {
     struct JobData* data = NULL;
 
-    SCHEDULER_READ_JOBS(scheduler)
+    spin_rwlock_rdlock(&scheduler->jobs_rwlock);
     struct Job* job = &scheduler->jobs.data[job_idx];
     job->block_idx = job->block_count;
-    job->data->answer = answer;
-
-    // Store cache entry.
-    cache_insert_pending(scheduler->cache, job->req.hash, answer);
     data = job->data;
-    SCHEDULER_READ_JOBS_END(scheduler)
+    spin_rwlock_rdunlock(&scheduler->jobs_rwlock);
+
+    data->answer = answer;
 
     // Notify client of response.
     scheduler_job_notify(data);

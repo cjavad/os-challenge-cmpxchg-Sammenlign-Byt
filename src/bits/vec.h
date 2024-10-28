@@ -44,7 +44,7 @@
         (dest)->len = (src)->len;                                                                                      \
         (dest)->cap = (src)->cap;                                                                                      \
         (dest)->data = reallocarray((dest)->data, (dest)->cap, size);                                                  \
-        memcpy((void*)(dest)->data, (void*)(src)->data, ((src)->len) * size);                                          \
+        memcpy((void*)(dest)->data, (void*)(src)->data, ((dest)->len) * size);                                          \
     }
 
 #define vec_copy(dest, src) __vec_copy(dest, src, sizeof(*(src)->data))

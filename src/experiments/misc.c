@@ -1,38 +1,61 @@
 #include "misc.h"
 #include "../bits/priority_heap.h"
+#include "../bits/spin.h"
 
+#include <pthread.h>
 #include <stdio.h>
 
+void* writer(void* arg) {
+    struct SRWLock* lock = arg;
+
+    printf("Writer waiting\n");
+
+    spin_rwlock_wrlock(lock);
+
+    printf("Writer locked\n");
+
+    spin_rwlock_wrunlock(lock);
+
+    return NULL;
+}
+
+void* reader(void* arg) {
+    struct SRWLock* lock = arg;
+
+    printf("Reader waiting\n");
+
+    spin_rwlock_rdlock(lock);
+
+    printf("Reader locked\n");
+
+    spin_rwlock_rdunlock(lock);
+
+    return NULL;
+}
+
 int misc_main() {
-    PriorityHeap(uint32_t) heap;
-    priority_heap_init(&heap, 8);
+    struct SRWLock* lock = calloc(1, sizeof(struct SRWLock));
+    spin_rwlock_init(lock);
 
-    uint32_t elem = 1;
+    const uint32_t THREADS = 100;
 
-    priority_heap_insert(&heap, &elem, 2);
+    pthread_t threads[THREADS];
 
-    elem = 10;
-
-    priority_heap_insert(&heap, &elem, 1);
-    priority_heap_insert(&heap, &elem, 1);
-    priority_heap_insert(&heap, &elem, 1);
-    priority_heap_insert(&heap, &elem, 1);
-    priority_heap_insert(&heap, &elem, 3);
-    priority_heap_insert(&heap, &elem, 1);
-    priority_heap_insert(&heap, &elem, 1);
-    priority_heap_insert(&heap, &elem, 1);
-
-    elem = 20;
-
-    priority_heap_insert(&heap, &elem, 0);
-
-    for (uint32_t i = 0; i < heap.len; i++) {
-        const PriorityHeapNode(uint32_t)* node = (void*)priority_heap_get_max(&heap);
-        printf("Priority: %u, Elem: %u\n", node->priority, node->elem);
-        priority_heap_pop_max(&heap);
+    for (uint32_t i = 0; i < THREADS; i++) {
+        if (i % 10 == 0) {
+            pthread_create(&threads[i], NULL, writer, lock);
+        } else {
+            pthread_create(&threads[i], NULL, reader, lock);
+        }
     }
 
-    priority_heap_destroy(&heap);
+    for (uint32_t i = 0; i < THREADS; i++) {
+        pthread_join(threads[i], NULL);
+    }
+
+    printf("All threads joined\n");
+    free(lock);
 
     return 0;
+    ;
 };
