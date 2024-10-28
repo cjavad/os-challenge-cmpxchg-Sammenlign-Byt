@@ -56,14 +56,17 @@ all: release
 
 include $(D_FILES)
 
-build: CFLAGS += -O1 -Wall -Wextra -ggdb -fsanitize=leak,address,undefined -fPIE -pie -fno-omit-frame-pointer
-build: LFLAGS += -ggdb -fsanitize=leak,address,undefined -fPIE -pie -fno-omit-frame-pointer
+build: CFLAGS += -O1 -Wall -Wextra -ggdb
+build: LFLAGS += -ggdb
 build: PPFLAGS += -DDEBUG
 build: link
 
 release: CFLAGS += -O3 -Wall -Wextra
 release: PPFLAGS += -DRELEASE
 release: link
+
+san: CFLAGS += -fsanitize=leak,address,undefined -fPIE -pie -fno-omit-frame-pointer
+san: LFLAGS += -fsanitize=leak,address,undefined -fPIE -pie -fno-omit-frame-pointer
 
 iouring: LFLAGS += -lliburing
 iouring: PPFLAGS += -DIORING
