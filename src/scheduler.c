@@ -78,12 +78,14 @@ void scheduler_submit(Scheduler* scheduler, const struct ProtocolRequest* req, s
 #ifdef DEBUG
     // protocol_debug_print_request(req);
 #endif
+    const uint64_t difficulty = req->end - req->start;
+
     const uint64_t block_size = 1024;
 
     struct Job job = {
         .data = data,
         .block_size = block_size,
-        .block_count = ((req->end - req->start) + (block_size - 1)) / block_size,
+        .block_count = (difficulty + (block_size - 1)) / block_size,
         .id = scheduler->job_id++,
     };
 
@@ -162,7 +164,7 @@ bool scheduler_schedule(
         if (!scheduler_job_is_done(job)) {
             const uint64_t block_idx = atomic_fetch_add(&job->block_idx, 1);
             *start = job->req.start + block_idx * job->block_size;
-            *end = MIN(job->req.end, *start + job->block_size);
+            *end = min(job->req.end, *start + job->block_size);
 
             // Keep target up to date.
             if (*last_job_id != job->id) {

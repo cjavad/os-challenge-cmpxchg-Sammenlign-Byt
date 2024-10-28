@@ -17,7 +17,15 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
-#define MIN(a, b) ((a) < (b) ? (a) : (b))
+#define __minmax_impl(op, a, b, c)                                                                                     \
+    ({                                                                                                                 \
+        __typeof__(a) __CONCAT(_a, c) = (a);                                                                           \
+        __typeof__(b) __CONCAT(_b, c) = (b);                                                                           \
+        __CONCAT(_a, c) op __CONCAT(_b, c) ? __CONCAT(_a, c) : __CONCAT(_b, c);                                        \
+    })
+
+#define min(a, b) __minmax_impl(<, a, b, __COUNTER__)
+#define max(a, b) __minmax_impl(>, a, b, __COUNTER__)
 
 struct JobData {
     enum JobType {
