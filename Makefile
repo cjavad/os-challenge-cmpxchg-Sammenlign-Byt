@@ -50,26 +50,24 @@ else ifneq (,$(findstring lines,$(MAKECMDGOALS)))
 else
 endif
 
+ifeq (,$(findstring avx,$(shell lscpu)))
+$(error CPU does not support AVX, clearly someone lied)
+endif
+
 all: release
 
 .PHONY: build release clean run lines burn
 
 include $(D_FILES)
 
-build: CFLAGS += -O1 -Wall -Wextra -ggdb
-build: LFLAGS += -ggdb
+build: CFLAGS += -O1 -Wall -Wextra -ggdb -fsanitize=memory -fsanitize=leak -fsanitize=address -fsanitize=undefined -fPIE -pie -fno-omit-frame-pointer
+build: LFLAGS += -ggdb -fsanitize=leak,address,undefined -fPIE -pie -fno-omit-frame-pointer
 build: PPFLAGS += -DDEBUG
 build: link
 
 release: CFLAGS += -O3 -Wall -Wextra
 release: PPFLAGS += -DRELEASE
 release: link
-
-san: CFLAGS += -fsanitize=leak,address,undefined -fPIE -pie -fno-omit-frame-pointer
-san: LFLAGS += -fsanitize=leak,address,undefined -fPIE -pie -fno-omit-frame-pointer
-
-iouring: LFLAGS += -lliburing
-iouring: PPFLAGS += -DIORING
 
 burn:
 	@rm -f $(BINDIR)/$(EXECUTABLE)
