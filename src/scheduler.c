@@ -1,5 +1,23 @@
 #include "scheduler.h"
 
+void scheduler_job_rc_enter(Scheduler* scheduler, const uint32_t job_idx) {
+    spin_rwlock_rdlock(&scheduler->jobs_rwlock);
+    __atomic_add_fetch(&(scheduler)->jobs.data[job_idx].rc, 1, __ATOMIC_RELAXED);
+    spin_rwlock_rdunlock(&scheduler->jobs_rwlock);
+}
+void scheduler_job_rc_leave(Scheduler* scheduler, const uint32_t job_idx) {
+    spin_rwlock_rdlock(&scheduler->jobs_rwlock);
+
+    struct Job* job = &scheduler->jobs.data[job_idx];
+    const uint32_t rc = __atomic_sub_fetch(&job->rc, 1, __ATOMIC_RELAXED);
+
+    if (scheduler_job_is_done(job) && rc == 0) {
+        // Thread safe remove.
+        scheduler->jobs.indicices[__atomic_fetch_add(&scheduler->jobs.free, 1, __ATOMIC_RELAXED)] = job_idx;
+    }
+
+    spin_rwlock_rdunlock(&scheduler->jobs_rwlock);
+}
 Scheduler* scheduler_create(const uint32_t cap) {
     Scheduler* scheduler = calloc(1, sizeof(Scheduler));
 
@@ -139,7 +157,7 @@ bool scheduler_schedule(
 
         spin_rwlock_rdlock(&scheduler->jobs_rwlock);
 
-        const struct Job* job = &scheduler->jobs.data[*job_idx];
+        struct Job* job = &scheduler->jobs.data[*job_idx];
 
         if (!scheduler_job_is_done(job)) {
             const uint64_t block_idx = atomic_fetch_add(&job->block_idx, 1);

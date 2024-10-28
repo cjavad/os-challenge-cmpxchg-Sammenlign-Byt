@@ -78,26 +78,10 @@ struct Scheduler {
 typedef struct Scheduler Scheduler;
 
 // Increment job reference count.
-static void scheduler_job_rc_enter(Scheduler* scheduler, const uint32_t job_idx) {
-    spin_rwlock_rdlock(&scheduler->jobs_rwlock);
-    __atomic_add_fetch(&(scheduler)->jobs.data[job_idx].rc, 1, __ATOMIC_RELAXED);
-    spin_rwlock_rdunlock(&scheduler->jobs_rwlock);
-}
+void scheduler_job_rc_enter(Scheduler* scheduler, const uint32_t job_idx);
 
 // Decrement job reference count and remove job if no references are left.
-static void scheduler_job_rc_leave(Scheduler* scheduler, const uint32_t job_idx) {
-    spin_rwlock_rdlock(&scheduler->jobs_rwlock);
-
-    const struct Job* job = &scheduler->jobs.data[job_idx];
-    const uint32_t rc = __atomic_sub_fetch(&job->rc, 1, __ATOMIC_RELAXED);
-
-    if (scheduler_job_is_done(job) && rc == 0) {
-        // Thread safe remove.
-        scheduler->jobs.indicices[__atomic_fetch_add(&scheduler->jobs.free, 1, __ATOMIC_RELAXED)] = job_idx;
-    }
-
-    spin_rwlock_rdunlock(&scheduler->jobs_rwlock);
-}
+void scheduler_job_rc_leave(Scheduler* scheduler, const uint32_t job_idx);
 
 Scheduler* scheduler_create(uint32_t cap);
 void scheduler_destroy(Scheduler* scheduler);
