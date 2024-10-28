@@ -1,3 +1,4 @@
+#include "experiments/misc.h"
 #include "server/epoll.h"
 #include "server/server.h"
 
@@ -42,9 +43,7 @@ int server(const int port) {
     return 0;
 }
 
-int benchmark() {
-    return 0;
-}
+int benchmark() { return 0; }
 
 int main(int argc, char** argv) {
     if (argc < 2) {
@@ -54,6 +53,10 @@ int main(int argc, char** argv) {
 
     if (strcmp(argv[1], "benchmark") == 0) {
         return benchmark();
+    }
+
+    if (strcmp(argv[1], "misc") == 0) {
+        return misc_main();
     }
 
     const int port = atoi(argv[1]);

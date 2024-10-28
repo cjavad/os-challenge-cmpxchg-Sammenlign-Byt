@@ -133,7 +133,9 @@ void consume_request(const struct EpollServerCtx* ctx, const union EpollEventDat
 
     protocol_request_to_le(&request);
 
-    scheduler_submit(ctx->scheduler, &request, JOB_TYPE_FD, client_fd);
+    struct JobData* job_data = scheduler_create_job_data(JOB_TYPE_FD, client_fd);
+
+    scheduler_submit(ctx->scheduler, &request, job_data);
 }
 
 void remove_client(const struct EpollServerCtx* ctx, const union EpollEventData* data) {

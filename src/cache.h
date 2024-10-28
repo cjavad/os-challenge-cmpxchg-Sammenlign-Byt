@@ -19,10 +19,8 @@ struct Cache {
     RadixTree(uint64_t, SHA256_DIGEST_LENGTH) tree;
 };
 
-typedef struct Cache Cache;
+struct Cache* cache_create(uint32_t default_cap);
+void cache_destroy(struct Cache* cache);
 
-Cache* cache_create(uint32_t default_cap);
-void cache_destroy(Cache* cache);
-
-void cache_process_pending(Cache* cache);
-void cache_insert_pending(Cache* cache, const HashDigest key, uint64_t value);
+void cache_process_pending(struct Cache* cache);
+void cache_insert_pending(struct Cache* cache, const HashDigest key, uint64_t value);

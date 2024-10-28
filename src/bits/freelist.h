@@ -1,5 +1,6 @@
 #pragma once
 
+#include "concat.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -25,9 +26,7 @@
 #define freelist_init(freelist, default_cap)              ____freelist_init(freelist, default_cap, sizeof(*(freelist)->data))
 #define freelist_init_unsafe(freelist, default_cap, size) ____freelist_init(freelist, default_cap, size)
 
-#define ____CONCAT_IMPL(a, b) a##b
-#define ____CONCAT(a, b)      ____CONCAT_IMPL(a, b)
-#define ____LAST_CAP(iii)     ____CONCAT(____lastcap____, iii)
+#define ____LAST_CAP(iii) ____CONCAT(____lastcap____, iii)
 
 #define ____freelist_maybe_grow(freelist, size, iii)                                                                   \
     {                                                                                                                  \

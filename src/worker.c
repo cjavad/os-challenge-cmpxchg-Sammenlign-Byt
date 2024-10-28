@@ -40,46 +40,44 @@ void* worker_thread(void* arguments) {
 
     Scheduler* scheduler = worker_state->scheduler;
 
+    JobPriorityHeap local_sched_jobs;
+    uint32_t local_sched_jobs_version = 0;
+
+    HashDigest hash;
+    uint32_t prev_job_idx = UINT32_MAX;
+
     while (worker_state->running) {
+        uint32_t job_idx;
+        uint64_t start;
+        uint64_t end;
 
-        Job* job = scheduler->next_job;
-
-        while (job != NULL) {
-            if (!job->done || job->block_idx < job->block_count) {
-                break;
-            }
-
-            job = job->next;
-        }
-
-        if (job == NULL) {
-            pthread_mutex_lock(&scheduler->mutex);
-            pthread_cond_wait(&scheduler->waker, &scheduler->mutex);
-            pthread_mutex_unlock(&scheduler->mutex);
+        if (!scheduler_schedule(scheduler, &local_sched_jobs, &local_sched_jobs_version, &job_idx, &start, &end)) {
             continue;
         }
 
-        const uint64_t block_idx = atomic_fetch_add(&job->block_idx, 1);
+        SCHEDULER_JOBS_REF_INC(scheduler, job_idx)
 
-        if (block_idx >= job->block_count) {
-            continue;
+        if (prev_job_idx != job_idx) {
+            // Copy the hash to the local worker state.
+            SCHEDULER_READ_JOBS(scheduler)
+            memcpy(&hash, scheduler->jobs.data[job_idx].req.hash, SHA256_DIGEST_LENGTH);
+            SCHEDULER_READ_JOBS_END(scheduler)
+
+            prev_job_idx = job_idx;
         }
 
-        const uint64_t start = job->start + block_idx * SCHEDULER_BLOCK_SIZE;
-        const uint64_t end = MIN(start + SCHEDULER_BLOCK_SIZE, job->end);
-
-        const uint64_t answer = reverse_sha256_x4(start, end, job->hash);
+        const uint64_t answer = reverse_sha256_x4(start, end, hash);
 
         // Task did not find answer for job.
         if (answer == 0) {
+            SCHEDULER_JOBS_REF_DEC(scheduler, job_idx);
             continue;
         }
 
-        job->answer = answer;
-        job->done = 1;
-
         // Notify the scheduler that the job is done.
-        scheduler_job_done(worker_state->scheduler, job);
+        scheduler_job_done(worker_state->scheduler, job_idx, answer);
+
+        SCHEDULER_JOBS_REF_DEC(scheduler, job_idx);
     }
 
     return NULL;

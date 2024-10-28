@@ -1,5 +1,6 @@
 #pragma once
 
+#include "concat.h"
 #include "freelist.h"
 #include "vec.h"
 
