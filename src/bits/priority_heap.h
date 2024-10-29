@@ -8,7 +8,7 @@
     struct {                                                                                                           \
         uint32_t priority;                                                                                             \
         T elem;                                                                                                        \
-    }
+    } __attribute__((packed))
 
 #define PriorityHeap(T) Vec(PriorityHeapNode(T))
 
@@ -34,11 +34,8 @@ void _priority_heap_insert(
 
 void _priority_heap_remove(_AnyPriorityHeap* heap, uint32_t i, uint32_t node_size, uint32_t elem_size);
 
-_AnyPriorityHeapNode* _priority_heap_get_min(const _AnyPriorityHeap* heap, uint32_t node_size);
-void _priority_heap_pop_min(_AnyPriorityHeap* heap, uint32_t node_size);
-
-_AnyPriorityHeapNode* _priority_heap_get_max(const _AnyPriorityHeap* heap, uint32_t node_size);
-void _priority_heap_pop_max(_AnyPriorityHeap* heap, uint32_t node_size);
+void _priority_heap_get_max(const _AnyPriorityHeap* heap, uint32_t node_size, _AnyPriorityHeapNode** node);
+void _priority_heap_extract_max(_AnyPriorityHeap* heap, uint32_t node_size, _AnyPriorityHeapNode* node);
 
 #define priority_heap_insert(heap, elem, priority)                                                                     \
     _priority_heap_insert(                                                                                             \
@@ -48,18 +45,10 @@ void _priority_heap_pop_max(_AnyPriorityHeap* heap, uint32_t node_size);
 #define priority_heap_remove(heap, i)                                                                                  \
     _priority_heap_remove((_AnyPriorityHeap*)heap, i, priority_heap_node_size(heap), priority_heap_elem_size(heap))
 
-#define priority_heap_get_min(heap)                                                                                    \
-    ({                                                                                                                 \
-        (priority_heap_node_type(heap)*)                                                                                \
-            _priority_heap_get_min((_AnyPriorityHeap*)heap, priority_heap_node_size(heap));                            \
-    })
-#define priority_heap_pop_min(heap) _priority_heap_pop_min((_AnyPriorityHeap*)heap, priority_heap_node_size(heap))
+#define priority_heap_get_max(heap, ptr)                                                                               \
+    _priority_heap_get_max((_AnyPriorityHeap*)heap, priority_heap_node_size(heap), ptr)
 
-#define priority_heap_get_max(heap)                                                                                    \
-    ({                                                                                                                 \
-        (priority_heap_node_type(heap)*)                                                                                \
-            _priority_heap_get_max((_AnyPriorityHeap*)heap, priority_heap_node_size(heap));                            \
-    })
-#define priority_heap_pop_max(heap) _priority_heap_pop_max((_AnyPriorityHeap*)heap, priority_heap_node_size(heap))
+#define priority_heap_extract_max(heap, ptr)                                                                           \
+    _priority_heap_extract_max((_AnyPriorityHeap*)heap, priority_heap_node_size(heap), ptr)
 
 #define priority_heap_copy(heap, out) vec_copy(heap, out)

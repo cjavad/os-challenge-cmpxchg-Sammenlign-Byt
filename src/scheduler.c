@@ -149,7 +149,8 @@ bool scheduler_schedule(
     *job_idx = UINT32_MAX;
 
     while (1) {
-        const PriorityHeapNode(uint32_t)* node = (void*)priority_heap_get_max(&local_sched_jobs->p);
+        const PriorityHeapNode(uint32_t) * node;
+        priority_heap_get_max(&local_sched_jobs->p, (void*)&node);
 
         if (node == NULL) {
             break;
@@ -179,7 +180,7 @@ bool scheduler_schedule(
 
         spin_rwlock_rdunlock(&scheduler->jobs_rwlock);
 
-        priority_heap_pop_max(&local_sched_jobs->p);
+        priority_heap_extract_max(&local_sched_jobs->p, NULL);
     }
 
     // Wait for new jobs.
