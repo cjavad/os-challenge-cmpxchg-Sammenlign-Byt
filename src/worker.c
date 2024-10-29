@@ -13,7 +13,6 @@ WorkerPool* worker_create_pool(const size_t size, Scheduler* scheduler) {
     printf("Creating worker pool with %zu workers\n", size);
 
     for (size_t i = 0; i < size; i++) {
-        pool->workers[i].running = true;
         pool->workers[i].scheduler = scheduler;
         pthread_create(&pool->workers[i].thread, NULL, worker_thread, &pool->workers[i]);
     }
@@ -26,7 +25,6 @@ void worker_destroy_pool(WorkerPool* pool) {
 
     // Wait for all worker threads to exit.
     for (size_t i = 0; i < pool->size; i++) {
-        pool->workers[i].running = false;
         pthread_join(pool->workers[i].thread, NULL);
     }
 

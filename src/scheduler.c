@@ -1,5 +1,33 @@
 #include "scheduler.h"
 
+void scheduler_park_thread(Scheduler* scheduler) {
+    while (true) {
+        const int64_t s = futex(&scheduler->futex_waker, FUTEX_WAIT, 0, NULL, NULL, 0);
+
+        if (s == -1) {
+            if (errno == EAGAIN) {
+                break;
+            }
+
+            if (errno == EINTR) {
+                continue;
+            }
+
+            __builtin_unreachable();
+        }
+
+        break;
+    }
+}
+
+void scheduler_wake_all_thread(Scheduler* scheduler) {
+    const int64_t s = futex(&scheduler->futex_waker, FUTEX_WAKE, UINT32_MAX, NULL, NULL, 0);
+
+    if (s == -1) {
+        __builtin_unreachable();
+    }
+}
+
 inline void scheduler_job_rc_enter(Scheduler* scheduler, const uint32_t job_idx) {
     spin_rwlock_rdlock(&scheduler->jobs_rwlock);
     __atomic_add_fetch(&(scheduler)->jobs.data[job_idx].rc, 1, __ATOMIC_RELAXED);
@@ -36,17 +64,13 @@ Scheduler* scheduler_create(const uint32_t cap) {
 
     freelist_init(&scheduler->jobs, cap);
 
+    scheduler->futex_waker = 0;
     scheduler->running = true;
-
-    scheduler->waker = (pthread_cond_t)PTHREAD_COND_INITIALIZER;
-    scheduler->mutex = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
 
     return scheduler;
 }
 
 void scheduler_destroy(Scheduler* scheduler) {
-    pthread_mutex_destroy(&scheduler->mutex);
-    pthread_cond_destroy(&scheduler->waker);
     cache_destroy(scheduler->cache);
     freelist_destroy(&scheduler->jobs);
     priority_heap_destroy(&scheduler->sched_jobs_r->p);
@@ -63,7 +87,7 @@ struct JobData* scheduler_create_job_data(const enum JobType type, const uint32_
     return job_data;
 }
 
-void scheduler_submit(Scheduler* scheduler, const struct ProtocolRequest* req, struct JobData* data) {
+uint32_t scheduler_submit(Scheduler* scheduler, const struct ProtocolRequest* req, struct JobData* data) {
     // Process pending cache entries.
     cache_process_pending(scheduler->cache);
 
@@ -74,7 +98,7 @@ void scheduler_submit(Scheduler* scheduler, const struct ProtocolRequest* req, s
     if (cached_answer != NULL) {
         data->answer = *cached_answer;
         scheduler_job_notify(data);
-        return;
+        return UINT32_MAX;
     }
 
 #ifdef DEBUG
@@ -132,7 +156,22 @@ void scheduler_submit(Scheduler* scheduler, const struct ProtocolRequest* req, s
     spin_rwlock_wrunlock(&scheduler->swap_rwlock);
 
     // Wake up workers.
-    pthread_cond_broadcast(&scheduler->waker);
+    scheduler_wake_all_thread(scheduler);
+
+    return job.id;
+}
+
+void scheduler_cancel(const Scheduler* scheduler, const uint32_t job_id) {
+    for (uint32_t i = 0; i < scheduler->sched_jobs_r->p.len; i++) {
+        struct Job* job = &scheduler->jobs.data[scheduler->sched_jobs_r->p.data[i].elem];
+
+        if (job->id != job_id) {
+            continue;
+        }
+
+        // Mark job as done.
+        atomic_store(&job->block_idx, job->block_count);
+    }
 }
 
 bool scheduler_schedule(
@@ -187,10 +226,7 @@ bool scheduler_schedule(
         priority_heap_extract_max(&local_sched_jobs->p, NULL);
     }
 
-    // No jobs available, park thread.
-    pthread_mutex_lock(&scheduler->mutex);
-    pthread_cond_wait(&scheduler->waker, &scheduler->mutex);
-    pthread_mutex_unlock(&scheduler->mutex);
+    scheduler_park_thread(scheduler);
 
     return false;
 }
@@ -217,7 +253,7 @@ void scheduler_job_notify(struct JobData* data) {
     switch (data->type) {
 
     case JOB_TYPE_FUTEX:
-        futex_post(&data->futex);
+        futex(&data->futex, FUTEX_WAKE, 1, NULL, NULL, 0);
         break;
     case JOB_TYPE_FD:
         send(data->fd, &response, PROTOCOL_RES_SIZE, 0);
@@ -228,5 +264,5 @@ void scheduler_job_notify(struct JobData* data) {
 
 void scheduler_close(Scheduler* scheduler) {
     scheduler->running = false;
-    pthread_cond_broadcast(&scheduler->waker);
+    scheduler_wake_all_thread(scheduler);
 }

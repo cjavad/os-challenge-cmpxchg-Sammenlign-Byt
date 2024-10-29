@@ -4,13 +4,11 @@
 #include "bits/freelist.h"
 #include "bits/futex.h"
 #include "bits/priority_heap.h"
-#include "bits/prng.h"
 #include "bits/spin.h"
 #include "cache.h"
 #include "protocol.h"
 #include "sha256/types.h"
 #include <assert.h>
-#include <pthread.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
@@ -62,13 +60,9 @@ typedef PriorityHeapNode(uint32_t) IndexPriorityHeapNode;
 struct ScheduledJobs {
     IndexPriorityHeap p;
     uint32_t v;
-    struct SRWLock l; // extra, not used.
 };
 
 struct Scheduler {
-    pthread_mutex_t mutex;
-    pthread_cond_t waker;
-
     struct Cache* cache;
 
     FreeList(struct Job) jobs;
@@ -79,11 +73,16 @@ struct Scheduler {
     struct SRWLock jobs_rwlock; // Prevents jobs ptr from being invalidated by growing.
     struct SRWLock swap_rwlock; // Prevents jobs ptr form being swapped.
 
+    uint32_t futex_waker;
     uint32_t job_id;
     bool running;
 };
 
 typedef struct Scheduler Scheduler;
+
+void scheduler_park_thread(Scheduler* scheduler);
+
+void scheduler_wake_all_thread(Scheduler* scheduler);
 
 // Increment job reference count.
 void scheduler_job_rc_enter(Scheduler* scheduler, const uint32_t job_idx);
@@ -98,7 +97,8 @@ struct JobData* scheduler_create_job_data(enum JobType type, uint32_t data);
 
 /// Submit a new request to the scheduler.
 /// JobData has to be accessible from other threads.
-void scheduler_submit(Scheduler* scheduler, const struct ProtocolRequest* req, struct JobData* data);
+uint32_t scheduler_submit(Scheduler* scheduler, const struct ProtocolRequest* req, struct JobData* data);
+void scheduler_cancel(const Scheduler* scheduler, uint32_t job_id);
 
 /// Request a new task from the scheduler, returns fall if no task is
 /// available.

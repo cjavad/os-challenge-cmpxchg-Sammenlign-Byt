@@ -7,7 +7,6 @@
 struct WorkerState {
     Scheduler* scheduler;
     pthread_t thread;
-    bool running;
 };
 
 typedef struct WorkerState WorkerState;

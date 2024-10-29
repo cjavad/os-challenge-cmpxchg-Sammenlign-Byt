@@ -4,6 +4,8 @@
 #include "vec.h"
 #include <stdint.h>
 
+// Needs to be packed to prevent alignment issues
+// so we can create it from a fixed sized buffer.
 #define PriorityHeapNode(T)                                                                                            \
     struct {                                                                                                           \
         uint32_t priority;                                                                                             \
