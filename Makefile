@@ -65,7 +65,8 @@ build: LFLAGS += -ggdb  -fsanitize=leak,address,undefined -fPIE -pie -fno-omit-f
 build: PPFLAGS += -DDEBUG
 build: link
 
-release: CFLAGS += -O3 -Wall -Wextra
+release: CFLAGS += -O3 -Wall -Wextra -flto=auto
+release: LFLAGS += -s -flto=auto
 release: PPFLAGS += -DRELEASE
 release: link
 

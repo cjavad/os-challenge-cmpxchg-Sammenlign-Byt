@@ -32,28 +32,15 @@ typedef uint16_t radix_key_idx_t;
 
 /// Unpack a 0-255 (8 bits) value into two 0-15 (4 bit) values
 /// We do this by indexing twice the length of the key
-inline radix_key_t radix_tree_key_unpack(const radix_key_t* key, const radix_key_idx_t idx) {
-    return (key[idx >> 1] >> ((~idx & 1) << 2)) & 0xf;
-}
+radix_key_t radix_tree_key_unpack(const radix_key_t* key, const radix_key_idx_t idx);
+
 /// Pack two 0-15 (4 bit) values into a 0-255 (8 bit) value
-inline void radix_tree_key_pack(radix_key_t* key, const radix_key_idx_t idx, const radix_key_t value) {
-    key[idx >> 1] = (key[idx >> 1] & (0xf << ((idx & 1) << 2))) | (value << ((~idx & 1) << 2));
-}
+void radix_tree_key_pack(radix_key_t* key, const radix_key_idx_t idx, const radix_key_t value);
 
 /// Copy a packed key respecting overlapping 4-bit chunks.
-inline void radix_tree_copy_key(
+void radix_tree_copy_key(
     radix_key_t* dest, const radix_key_t* src, const radix_key_idx_t offset, const radix_key_idx_t length
-) {
-    if ((offset & 1) == 0) {
-        memcpy(dest, src + (offset / RADIX_TREE_KEY_RATIO), (length + 1) / RADIX_TREE_KEY_RATIO);
-        return;
-    }
-
-    for (radix_key_idx_t i = 0; i < length; i++) {
-        const radix_key_t value = radix_tree_key_unpack(src, offset + i);
-        radix_tree_key_pack(dest, i, value);
-    }
-}
+);
 
 enum RadixTreeNodeType {
     RTT_NONE = 0,
@@ -274,7 +261,7 @@ void radix_tree_debug_node(
         freelist_init(&(tree)->branches4, (default_cap + 32) / 32);                                                    \
         freelist_init(&(tree)->branches8, (default_cap + 32) / 32);                                                    \
         freelist_init(&(tree)->branches16, (default_cap + 32) / 32);                                                   \
-        freelist_init(&(tree)->branches_full, (default_cap + 128) / 128);                                                \
+        freelist_init(&(tree)->branches_full, (default_cap + 128) / 128);                                              \
         freelist_init(&(tree)->edges, default_cap);                                                                    \
         freelist_init(&(tree)->leaves, default_cap);                                                                   \
         freelist_init_unsafe(                                                                                          \

@@ -59,6 +59,27 @@ inline struct RadixTreeNodePtr radix_tree_create_edge_node(
     return (struct RadixTreeNodePtr){.type = RTT_EDGE, .idx = idx};
 }
 
+inline radix_key_t radix_tree_key_unpack(const radix_key_t* key, const radix_key_idx_t idx) {
+    return (key[idx >> 1] >> ((~idx & 1) << 2)) & 0xf;
+}
+
+inline void radix_tree_key_pack(radix_key_t* key, const radix_key_idx_t idx, const radix_key_t value) {
+    key[idx >> 1] = (key[idx >> 1] & (0xf << ((idx & 1) << 2))) | (value << ((~idx & 1) << 2));
+}
+
+inline void radix_tree_copy_key(
+    radix_key_t* dest, const radix_key_t* src, const radix_key_idx_t offset, const radix_key_idx_t length
+) {
+    if ((offset & 1) == 0) {
+        memcpy(dest, src + (offset / RADIX_TREE_KEY_RATIO), (length + 1) / RADIX_TREE_KEY_RATIO);
+        return;
+    }
+
+    for (radix_key_idx_t i = 0; i < length; i++) {
+        const radix_key_t value = radix_tree_key_unpack(src, offset + i);
+        radix_tree_key_pack(dest, i, value);
+    }
+}
 inline void radix_tree_get_branch(
     const _RadixTreeBase* tree, const struct RadixTreeNodePtr* node, const radix_key_t key, struct RadixTreeNodePtr* out
 ) {

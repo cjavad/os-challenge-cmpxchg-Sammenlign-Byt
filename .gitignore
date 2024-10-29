@@ -4,4 +4,14 @@
 /obj/
 /dep/
 /server
+/server_pgo
 /compile_commands.json
+
+# Compile artifacts
+*.o
+*.d
+*.a
+*.so
+*.out
+*.exe
+*.gcda

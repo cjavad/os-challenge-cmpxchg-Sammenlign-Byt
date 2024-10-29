@@ -106,7 +106,7 @@ void accept_client(const struct EpollServerCtx* ctx, union EpollEventData* data)
 
     if ((ret = epoll_ctl(ctx->epoll_fd, EPOLL_CTL_ADD, client_fd, &ev)) < 0) {
 
-        fprintf(stderr, "Failed to add client %d to epoll: %s\n", client_fd, strerror(ret));
+        fprintf(stderr, "Failed to add client %d to epoll: %d. errno: %s\n", client_fd, ret, strerror(errno));
 
         close(client_fd);
     }

@@ -1,3 +1,4 @@
+#include "experiments/benchmark.h"
 #include "experiments/misc.h"
 #include "server/epoll.h"
 #include "server/server.h"
@@ -43,7 +44,14 @@ int server(const int port) {
     return 0;
 }
 
-int benchmark() { return 0; }
+int benchmark() {
+    benchmark_hash();
+    benchmark_scheduler();
+    benchmark_sha256_radix_tree_lookup();
+    benchmark_random_key_radix_tree_lookup();
+    benchmark_manual_radix_tree();
+    return 0;
+}
 
 int main(int argc, char** argv) {
     if (argc < 2) {
