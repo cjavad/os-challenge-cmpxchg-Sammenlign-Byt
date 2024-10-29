@@ -1,11 +1,12 @@
 #include "scheduler.h"
 
-void scheduler_job_rc_enter(Scheduler* scheduler, const uint32_t job_idx) {
+inline void scheduler_job_rc_enter(Scheduler* scheduler, const uint32_t job_idx) {
     spin_rwlock_rdlock(&scheduler->jobs_rwlock);
     __atomic_add_fetch(&(scheduler)->jobs.data[job_idx].rc, 1, __ATOMIC_RELAXED);
     spin_rwlock_rdunlock(&scheduler->jobs_rwlock);
 }
-void scheduler_job_rc_leave(Scheduler* scheduler, const uint32_t job_idx) {
+
+inline void scheduler_job_rc_leave(Scheduler* scheduler, const uint32_t job_idx) {
     spin_rwlock_rdlock(&scheduler->jobs_rwlock);
 
     struct Job* job = &scheduler->jobs.data[job_idx];
@@ -18,6 +19,7 @@ void scheduler_job_rc_leave(Scheduler* scheduler, const uint32_t job_idx) {
 
     spin_rwlock_rdunlock(&scheduler->jobs_rwlock);
 }
+
 Scheduler* scheduler_create(const uint32_t cap) {
     Scheduler* scheduler = calloc(1, sizeof(Scheduler));
 
@@ -137,6 +139,7 @@ bool scheduler_schedule(
     Scheduler* scheduler, struct ScheduledJobs* local_sched_jobs, uint32_t* last_job_id, HashDigest target,
     uint32_t* job_idx, uint64_t* start, uint64_t* end
 ) {
+    // Potentially update local copy of scheduled jobs.
     spin_rwlock_rdlock(&scheduler->swap_rwlock);
 
     if (scheduler->sched_jobs_r->v > local_sched_jobs->v) {
@@ -146,6 +149,7 @@ bool scheduler_schedule(
 
     spin_rwlock_rdunlock(&scheduler->swap_rwlock);
 
+    // Find next job to work at.
     *job_idx = UINT32_MAX;
 
     while (1) {
@@ -183,7 +187,7 @@ bool scheduler_schedule(
         priority_heap_extract_max(&local_sched_jobs->p, NULL);
     }
 
-    // Wait for new jobs.
+    // No jobs available, park thread.
     pthread_mutex_lock(&scheduler->mutex);
     pthread_cond_wait(&scheduler->waker, &scheduler->mutex);
     pthread_mutex_unlock(&scheduler->mutex);
@@ -222,4 +226,7 @@ void scheduler_job_notify(struct JobData* data) {
     }
 }
 
-void scheduler_close(Scheduler* scheduler) { scheduler->running = false; }
+void scheduler_close(Scheduler* scheduler) {
+    scheduler->running = false;
+    pthread_cond_broadcast(&scheduler->waker);
+}

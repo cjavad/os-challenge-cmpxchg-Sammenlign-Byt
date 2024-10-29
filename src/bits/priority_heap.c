@@ -38,30 +38,35 @@ void priority_heap_shift_up(const _AnyPriorityHeap* heap, uint32_t i, const uint
     }
 }
 
-void priority_heap_shift_down(const _AnyPriorityHeap* heap, const uint32_t i, const uint32_t node_size) {
+void priority_heap_shift_down(const _AnyPriorityHeap* heap, uint32_t i, const uint32_t node_size) {
     uint32_t max_idx = i;
 
-    const _AnyPriorityHeapNode* max = vec_get_unsafe(heap, max_idx, node_size);
+    while (true) {
+        const _AnyPriorityHeapNode* max = vec_get_unsafe(heap, max_idx, node_size);
 
-    const uint32_t left_idx = priority_heap_left(i);
-    const uint32_t right_idx = priority_heap_right(i);
+        const uint32_t left_idx = priority_heap_left(i);
+        const uint32_t right_idx = priority_heap_right(i);
 
-    const _AnyPriorityHeapNode* left = vec_get_unsafe(heap, left_idx, node_size);
-    const _AnyPriorityHeapNode* right = vec_get_unsafe(heap, right_idx, node_size);
+        const _AnyPriorityHeapNode* left = vec_get_unsafe(heap, left_idx, node_size);
+        const _AnyPriorityHeapNode* right = vec_get_unsafe(heap, right_idx, node_size);
 
-    if (left_idx < heap->len && left->priority > max->priority) {
-        max_idx = left_idx;
-    }
+        if (left_idx < heap->len && left->priority > max->priority) {
+            max_idx = left_idx;
+        }
 
-    max = vec_get_unsafe(heap, max_idx, node_size);
+        max = vec_get_unsafe(heap, max_idx, node_size);
 
-    if (right_idx < heap->len && right->priority > max->priority) {
-        max_idx = right_idx;
-    }
+        if (right_idx < heap->len && right->priority > max->priority) {
+            max_idx = right_idx;
+        }
 
-    if (max_idx != i) {
-        priority_heap_swap_indices(heap, i, max_idx, node_size);
-        priority_heap_shift_down(heap, max_idx, node_size);
+        if (max_idx != i) {
+            priority_heap_swap_indices(heap, i, max_idx, node_size);
+            i = max_idx;
+            continue;
+        }
+
+        break;
     }
 }
 
@@ -77,8 +82,10 @@ void _priority_heap_insert(
     priority_heap_shift_up(heap, heap->len - 1, node_size);
 }
 
-void _priority_heap_remove(_AnyPriorityHeap* heap, uint32_t i, uint32_t node_size, uint32_t elem_size) {
-    assert(i < heap->len);
+void _priority_heap_remove(_AnyPriorityHeap* heap, const uint32_t i, const uint32_t node_size) {
+    if (i >= heap->len) {
+        return;
+    }
 
     _AnyPriorityHeapNode* current = vec_get_unsafe(heap, i, node_size);
     current->priority = UINT32_MAX;

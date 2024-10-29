@@ -32,7 +32,7 @@ void _priority_heap_insert(
     _AnyPriorityHeap* heap, const void* elem, uint32_t priority, uint32_t node_size, uint32_t elem_size
 );
 
-void _priority_heap_remove(_AnyPriorityHeap* heap, uint32_t i, uint32_t node_size, uint32_t elem_size);
+void _priority_heap_remove(_AnyPriorityHeap* heap, uint32_t i, uint32_t node_size);
 
 void _priority_heap_get_max(const _AnyPriorityHeap* heap, uint32_t node_size, _AnyPriorityHeapNode** node);
 void _priority_heap_extract_max(_AnyPriorityHeap* heap, uint32_t node_size, _AnyPriorityHeapNode* node);
@@ -42,8 +42,7 @@ void _priority_heap_extract_max(_AnyPriorityHeap* heap, uint32_t node_size, _Any
         (_AnyPriorityHeap*)heap, elem, priority, priority_heap_node_size(heap), priority_heap_elem_size(heap)          \
     )
 
-#define priority_heap_remove(heap, i)                                                                                  \
-    _priority_heap_remove((_AnyPriorityHeap*)heap, i, priority_heap_node_size(heap), priority_heap_elem_size(heap))
+#define priority_heap_remove(heap, i) _priority_heap_remove((_AnyPriorityHeap*)heap, i, priority_heap_node_size(heap))
 
 #define priority_heap_get_max(heap, ptr)                                                                               \
     _priority_heap_get_max((_AnyPriorityHeap*)heap, priority_heap_node_size(heap), ptr)

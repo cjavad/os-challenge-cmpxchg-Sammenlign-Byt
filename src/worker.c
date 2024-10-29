@@ -44,7 +44,7 @@ void* worker_thread(void* arguments) {
     uint32_t last_job_id = UINT32_MAX;
     struct ScheduledJobs local_sched_jobs = {0};
 
-    while (worker_state->running) {
+    while (scheduler->running) {
         uint32_t job_idx;
         uint64_t start;
         uint64_t end;
@@ -64,7 +64,7 @@ void* worker_thread(void* arguments) {
         }
 
         // Notify the scheduler that the job is done.
-        scheduler_job_done(worker_state->scheduler, job_idx, answer);
+        scheduler_job_done(scheduler, job_idx, answer);
 
         // Store cache entry.
         cache_insert_pending(scheduler->cache, hash, answer);

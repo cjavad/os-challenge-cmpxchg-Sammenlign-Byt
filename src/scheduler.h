@@ -62,7 +62,7 @@ typedef PriorityHeapNode(uint32_t) IndexPriorityHeapNode;
 struct ScheduledJobs {
     IndexPriorityHeap p;
     uint32_t v;
-    struct SRWLock l;
+    struct SRWLock l; // extra, not used.
 };
 
 struct Scheduler {
