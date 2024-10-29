@@ -80,9 +80,9 @@ struct Scheduler {
 
 typedef struct Scheduler Scheduler;
 
-void scheduler_park_thread(Scheduler* scheduler);
+void scheduler_park_thread(Scheduler* scheduler, uint32_t version);
 
-void scheduler_wake_all_thread(Scheduler* scheduler);
+void scheduler_wake_all_threads(Scheduler* scheduler);
 
 // Increment job reference count.
 void scheduler_job_rc_enter(Scheduler* scheduler, const uint32_t job_idx);

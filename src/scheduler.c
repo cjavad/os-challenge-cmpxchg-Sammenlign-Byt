@@ -1,8 +1,9 @@
 #include "scheduler.h"
 
-void scheduler_park_thread(Scheduler* scheduler) {
-    while (true) {
-        const int64_t s = futex(&scheduler->futex_waker, FUTEX_WAIT, 0, NULL, NULL, 0);
+void scheduler_park_thread(Scheduler* scheduler, const uint32_t version) {
+    while (version == scheduler->sched_jobs_r->v) {
+        struct timespec ts = {.tv_sec = 0, .tv_nsec = 100000};
+        const int64_t s = futex(&scheduler->futex_waker, FUTEX_WAIT, 0, &ts, NULL, 0);
 
         if (s == -1) {
             if (errno == EAGAIN) {
@@ -13,6 +14,10 @@ void scheduler_park_thread(Scheduler* scheduler) {
                 continue;
             }
 
+            if (errno == ETIMEDOUT) {
+                continue;
+            }
+
             __builtin_unreachable();
         }
 
@@ -20,7 +25,7 @@ void scheduler_park_thread(Scheduler* scheduler) {
     }
 }
 
-void scheduler_wake_all_thread(Scheduler* scheduler) {
+void scheduler_wake_all_threads(Scheduler* scheduler) {
     const int64_t s = futex(&scheduler->futex_waker, FUTEX_WAKE, UINT32_MAX, NULL, NULL, 0);
 
     if (s == -1) {
@@ -156,7 +161,7 @@ uint32_t scheduler_submit(Scheduler* scheduler, const struct ProtocolRequest* re
     spin_rwlock_wrunlock(&scheduler->swap_rwlock);
 
     // Wake up workers.
-    scheduler_wake_all_thread(scheduler);
+    scheduler_wake_all_threads(scheduler);
 
     return job.id;
 }
@@ -226,7 +231,10 @@ bool scheduler_schedule(
         priority_heap_extract_max(&local_sched_jobs->p, NULL);
     }
 
-    scheduler_park_thread(scheduler);
+    // Park thread until version is updated.
+    // We check the version at a small interval to avoid
+    // a race condition here.
+    scheduler_park_thread(scheduler, local_sched_jobs->v);
 
     return false;
 }
@@ -264,5 +272,5 @@ void scheduler_job_notify(struct JobData* data) {
 
 void scheduler_close(Scheduler* scheduler) {
     scheduler->running = false;
-    scheduler_wake_all_thread(scheduler);
+    scheduler_wake_all_threads(scheduler);
 }
