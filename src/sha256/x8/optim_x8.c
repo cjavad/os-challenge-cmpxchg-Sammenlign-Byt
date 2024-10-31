@@ -1,5 +1,6 @@
 #include "sha256x8.h"
 
+#ifndef NO_AVX
 #include <emmintrin.h>
 #include <immintrin.h>
 #include <smmintrin.h>
@@ -420,3 +421,12 @@ void sha256x8_optim(
 	_mm_store_si128((__m128i*)&hash[224], _mm_shuffle_epi8(_mm256_extractf128_si256(r7, 1), mask));
 	_mm_store_si128((__m128i*)&hash[240], _mm_shuffle_epi8(_mm256_castsi256_si128(r7), mask));
 }
+#else
+void sha256x8_optim(
+    uint8_t hash[SHA256_DIGEST_LENGTH * 8],
+    const uint8_t data[SHA256_INPUT_LENGTH * 8]
+) {
+    (void)hash;
+    (void)data;
+}
+#endif

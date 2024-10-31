@@ -60,7 +60,7 @@ sha256x4_cyclic(uint8_t hash[SHA256_DIGEST_LENGTH * 4],
     
     for (uint32_t i = 3; i < 15; i++) {
         __m128i 
-			ki = _mm_castps_si128(_mm_broadcast_ss((float*)&k[i]));
+			ki = _mm_castps_si128(BROADCAST_SS(k[i]));
 		
 		__m128i 
 			temp2 = _mm_add_epi32(S0(a), maj(a, b, c)),
@@ -195,7 +195,7 @@ sha256x4_cyclic(uint8_t hash[SHA256_DIGEST_LENGTH * 4],
         t1 = wi;
 
         __m128i 
-			ki = _mm_castps_si128(_mm_broadcast_ss((float*)&k[i]));
+			ki = _mm_castps_si128(BROADCAST_SS(k[i]));
 		
 		__m128i 
 			temp2 = _mm_add_epi32(S0(a), maj(a, b, c)),
@@ -216,14 +216,14 @@ sha256x4_cyclic(uint8_t hash[SHA256_DIGEST_LENGTH * 4],
 
 	// RIP 8 registers, at least no stack
 
-	a = _mm_add_epi32(a, _mm_castps_si128(_mm_broadcast_ss((float*)&H[0])));
-	b = _mm_add_epi32(b, _mm_castps_si128(_mm_broadcast_ss((float*)&H[1])));
-	c = _mm_add_epi32(c, _mm_castps_si128(_mm_broadcast_ss((float*)&H[2])));
-	d = _mm_add_epi32(d, _mm_castps_si128(_mm_broadcast_ss((float*)&H[3])));
-	e = _mm_add_epi32(e, _mm_castps_si128(_mm_broadcast_ss((float*)&H[4])));
-	f = _mm_add_epi32(f, _mm_castps_si128(_mm_broadcast_ss((float*)&H[5])));
-	g = _mm_add_epi32(g, _mm_castps_si128(_mm_broadcast_ss((float*)&H[6])));
-	h = _mm_add_epi32(h, _mm_castps_si128(_mm_broadcast_ss((float*)&H[7])));
+	a = _mm_add_epi32(a, _mm_castps_si128(BROADCAST_SS(H[0])));
+	b = _mm_add_epi32(b, _mm_castps_si128(BROADCAST_SS(H[1])));
+	c = _mm_add_epi32(c, _mm_castps_si128(BROADCAST_SS(H[2])));
+	d = _mm_add_epi32(d, _mm_castps_si128(BROADCAST_SS(H[3])));
+	e = _mm_add_epi32(e, _mm_castps_si128(BROADCAST_SS(H[4])));
+	f = _mm_add_epi32(f, _mm_castps_si128(BROADCAST_SS(H[5])));
+	g = _mm_add_epi32(g, _mm_castps_si128(BROADCAST_SS(H[6])));
+	h = _mm_add_epi32(h, _mm_castps_si128(BROADCAST_SS(H[7])));
 
     // trans pose ma trix ????
     // MATH REFERECNE ?????????

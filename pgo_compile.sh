@@ -2,10 +2,10 @@
 
 CC=gcc
 BIN=server_pgo
-CFLAGS="-O3 -g -ltsan -flto=auto -march=native -masm=intel -std=gnu11 -D_GNU_SOURCE -DRELEASE -lpthread -lrt -lm -Wl,-rpath,lib -I./src"
+CFLAGS="-O3 -g -flto=auto -march=native -mno-avx -masm=intel -DNO_AVX -std=gnu11 -D_GNU_SOURCE -DRELEASE -lpthread -lrt -lm -Wl,-rpath,lib -I./src"
 FILES=$(find src -name "*.c")
 
-$CC $CFLAGS $FILES -fsanitize=thread,undefined -o $BIN
+$CC $CFLAGS $FILES -o $BIN
 
 # Run profiling
 #./$BIN benchmark

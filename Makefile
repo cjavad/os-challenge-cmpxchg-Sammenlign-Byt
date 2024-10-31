@@ -14,7 +14,7 @@ PPFLAGS =
 # include flags
 IFLAGS = -I$(INCDIR)
 # compile flags
-CFLAGS = -march=sandybridge -mtune=sandybridge -masm=intel -std=gnu11 -D_GNU_SOURCE
+CFLAGS = -march=sandybridge -mtune=sandybridge -masm=intel -std=gnu11 -D_GNU_SOURCE -DNO_AVX -mno-avx
 # linker flags
 LFLAGS = -lpthread -lrt -lm -Wl,-rpath,lib
 
@@ -49,7 +49,6 @@ else ifneq (,$(findstring lines,$(MAKECMDGOALS)))
 	D_FILES :=
 else
 endif
-
 
 all: release
 
