@@ -50,9 +50,7 @@ inline void scheduler_job_rc_enter(Scheduler* scheduler, const uint32_t job_idx)
 
 inline void scheduler_job_rc_leave(Scheduler* scheduler, const uint32_t job_idx) {
     spin_rwlock_rdlock(&scheduler->jobs_rwlock);
-
-    struct Job* job = &scheduler->jobs.data[job_idx];
-    const uint32_t rc = __atomic_sub_fetch(&job->rc, 1, __ATOMIC_RELAXED);
+    __atomic_sub_fetch(&(scheduler)->jobs.data[job_idx].rc, 1, __ATOMIC_RELAXED);
     spin_rwlock_rdunlock(&scheduler->jobs_rwlock);
 }
 
@@ -145,14 +143,9 @@ uint32_t scheduler_submit(Scheduler* scheduler, const struct ProtocolRequest* re
     for (uint32_t i = 0; i < scheduler->sched_jobs_w->p.len; i++) {
         const struct Job* some_job = &scheduler->jobs.data[scheduler->sched_jobs_w->p.data[i].elem];
 
-        // If job is marked as done (no more references to it).
-        // We can remove it from the data.
-        if (atomic_load(&job.rc)) {
+        // Only remove the job once we can remove it from the freelist!
+        if (scheduler_job_is_done(some_job) && atomic_load(&job.rc)) {
             freelist_remove(&scheduler->jobs, scheduler->sched_jobs_w->p.data[i].elem);
-        }
-
-        // We remove all jobs that are done from the priority heap.
-        if (scheduler_job_is_done(some_job)) {
             priority_heap_remove(&scheduler->sched_jobs_w->p, i);
             i--;
         }
