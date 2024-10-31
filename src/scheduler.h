@@ -52,7 +52,7 @@ struct Job {
     uint32_t id;
 };
 
-#define scheduler_job_is_done(job) ((job)->block_idx >= (job)->block_count)
+#define scheduler_job_is_done(job) ({ atomic_load(&(job)->block_idx) == (job)->block_count; })
 
 typedef PriorityHeap(uint32_t) IndexPriorityHeap;
 typedef PriorityHeapNode(uint32_t) IndexPriorityHeapNode;

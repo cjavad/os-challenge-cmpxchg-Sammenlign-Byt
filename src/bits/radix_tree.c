@@ -42,7 +42,7 @@ inline struct RadixTreeNodePtr radix_tree_create_edge_node(
 
     // Always copy out the key from the buffer before inserting a new edge
     // that potentially invalidates the buffer.
-    radix_key_t buf[key_length];
+    radix_key_t buf[key_size];
     radix_tree_copy_key(buf, key, offset, edge.length);
     const uint32_t idx = freelist_insert(&tree->edges, edge);
 

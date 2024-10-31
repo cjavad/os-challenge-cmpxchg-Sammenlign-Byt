@@ -5,6 +5,7 @@ import struct
 import hashlib
 import time
 
+difficulty = 30_000
 
 def generate_priority(lambd):
     # 1 + (ln(U) / lambda^3 % 15
@@ -12,8 +13,8 @@ def generate_priority(lambd):
 
 
 def generate_protocol_parameters():
-    s = random.randint(0, 2 ** 64 - 30_000_000)  # Pick a valid 64-bit unsigned int as start
-    e = s + 30_000_000  # End is start + 30,000,000
+    s = random.randint(0, 2 ** 64 - difficulty)  # Pick a valid 64-bit unsigned int as start
+    e = s + difficulty  # End is start + 30,000,000
     x = random.randint(s, e)
     x_bytes = x.to_bytes(8, byteorder='little')  # Convert x to little-endian bytes
     h = hashlib.sha256(x_bytes).digest()  # Calculate SHA-256 hash
@@ -38,8 +39,9 @@ def request_server(host, port, data):
 
 
 stats = []
+requests_to_make = 100_000
 
-for _ in range(100):
+for _ in range(requests_to_make):
     x, h, s, e, p = generate_protocol_parameters()
     data = pack_protocol_request(h, s, e, p)
     result, time_taken = request_server('localhost', 8080, data)

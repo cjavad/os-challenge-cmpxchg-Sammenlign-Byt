@@ -70,6 +70,10 @@ void* worker_thread(void* arguments) {
         scheduler_job_rc_leave(scheduler, job_idx);
     }
 
+    if (local_sched_jobs.p.data != NULL) {
+        priority_heap_destroy(&local_sched_jobs.p);
+    }
+
     return NULL;
 }
 

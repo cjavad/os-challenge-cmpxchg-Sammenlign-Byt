@@ -79,13 +79,22 @@ void benchmark_scheduler() {
 
     D_BENCHMARK_TIME_START()
     for (uint64_t i = 0; i < count; i++) {
-        futex(&data[i]->futex, FUTEX_WAIT, 1, NULL, NULL, 0);
+        while (1) {
+
+            if (__sync_val_compare_and_swap(&data[i]->futex, 1, 0)) {
+                break;
+            }
+
+            futex(&data[i]->futex, FUTEX_WAIT, 0, NULL, NULL, 0);
+        }
+
+        free(data[i]);
     }
     D_BENCHMARK_TIME_END("scheduler")
 
-    free(data);
     worker_destroy_pool(pool);
     scheduler_destroy(scheduler);
+    free(data);
 }
 
 struct EntrySha256 {

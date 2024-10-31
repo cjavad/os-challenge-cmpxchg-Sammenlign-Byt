@@ -1,7 +1,16 @@
 #include "scheduler.h"
 
 void scheduler_park_thread(Scheduler* scheduler, const uint32_t version) {
-    while (version == scheduler->sched_jobs_r->v) {
+    while (scheduler->running) {
+        // Read version to check if we should continue.
+        spin_rwlock_rdlock(&scheduler->swap_rwlock);
+        const bool same_version = scheduler->sched_jobs_r->v == version;
+        spin_rwlock_rdunlock(&scheduler->swap_rwlock);
+
+        if (!same_version) {
+            break;
+        }
+
         struct timespec ts = {.tv_sec = 0, .tv_nsec = 100000};
         const int64_t s = futex(&scheduler->futex_waker, FUTEX_WAIT, 0, &ts, NULL, 0);
 
@@ -47,7 +56,7 @@ inline void scheduler_job_rc_leave(Scheduler* scheduler, const uint32_t job_idx)
 
     if (scheduler_job_is_done(job) && rc == 0) {
         // Thread safe remove.
-        scheduler->jobs.indicices[__atomic_fetch_add(&scheduler->jobs.free, 1, __ATOMIC_RELAXED)] = job_idx;
+        // scheduler->jobs.indicices[__atomic_fetch_add(&scheduler->jobs.free, 1, __ATOMIC_RELAXED)] = job_idx;
     }
 
     spin_rwlock_rdunlock(&scheduler->jobs_rwlock);
@@ -122,16 +131,9 @@ uint32_t scheduler_submit(Scheduler* scheduler, const struct ProtocolRequest* re
 
     memcpy(&job.req, req, sizeof(struct ProtocolRequest));
 
-    uint32_t idx;
-
-    // Insert job into freelist.
-    if (scheduler->jobs.free == 0) {
-        spin_rwlock_wrlock(&scheduler->jobs_rwlock);
-        idx = freelist_insert(&scheduler->jobs, job);
-        spin_rwlock_wrunlock(&scheduler->jobs_rwlock);
-    } else {
-        idx = freelist_insert(&scheduler->jobs, job);
-    }
+    spin_rwlock_wrlock(&scheduler->jobs_rwlock);
+    const uint32_t idx = freelist_insert(&scheduler->jobs, job);
+    spin_rwlock_wrunlock(&scheduler->jobs_rwlock);
 
     // Ensure writer buffer is up-to-date.
     priority_heap_copy(&(scheduler->sched_jobs_w->p), &(scheduler->sched_jobs_r->p));
@@ -244,9 +246,14 @@ void scheduler_job_done(Scheduler* scheduler, const uint32_t job_idx, const uint
 
     spin_rwlock_rdlock(&scheduler->jobs_rwlock);
     struct Job* job = &scheduler->jobs.data[job_idx];
-    job->block_idx = job->block_count;
+    atomic_store(&job->block_idx, job->block_count);
     data = job->data;
+    job->data = NULL;
     spin_rwlock_rdunlock(&scheduler->jobs_rwlock);
+
+    if (data == NULL) {
+        return;
+    }
 
     data->answer = answer;
 
@@ -261,11 +268,14 @@ void scheduler_job_notify(struct JobData* data) {
     switch (data->type) {
 
     case JOB_TYPE_FUTEX:
-        futex(&data->futex, FUTEX_WAKE, 1, NULL, NULL, 0);
+        if (__sync_bool_compare_and_swap(&data->futex, 0, 1)) {
+            futex(&data->futex, FUTEX_WAKE, 1, NULL, NULL, 0);
+        }
         break;
     case JOB_TYPE_FD:
         send(data->fd, &response, PROTOCOL_RES_SIZE, 0);
         close(data->fd);
+        free(data);
         break;
     }
 }
