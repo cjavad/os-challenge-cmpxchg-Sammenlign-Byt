@@ -55,8 +55,7 @@ inline void scheduler_job_rc_leave(Scheduler* scheduler, const uint32_t job_idx)
     const uint32_t rc = __atomic_sub_fetch(&job->rc, 1, __ATOMIC_RELAXED);
 
     if (scheduler_job_is_done(job) && rc == 0) {
-        // Thread safe remove.
-        // scheduler->jobs.indicices[__atomic_fetch_add(&scheduler->jobs.free, 1, __ATOMIC_RELAXED)] = job_idx;
+        job->done = 1;
     }
 
     spin_rwlock_rdunlock(&scheduler->jobs_rwlock);
@@ -127,13 +126,22 @@ uint32_t scheduler_submit(Scheduler* scheduler, const struct ProtocolRequest* re
         .block_size = block_size,
         .block_count = (difficulty + (block_size - 1)) / block_size,
         .id = scheduler->job_id++,
+        .done = 0,
     };
 
     memcpy(&job.req, req, sizeof(struct ProtocolRequest));
 
-    spin_rwlock_wrlock(&scheduler->jobs_rwlock);
+    const bool will_grow = scheduler->jobs.free == 0;
+
+    if (will_grow) {
+        spin_rwlock_wrlock(&scheduler->jobs_rwlock);
+    }
+
     const uint32_t idx = freelist_insert(&scheduler->jobs, job);
-    spin_rwlock_wrunlock(&scheduler->jobs_rwlock);
+
+    if (will_grow) {
+        spin_rwlock_wrunlock(&scheduler->jobs_rwlock);
+    }
 
     // Ensure writer buffer is up-to-date.
     priority_heap_copy(&(scheduler->sched_jobs_w->p), &(scheduler->sched_jobs_r->p));
@@ -143,6 +151,13 @@ uint32_t scheduler_submit(Scheduler* scheduler, const struct ProtocolRequest* re
     for (uint32_t i = 0; i < scheduler->sched_jobs_w->p.len; i++) {
         const struct Job* some_job = &scheduler->jobs.data[scheduler->sched_jobs_w->p.data[i].elem];
 
+        // If job is marked as done (no more references to it).
+        // We can remove it from the data.
+        if (some_job->done) {
+            freelist_remove(&scheduler->jobs, scheduler->sched_jobs_w->p.data[i].elem);
+        }
+
+        // We remove all jobs that are done from the priority heap.
         if (scheduler_job_is_done(some_job)) {
             priority_heap_remove(&scheduler->sched_jobs_w->p, i);
             i--;

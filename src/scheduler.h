@@ -49,7 +49,8 @@ struct Job {
     uint64_t block_count;
 
     uint32_t rc;
-    uint32_t id;
+    uint32_t id : 31;
+    uint32_t done : 1;
 };
 
 #define scheduler_job_is_done(job) ({ atomic_load(&(job)->block_idx) == (job)->block_count; })
