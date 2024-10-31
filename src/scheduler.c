@@ -53,11 +53,6 @@ inline void scheduler_job_rc_leave(Scheduler* scheduler, const uint32_t job_idx)
 
     struct Job* job = &scheduler->jobs.data[job_idx];
     const uint32_t rc = __atomic_sub_fetch(&job->rc, 1, __ATOMIC_RELAXED);
-
-    if (scheduler_job_is_done(job) && rc == 0) {
-        job->done = 1;
-    }
-
     spin_rwlock_rdunlock(&scheduler->jobs_rwlock);
 }
 
@@ -126,7 +121,6 @@ uint32_t scheduler_submit(Scheduler* scheduler, const struct ProtocolRequest* re
         .block_size = block_size,
         .block_count = (difficulty + (block_size - 1)) / block_size,
         .id = scheduler->job_id++,
-        .done = 0,
     };
 
     memcpy(&job.req, req, sizeof(struct ProtocolRequest));
@@ -153,7 +147,7 @@ uint32_t scheduler_submit(Scheduler* scheduler, const struct ProtocolRequest* re
 
         // If job is marked as done (no more references to it).
         // We can remove it from the data.
-        if (some_job->done) {
+        if (atomic_load(&job.rc)) {
             freelist_remove(&scheduler->jobs, scheduler->sched_jobs_w->p.data[i].elem);
         }
 

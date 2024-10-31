@@ -40,7 +40,7 @@ inline void spin_rwlock_wrlock(struct SRWLock* lock) {
 
     while (!atomic_compare_exchange_weak(&lock->lock, &e, SPIN_RWLOCK_WRITER_MASK)) {
         e = 0;
-        // _mm_pause();
+        _mm_pause();
     }
 }
 

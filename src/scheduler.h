@@ -17,8 +17,8 @@
 
 #define __minmax_impl(op, a, b, c)                                                                                     \
     ({                                                                                                                 \
-        __typeof__(a) __CONCAT(_a, c) = (a);                                                                           \
-        __typeof__(b) __CONCAT(_b, c) = (b);                                                                           \
+        __auto_type __CONCAT(_a, c) = (a);                                                                             \
+        __auto_type __CONCAT(_b, c) = (b);                                                                             \
         __CONCAT(_a, c) op __CONCAT(_b, c) ? __CONCAT(_a, c) : __CONCAT(_b, c);                                        \
     })
 
@@ -49,8 +49,7 @@ struct Job {
     uint64_t block_count;
 
     uint32_t rc;
-    uint32_t id : 31;
-    uint32_t done : 1;
+    uint32_t id;
 };
 
 #define scheduler_job_is_done(job) ({ atomic_load(&(job)->block_idx) == (job)->block_count; })
@@ -86,10 +85,10 @@ void scheduler_park_thread(Scheduler* scheduler, uint32_t version);
 void scheduler_wake_all_threads(Scheduler* scheduler);
 
 // Increment job reference count.
-void scheduler_job_rc_enter(Scheduler* scheduler, const uint32_t job_idx);
+void scheduler_job_rc_enter(Scheduler* scheduler, uint32_t job_idx);
 
 // Decrement job reference count and remove job if no references are left.
-void scheduler_job_rc_leave(Scheduler* scheduler, const uint32_t job_idx);
+void scheduler_job_rc_leave(Scheduler* scheduler, uint32_t job_idx);
 
 Scheduler* scheduler_create(uint32_t cap);
 void scheduler_destroy(Scheduler* scheduler);
