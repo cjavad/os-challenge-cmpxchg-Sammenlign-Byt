@@ -5,7 +5,7 @@ import struct
 import hashlib
 import time
 
-difficulty = 30_000
+difficulty = 30_000_000
 
 def generate_priority(lambd):
     # 1 + (ln(U) / lambda^3 % 15
@@ -39,7 +39,7 @@ def request_server(host, port, data):
 
 
 stats = []
-requests_to_make = 100_000
+requests_to_make = 100
 
 for _ in range(requests_to_make):
     x, h, s, e, p = generate_protocol_parameters()
