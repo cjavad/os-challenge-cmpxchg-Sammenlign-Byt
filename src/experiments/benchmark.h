@@ -1,12 +1,17 @@
 #pragma once
 #include "../bits/sort.h"
 
-#include <immintrin.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/time.h>
+
+#if defined(__i386__) || defined(__x86_64__)
+#include <x86intrin.h>
+#else
+#define __rdtsc() 0
+#endif
 
 #define D_BENCHMARK_START(increment, samples)                                                                          \
     {                                                                                                                  \
