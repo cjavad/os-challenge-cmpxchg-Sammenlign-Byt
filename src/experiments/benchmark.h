@@ -6,7 +6,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/time.h>
-#include <x86gprintrin.h> // __rdtsc
+#include <xmmintrin.h> // __rdtsc
 
 #define D_BENCHMARK_START(increment, samples)                                                                          \
     {                                                                                                                  \
