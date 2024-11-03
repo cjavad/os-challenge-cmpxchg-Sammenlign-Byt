@@ -2,7 +2,7 @@
 
 CC=gcc
 BIN=server_pgo
-CFLAGS="-O3 -g -flto=auto -march=native -mno-avx -masm=intel -DNO_AVX -std=gnu11 -D_GNU_SOURCE -DRELEASE -lpthread -lrt -lm -Wl,-rpath,lib -I./src"
+CFLAGS="-O3 -g -masm=intel -march=native -std=gnu11 -DRELEASE -lpthread -lrt -lm -I./src"
 FILES=$(find src -name "*.c")
 
 $CC $CFLAGS $FILES -o $BIN
