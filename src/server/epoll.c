@@ -88,11 +88,16 @@ void accept_client(const struct EpollServerCtx* ctx, union EpollEventData* data)
     struct sockaddr_in addr;
     uint32_t client_len = sizeof(addr);
 
-    const int32_t client_fd = accept4(data->fd, (struct sockaddr*)&addr, &client_len, SOCK_NONBLOCK);
+    const int32_t client_fd = accept(data->fd, (struct sockaddr*)&addr, &client_len);
 
     if (client_fd < 0) {
         fprintf(stderr, "Failed to accept client: %s from %d\n", strerror(-client_fd), data->fd);
+        return;
+    }
 
+    if ((ret = fcntl(client_fd, F_SETFL, O_NONBLOCK) < 0)) {
+        fprintf(stderr, "Failed to set client %d to non-blocking (%d): %s\n", client_fd, ret, strerror(errno));
+        close(client_fd);
         return;
     }
 
@@ -105,7 +110,6 @@ void accept_client(const struct EpollServerCtx* ctx, union EpollEventData* data)
     memcpy(&ev.data.u64, &async_data, sizeof(async_data));
 
     if ((ret = epoll_ctl(ctx->epoll_fd, EPOLL_CTL_ADD, client_fd, &ev)) < 0) {
-
         fprintf(stderr, "Failed to add client %d to epoll: %d. errno: %s\n", client_fd, ret, strerror(errno));
 
         close(client_fd);

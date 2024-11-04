@@ -14,9 +14,9 @@ PPFLAGS =
 # include flags
 IFLAGS = -I$(INCDIR)
 # compile flags
-CFLAGS = -march=sandybridge -mtune=sandybridge -masm=intel -std=gnu11 -D_GNU_SOURCE -DNO_AVX -mno-avx
+CFLAGS = -march=native -masm=intel -std=gnu11 -flto=auto
 # linker flags
-LFLAGS = -lpthread -lrt -lm -Wl,-rpath,lib
+LFLAGS = -lpthread -lrt -lm -flto=auto
 
 # build
 
@@ -61,8 +61,8 @@ build: LFLAGS += -ggdb -fsanitize=address,leak,undefined -fno-omit-frame-pointer
 build: PPFLAGS += -DDEBUG
 build: link
 
-release: CFLAGS += -O3 -Wall -Wextra -flto=auto
-release: LFLAGS += -s -flto=auto
+release: CFLAGS += -O3 -Wall -Wextra
+release: LFLAGS += -s
 release: PPFLAGS += -DRELEASE
 release: link
 
@@ -82,7 +82,7 @@ lines:
 # link
 link: $(O_FILES) $(D_FILES)
 	$(CC) $(O_FILES) -o $(BINDIR)/$(EXECUTABLE) $(LFLAGS)
-
+	@bash ./debug.sh
 # build dependency files
 $(DEPDIR)/%.d: $(SRCDIR)/%.c
 	@mkdir -p $(@D)
