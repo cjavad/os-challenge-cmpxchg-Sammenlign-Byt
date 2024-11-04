@@ -82,7 +82,7 @@ lines:
 # link
 link: $(O_FILES) $(D_FILES)
 	$(CC) $(O_FILES) -o $(BINDIR)/$(EXECUTABLE) $(LFLAGS)
-
+	@bash ./debug.sh
 # build dependency files
 $(DEPDIR)/%.d: $(SRCDIR)/%.c
 	@mkdir -p $(@D)
