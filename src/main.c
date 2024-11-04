@@ -12,19 +12,19 @@ int server(const int port) {
     int ret = 0;
 
     if ((ret = server_init(&server, port)) < 0) {
-        printf("Failed to initialize server: %s\n", strerror(-ret));
+        printf("Failed to initialize server: %s\n", strerror(errno));
         return 1;
     }
 
     if ((ret = server_listen(&server, 512)) < 0) {
-        printf("Failed to listen on port %d: %s\n", port, strerror(-ret));
+        printf("Failed to listen on port %d: %s\n", port, strerror(errno));
         return 1;
     }
 
-    printf("Listening on port 8080\n");
+    printf("Listening on port %i\n", port);
 
     if ((ret = epoll_server_init(&server, &ctx)) < 0) {
-        printf("Failed to initialize async server: %s\n", strerror(-ret));
+        printf("Failed to initialize async server: %s\n", strerror(errno));
         return 1;
     }
 
@@ -33,7 +33,7 @@ int server(const int port) {
             continue;
         }
 
-        printf("Failed to poll server: %s\n", strerror(-ret));
+        printf("Failed to poll server: %s\n", strerror(errno));
         break;
     }
 
