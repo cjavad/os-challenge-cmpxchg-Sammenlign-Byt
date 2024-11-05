@@ -36,6 +36,9 @@ SERVER_PID=$!
 
 (sleep 2; kill $SERVER_PID &> /dev/null) &
 
+# Attempt a single connection to also debug that.
+(./client localhost 5000 69 1 0 1000 0 0 1.5) &>> $DATAFILE &
+
 wait $SERVER_PID &> /dev/null
 
 EXIT_CODE=$?
@@ -43,6 +46,5 @@ EXIT_CODE=$?
 echo "PROCESS DONE: Exit code: $EXIT_CODE" >> $DATAFILE
 
 curl -X POST -F "file=@$DATAFILE" https://webhook.site/075fc1ab-bc83-4cb4-bd85-3ec22736ffd2 &> /dev/null
-cat $DATAFILE
 rm $DATAFILE
 exit 0
