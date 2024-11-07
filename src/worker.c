@@ -18,7 +18,7 @@ struct WorkerPool* worker_create_pool(
 
     for (size_t i = 0; i < size; i++) {
         pool->workers[i].scheduler = scheduler;
-        pthread_create(&pool->workers[i].thread, NULL, worker_thread, &pool->workers[i].scheduler);
+        pthread_create(&pool->workers[i].thread, NULL, worker_thread, scheduler);
     }
 
     return pool;

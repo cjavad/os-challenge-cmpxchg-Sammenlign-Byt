@@ -169,6 +169,8 @@ bool scheduler_priority_schedule(
         }
 
         spin_rwlock_rdunlock(&scheduler->rlock);
+
+        priority_heap_extract_max(local_jobs, NULL);
     }
 
     return false;
