@@ -1,8 +1,8 @@
 #include "sha256.h"
 
 #define HASH_COMPARE_U64(ptr, target)                                          \
-    (ptr[0] == target[0] && ptr[1] == target[1] && ptr[2] == target[2] &&      \
-     ptr[3] == target[3])
+    ((ptr)[0] == (target)[0] && (ptr)[1] == (target)[1] && (ptr)[2] == (target)[2] &&      \
+     (ptr)[3] == (target)[3])
 
 uint64_t reverse_sha256(
     const uint64_t start,
@@ -44,11 +44,10 @@ uint64_t reverse_sha256_x4(
             }
         }
 
-        const uint64_t increment = 4;
-        data[0] += increment;
-        data[1] += increment;
-        data[2] += increment;
-        data[3] += increment;
+        data[0] += 4;
+        data[1] += 4;
+        data[2] += 4;
+        data[3] += 4;
     } while (data[0] <= end);
 
     return 0;

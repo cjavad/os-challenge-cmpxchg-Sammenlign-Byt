@@ -11,37 +11,38 @@ int server(
 ) {
     Server server;
     struct EpollServerCtx ctx;
-    int ret = 0;
 
-    if ((ret = server_init(&server, port)) < 0) {
-        printf("Failed to initialize server: %s\n", strerror(errno));
+    if (server_init(&server, port) < 0) {
+        fprintf(stderr, "Failed to initialize server: %s\n", strerror(errno));
         return 1;
     }
 
-    if ((ret = server_listen(&server, 512)) < 0) {
-        printf("Failed to listen on port %d: %s\n", port, strerror(errno));
+    if (server_listen(&server, 512) < 0) {
+        fprintf(stderr, "Failed to listen on port %d: %s\n", port, strerror(errno));
         return 1;
     }
 
-    printf("Listening on port %i\n", port);
+    fprintf(stderr, "Listening on port %i\n", port);
 
-    if ((ret = epoll_server_init(&server, &ctx)) < 0) {
-        printf("Failed to initialize async server: %s\n", strerror(errno));
+    if (epoll_server_init(&server, &ctx) < 0) {
+        fprintf(stderr,
+                "Failed to initialize async server: %s\n",
+                strerror(errno));
         return 1;
     }
 
     while (1) {
-        if ((ret = epoll_server_poll(&ctx)) >= 0) {
+        if (epoll_server_poll(&ctx) >= 0) {
             continue;
         }
 
-        printf("Failed to poll server: %s\n", strerror(errno));
+        fprintf(stderr, "Failed to poll server: %s\n", strerror(errno));
         break;
     }
 
     epoll_server_exit(&server, &ctx);
 
-    printf("Closed server\n");
+    fprintf(stderr, "Closed server\n");
 
     return 0;
 }

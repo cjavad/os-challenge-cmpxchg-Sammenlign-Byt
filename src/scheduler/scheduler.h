@@ -7,7 +7,8 @@ typedef uint32_t SchedulerJobId;
 #define SCHEDULER_NO_JOB_ID_SENTINEL UINT32_MAX
 #define SCHEDULER_NO_ANSWER_SENTINEL 0
 
-struct SchedulerBase {
+struct SchedulerBase
+{
     pthread_mutex_t waker_lock;
     pthread_cond_t waker_cond;
     struct Cache* cache;
@@ -15,13 +16,16 @@ struct SchedulerBase {
     uint32_t running;
 };
 
-struct SchedulerJobRecipient {
-    enum SchedulerJobRecipientType {
+struct SchedulerJobRecipient
+{
+    enum SchedulerJobRecipientType
+    {
         SCHEDULER_JOB_RECIPIENT_TYPE_FUTEX,
         SCHEDULER_JOB_RECIPIENT_TYPE_FD,
     } type;
 
-    union {
+    union
+    {
         uint32_t data;
         uint32_t futex;
         int32_t fd;

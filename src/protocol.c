@@ -4,33 +4,33 @@
 #include <stdio.h>
 
 inline void protocol_request_to_le(
-    struct ProtocolRequest* req
+    struct ProtocolRequest* request
 ) {
-    req->start = __builtin_bswap64(req->start);
-    req->end = __builtin_bswap64(req->end);
+    request->start = __builtin_bswap64(request->start);
+    request->end = __builtin_bswap64(request->end);
 }
 
 inline void protocol_response_to_be(
-    struct ProtocolResponse* resp
+    struct ProtocolResponse* response
 ) {
-    resp->answer = __builtin_bswap64(resp->answer);
+    response->answer = __builtin_bswap64(response->answer);
 }
 
 void protocol_debug_print_request(
-    const struct ProtocolRequest* req
+    const struct ProtocolRequest* request
 ) {
     printf("ProtocolRequest(\n    hash=");
-    print_hash(req->hash);
+    print_hash(request->hash);
     printf(
         "    start=%lu\n    end=%lu\n    prio=%d\n)\n",
-        req->start,
-        req->end,
-        req->priority
+        request->start,
+        request->end,
+        request->priority
     );
 }
 
 void protocol_debug_print_response(
-    const struct ProtocolResponse* resp
+    const struct ProtocolResponse* response
 ) {
-    printf("ProtocolResponse(answer=%lu)\n", resp->answer);
+    printf("ProtocolResponse(answer=%lu)\n", response->answer);
 }

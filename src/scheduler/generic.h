@@ -3,6 +3,13 @@
 #include "sched_priority.h"
 #include "sched_rand.h"
 
+#define scheduler_create(scheduler_type, default_cap) \
+    _Generic((scheduler_type),                         \
+        struct PriorityScheduler *: scheduler_priority_create, \
+        struct RandScheduler *: scheduler_rand_create)( \
+        default_cap                                      \
+    )
+
 #define scheduler_destroy(scheduler)                                                                                               \
     _Generic((scheduler), struct PriorityScheduler *: scheduler_priority_destroy, struct RandScheduler *: scheduler_rand_destroy)( \
         scheduler                                                                                                                  \

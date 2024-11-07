@@ -10,7 +10,7 @@
 #include "../sha256/x4/benchmark.h"
 #include "../sha256/x4x2/benchmark.h"
 #include "../sha256/x8/benchmark.h"
-#include "../worker.h"
+#include "../server/worker_pool.h"
 
 #include <sys/random.h>
 #include <time.h>
@@ -46,11 +46,11 @@ void benchmark_hash() {
 
     D_BENCHMARK_TIME_START()
 
-    BENCHMARK_SHA256X1_ALL
-    // BENCHMARK_SHA256X8_ALL
-    BENCHMARK_SHA256X4_ALL
-    // BENCHMARK_SHA256X4(sha256x4_asm)
-    BENCHMARK_SHA256X4X2_ALL
+        BENCHMARK_SHA256X1_ALL
+        // BENCHMARK_SHA256X8_ALL
+        BENCHMARK_SHA256X4_ALL
+        // BENCHMARK_SHA256X4(sha256x4_asm)
+        BENCHMARK_SHA256X4X2_ALL
 
     D_BENCHMARK_TIME_END("sha256 (all)")
 }
@@ -61,8 +61,8 @@ void benchmark_reference_block_time(
     printf("single thread reference block time\n");
     protocol_debug_print_request(req);
     D_BENCHMARK_TIME_START()
-    const uint64_t s = reverse_sha256_x4(req->start, req->end, req->hash);
-    printf("answer: %lu\n", s);
+        const uint64_t s = reverse_sha256_x4(req->start, req->end, req->hash);
+        printf("answer: %lu\n", s);
     D_BENCHMARK_TIME_END("sha256 solve reference")
 }
 
@@ -93,24 +93,24 @@ void benchmark_scheduler() {
     benchmark_reference_block_time(&reqs[count - 1]);
 
     struct WorkerPool* pool = worker_create_pool(
-        get_worker_count(),
+        worker_pool_get_concurrency(),
         (void*)scheduler,
         (void* (*)(void*))scheduler_priority_worker
     );
 
     D_BENCHMARK_TIME_START()
-    for (uint64_t i = 0; i < count; i++) {
-        while (1) {
+        for (uint64_t i = 0; i < count; i++) {
+            while (1) {
 
-            if (__sync_val_compare_and_swap(&data[i]->futex, 1, 0)) {
-                break;
+                if (__sync_val_compare_and_swap(&data[i]->futex, 1, 0)) {
+                    break;
+                }
+
+                futex(&data[i]->futex, FUTEX_WAIT, 0, NULL, NULL, 0);
             }
 
-            futex(&data[i]->futex, FUTEX_WAIT, 0, NULL, NULL, 0);
+            free(data[i]);
         }
-
-        free(data[i]);
-    }
     D_BENCHMARK_TIME_END("scheduler")
 
     worker_destroy_pool(pool);
@@ -176,30 +176,30 @@ void benchmark_sha256_radix_tree_lookup() {
     }
 
     D_BENCHMARK_TIME_START()
-    for (uint64_t i = 0; i < N; i++) {
-        radix_tree_insert(
-            &tree,
-            entries[i].key,
-            SHA256_DIGEST_LENGTH,
-            &entries[i].data
-        );
-    }
+        for (uint64_t i = 0; i < N; i++) {
+            radix_tree_insert(
+                &tree,
+                entries[i].key,
+                SHA256_DIGEST_LENGTH,
+                &entries[i].data
+            );
+        }
     D_BENCHMARK_TIME_END("cache insert")
 
     D_BENCHMARK_TIME_START()
-    for (uint64_t i = 0; i < N; i++) {
-        const uint64_t* ga;
-        radix_tree_get(&tree, entries[i].key, SHA256_DIGEST_LENGTH, &ga);
+        for (uint64_t i = 0; i < N; i++) {
+            const uint64_t* ga;
+            radix_tree_get(&tree, entries[i].key, SHA256_DIGEST_LENGTH, &ga);
 
-        if (ga == NULL || *ga != entries[i].data) {
-            printf(
-                "Index %lu failed to get data, expected %lu, got %p\n",
-                i,
-                entries[i].data,
-                ga
-            );
+            if (ga == NULL || *ga != entries[i].data) {
+                printf(
+                    "Index %lu failed to get data, expected %lu, got %p\n",
+                    i,
+                    entries[i].data,
+                    ga
+                );
+            }
         }
-    }
     D_BENCHMARK_TIME_END("cache get")
 
     radix_tree_destroy(&tree);
@@ -228,31 +228,31 @@ void benchmark_random_key_radix_tree_lookup() {
     }
 
     D_BENCHMARK_TIME_START()
-    for (uint64_t i = 0; i < N; i++) {
-        radix_tree_insert(
-            &tree,
-            entries[i].key,
-            entries[i].length,
-            &entries[i].data
-        );
-    }
+        for (uint64_t i = 0; i < N; i++) {
+            radix_tree_insert(
+                &tree,
+                entries[i].key,
+                entries[i].length,
+                &entries[i].data
+            );
+        }
 
     D_BENCHMARK_TIME_END("random cache insert")
 
     D_BENCHMARK_TIME_START()
-    for (uint64_t i = 0; i < N; i++) {
-        const uint64_t* ga;
-        radix_tree_get(&tree, entries[i].key, entries[i].length, &ga);
+        for (uint64_t i = 0; i < N; i++) {
+            const uint64_t* ga;
+            radix_tree_get(&tree, entries[i].key, entries[i].length, &ga);
 
-        if (ga == NULL) {
-            printf(
-                "Index %lu failed to get data, expected %lu, got %p\n",
-                i,
-                entries[i].data,
-                ga
-            );
+            if (ga == NULL) {
+                printf(
+                    "Index %lu failed to get data, expected %lu, got %p\n",
+                    i,
+                    entries[i].data,
+                    ga
+                );
+            }
         }
-    }
     D_BENCHMARK_TIME_END("random cache get")
 
     struct EntryRandomKeyLength* uninserted =
@@ -262,10 +262,10 @@ void benchmark_random_key_radix_tree_lookup() {
     }
 
     D_BENCHMARK_TIME_START()
-    for (uint64_t i = 0; i < N; i++) {
-        const uint64_t* ga;
-        radix_tree_get(&tree, uninserted[i].key, uninserted[i].length, &ga);
-    }
+        for (uint64_t i = 0; i < N; i++) {
+            const uint64_t* ga;
+            radix_tree_get(&tree, uninserted[i].key, uninserted[i].length, &ga);
+        }
     D_BENCHMARK_TIME_END("random cache get (missed)")
 
     radix_tree_destroy(&tree);
@@ -298,29 +298,29 @@ void benchmark_manual_radix_tree() {
     radix_tree_create(&tree, N);
 
     D_BENCHMARK_TIME_START()
-    for (uint64_t i = 0; i < N; i++) {
-        radix_tree_insert(
-            &tree,
-            entries[i].key,
-            entries[i].length,
-            &entries[i].data
-        );
-    }
+        for (uint64_t i = 0; i < N; i++) {
+            radix_tree_insert(
+                &tree,
+                entries[i].key,
+                entries[i].length,
+                &entries[i].data
+            );
+        }
     D_BENCHMARK_TIME_END("manual cache insert")
 
     D_BENCHMARK_TIME_START()
-    for (uint64_t i = 0; i < N; i++) {
-        const uint64_t* ga;
-        radix_tree_get(&tree, entries[i].key, entries[i].length, &ga);
-        if (ga == NULL || *ga != entries[i].data) {
-            printf(
-                "Index %lu failed to get data, expected %lu, got %p\n",
-                i,
-                entries[i].data,
-                ga
-            );
+        for (uint64_t i = 0; i < N; i++) {
+            const uint64_t* ga;
+            radix_tree_get(&tree, entries[i].key, entries[i].length, &ga);
+            if (ga == NULL || *ga != entries[i].data) {
+                printf(
+                    "Index %lu failed to get data, expected %lu, got %p\n",
+                    i,
+                    entries[i].data,
+                    ga
+                );
+            }
         }
-    }
     D_BENCHMARK_TIME_END("manual cache get")
 
     radix_tree_destroy(&tree);

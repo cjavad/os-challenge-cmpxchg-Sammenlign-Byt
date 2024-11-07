@@ -1,6 +1,6 @@
-#include "worker.h"
+#include "worker_pool.h"
 
-#include "scheduler/scheduler.h"
+#include "../scheduler/scheduler.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -46,4 +46,4 @@ void worker_destroy_pool(
     free(pool);
 }
 
-int get_worker_count() { return sysconf(_SC_NPROCESSORS_ONLN); }
+int worker_pool_get_concurrency() { return (int)sysconf(_SC_NPROCESSORS_ONLN); }

@@ -1,7 +1,7 @@
 #include "epoll.h"
 #include "../protocol.h"
 #include "../scheduler/generic.h"
-#include "../worker.h"
+#include "worker_pool.h"
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -9,7 +9,7 @@
 
 void accept_client(
     const struct EpollServerCtx* ctx,
-    union EpollEventData* data
+    const union EpollEventData* data
 );
 void consume_request(
     const struct EpollServerCtx* ctx,
@@ -24,21 +24,20 @@ int epoll_server_init(
     const Server* server,
     struct EpollServerCtx* ctx
 ) {
-    int ret = 0;
     memset(ctx, 0, sizeof(struct EpollServerCtx));
 
-    ret = epoll_create(EPOLL_MAX_EVENTS);
+    // Setup server fd.
+    ctx->epoll_fd = epoll_create(EPOLL_MAX_EVENTS);
 
-    if (ret < 0) {
-        printf(
+    if (ctx->epoll_fd < 0) {
+        fprintf(
+            stderr,
             "Failed to create epoll fd for server context: %s\n",
             strerror(errno)
         );
-        return ret;
-    }
 
-    // Setup server fd.
-    ctx->epoll_fd = ret;
+        return -1;
+    }
 
     struct epoll_event ev = {0};
     ev.events = EPOLLIN;
@@ -49,23 +48,25 @@ int epoll_server_init(
     };
     memcpy(&ev.data.u64, &async_data, sizeof(async_data));
 
-    if ((ret = epoll_ctl(ctx->epoll_fd, EPOLL_CTL_ADD, server->fd, &ev)) < 0) {
-        printf(
+    if (epoll_ctl(ctx->epoll_fd, EPOLL_CTL_ADD, server->fd, &ev) < 0) {
+        fprintf(
+            stderr,
             "Failed to add server fd to epoll fd for server context: %s\n",
             strerror(errno)
         );
-        return ret;
+
+        return -1;
     }
 
     // Spawn worker pool
-    ctx->scheduler = scheduler_priority_create(8);
+    ctx->scheduler = scheduler_create(ctx->scheduler, 1024);
     ctx->worker_pool = worker_create_pool(
-        get_worker_count(),
+        worker_pool_get_concurrency(),
         (void*)ctx->scheduler,
         scheduler_worker_thread(ctx->scheduler)
     );
 
-    return ret;
+    return 0;
 }
 
 int epoll_server_poll(
@@ -129,10 +130,8 @@ int epoll_server_exit(
 
 void accept_client(
     const struct EpollServerCtx* ctx,
-    union EpollEventData* data
+    const union EpollEventData* data
 ) {
-    int ret = 0;
-
     struct sockaddr_in addr;
     uint32_t client_len = sizeof(addr);
 
@@ -149,12 +148,11 @@ void accept_client(
         return;
     }
 
-    if ((ret = fcntl(client_fd, F_SETFL, O_NONBLOCK) < 0)) {
+    if (fcntl(client_fd, F_SETFL, O_NONBLOCK) < 0) {
         fprintf(
             stderr,
-            "Failed to set client %d to non-blocking (%d): %s\n",
+            "Failed to set client %d to non-blocking: %s\n",
             client_fd,
-            ret,
             strerror(errno)
         );
         close(client_fd);
@@ -172,12 +170,11 @@ void accept_client(
     };
     memcpy(&ev.data.u64, &async_data, sizeof(async_data));
 
-    if ((ret = epoll_ctl(ctx->epoll_fd, EPOLL_CTL_ADD, client_fd, &ev)) < 0) {
+    if (epoll_ctl(ctx->epoll_fd, EPOLL_CTL_ADD, client_fd, &ev) < 0) {
         fprintf(
             stderr,
-            "Failed to add client %d to epoll: %d. errno: %s\n",
+            "Failed to add client %d to epoll: %s\n",
             client_fd,
-            ret,
             strerror(errno)
         );
 
@@ -197,14 +194,15 @@ void consume_request(
         recv(client_fd, &request, PROTOCOL_REQ_SIZE, 0);
 
     if (bytes_received != PROTOCOL_REQ_SIZE) {
+#ifdef DEBUG
         if (bytes_received == 0) {
             // fprintf(stderr, "Received 0 bytes (perhaps closed)\n");
         } else if (bytes_received < 0) {
             // fprintf(stderr, "Failed to receive request (perhaps closed):
             // %s\n", strerror(errno));
-        } else {
-            fprintf(stderr, "Invalid request size: %lu\n", bytes_received);
-        }
+        } else
+#endif
+        fprintf(stderr, "Invalid request size: %lu\n", bytes_received);
 
         return;
     }

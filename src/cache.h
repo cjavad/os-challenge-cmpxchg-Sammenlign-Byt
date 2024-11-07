@@ -9,13 +9,16 @@
 #include <stdio.h>
 #include <string.h>
 
-struct PendingCacheEntry {
+struct PendingCacheEntry
+{
     HashDigest key;
     uint64_t value;
 };
 
-struct Cache {
+struct Cache
+{
     RingBuffer(struct PendingCacheEntry) pending;
+
     RadixTree(uint64_t, SHA256_DIGEST_LENGTH) tree;
 };
 
