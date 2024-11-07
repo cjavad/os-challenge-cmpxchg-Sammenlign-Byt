@@ -1,6 +1,6 @@
 #include "sha256.h"
 
-#define HASH_COMPARE_U64(ptr, target)                                                                                  \
+#define HASH_COMPARE_U64(ptr, target) \
     (ptr[0] == target[0] && ptr[1] == target[1] && ptr[2] == target[2] && ptr[3] == target[3])
 
 uint64_t reverse_sha256(const uint64_t start, const uint64_t end, const HashDigest target) {
