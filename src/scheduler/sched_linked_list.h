@@ -13,6 +13,9 @@ void scheduler_linked_list_submit(
     struct SchedulerJobRecipient* recipient
 );
 
-void scheduler_linked_list_cancel(struct LinkedListScheduler* scheduler, SchedulerJobId job_id);
+void scheduler_linked_list_cancel(
+    struct LinkedListScheduler* scheduler,
+    SchedulerJobId job_id
+);
 
 void* scheduler_linked_list_worker(struct LinkedListScheduler* scheduler);

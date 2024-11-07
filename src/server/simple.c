@@ -8,11 +8,14 @@
 // Simple server implementation.
 int simple_server_init() { return 0; }
 
-int simple_server_poll(const Server* server) {
+int simple_server_poll(
+    const Server* server
+) {
     struct sockaddr_in addr = {0};
     uint32_t client_len = sizeof(addr);
 
-    const int32_t client_fd = accept(server->fd, (struct sockaddr*)&addr, &client_len);
+    const int32_t client_fd =
+        accept(server->fd, (struct sockaddr*)&addr, &client_len);
 
     if (client_fd < 0) {
         return -1;
@@ -21,7 +24,8 @@ int simple_server_poll(const Server* server) {
     // Read struct BEProtocolRequest
     struct ProtocolRequest req;
 
-    if (read(client_fd, &req, sizeof(struct ProtocolRequest)) != sizeof(struct ProtocolRequest)) {
+    if (read(client_fd, &req, sizeof(struct ProtocolRequest)) !=
+        sizeof(struct ProtocolRequest)) {
         return -1;
     }
 
@@ -35,7 +39,8 @@ int simple_server_poll(const Server* server) {
 
     protocol_debug_print_response(&resp);
 
-    if (write(client_fd, &resp, sizeof(struct ProtocolResponse)) != sizeof(struct ProtocolResponse)) {
+    if (write(client_fd, &resp, sizeof(struct ProtocolResponse)) !=
+        sizeof(struct ProtocolResponse)) {
         return -1;
     }
 
@@ -46,4 +51,8 @@ int simple_server_poll(const Server* server) {
     return 0;
 }
 
-int simple_server_exit(const Server* server) { return server_close(server); }
+int simple_server_exit(
+    const Server* server
+) {
+    return server_close(server);
+}

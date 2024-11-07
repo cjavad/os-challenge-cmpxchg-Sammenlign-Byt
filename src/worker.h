@@ -14,7 +14,11 @@ struct WorkerPool {
     size_t size;
 };
 
-struct WorkerPool* worker_create_pool(size_t size, struct SchedulerBase* scheduler, void* (*worker_thread)(void*));
+struct WorkerPool* worker_create_pool(
+    size_t size,
+    struct SchedulerBase* scheduler,
+    void* (*worker_thread)(void*)
+);
 void worker_destroy_pool(struct WorkerPool* pool);
 
 void* worker_thread(void* arguments);
