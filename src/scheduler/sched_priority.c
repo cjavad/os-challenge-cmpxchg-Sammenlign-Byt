@@ -101,7 +101,7 @@ SchedulerJobId scheduler_priority_submit(
     scheduler->jobs_r = scheduler->jobs_w;
     scheduler->jobs_w = tmp;
     // Increment job_id (We are a single writer so this is fine)
-    scheduler->base.job_id = next_id;
+    atomic_store(&scheduler->base.job_id, next_id);
     spin_rwlock_wrunlock(&scheduler->wlock);
 
     // Wake up workers
@@ -207,15 +207,17 @@ void* scheduler_priority_worker(struct PriorityScheduler* scheduler) {
             continue;
         }
 
+        // TODO: Two threads can race on same recipient (double work is being performed)
         // Answer was found, extract recipient ptr and mark job as done.
         spin_rwlock_rdlock(&scheduler->rlock);
         struct PrioritySchedulerJob* job = &scheduler->jobs.data[job_idx];
         struct SchedulerJobRecipient* recipient = job->recipient;
+        job->recipient = NULL;
+        // Send answer to recipient and store in cache.
+        scheduler_job_notify_recipient(recipient, answer);
         scheduler_priority_job_mark_as_done(job);
         spin_rwlock_rdunlock(&scheduler->rlock);
 
-        // Send answer to recipient and store in cache.
-        scheduler_job_notify_recipient(recipient, answer);
         cache_insert_pending(scheduler->base.cache, target_hash, answer);
     }
 
