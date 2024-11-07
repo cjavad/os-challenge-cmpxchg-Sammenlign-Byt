@@ -19,8 +19,6 @@ int server_init(
 
     const int opt_level = 1;
 
-    printf("Got socket fd: %d\n", server->fd);
-
     if (setsockopt(
             server->fd,
             SOL_SOCKET,
@@ -48,12 +46,14 @@ int server_listen(
             (struct sockaddr*)&server->addr,
             sizeof(struct sockaddr)
         ) < 0) {
-        printf("Failed to bin server to port: %s\n", strerror(errno));
+        fprintf(stderr, "Failed to bin server to port: %s\n", strerror(errno));
         return -1;
     }
 
     if (listen(server->fd, backlog) < 0) {
-        printf("Failed to have server listen on port: %s\n", strerror(errno));
+        fprintf(stderr,
+                "Failed to have server listen on port: %s\n",
+                strerror(errno));
         return -1;
     }
 

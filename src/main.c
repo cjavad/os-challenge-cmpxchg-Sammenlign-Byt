@@ -5,10 +5,28 @@
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
+#include <signal.h>
+
+static volatile sig_atomic_t stop_flag = 0;
+
+void signal_handler(
+    const int signal
+) {
+    (void)signal;
+    stop_flag = 1;
+}
+
+#ifdef PROFILE_GENERATION
+#include <gcov.h>
+#endif
 
 int server(
     const int port
 ) {
+    // Setup signal handler
+    signal(SIGINT, signal_handler);
+    signal(SIGTERM, signal_handler);
+
     Server server;
     struct EpollServerCtx ctx;
 
@@ -18,7 +36,10 @@ int server(
     }
 
     if (server_listen(&server, 512) < 0) {
-        fprintf(stderr, "Failed to listen on port %d: %s\n", port, strerror(errno));
+        fprintf(stderr,
+                "Failed to listen on port %d: %s\n",
+                port,
+                strerror(errno));
         return 1;
     }
 
@@ -31,7 +52,7 @@ int server(
         return 1;
     }
 
-    while (1) {
+    while (!stop_flag) {
         if (epoll_server_poll(&ctx) >= 0) {
             continue;
         }
@@ -43,6 +64,10 @@ int server(
     epoll_server_exit(&server, &ctx);
 
     fprintf(stderr, "Closed server\n");
+
+#ifdef PROFILE_GENERATION
+   __gcov_dump();
+#endif
 
     return 0;
 }

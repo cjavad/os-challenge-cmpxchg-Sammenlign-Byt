@@ -16,7 +16,7 @@ struct WorkerPool* worker_create_pool(
     pool->size = size;
     pool->scheduler = scheduler;
 
-    printf("Creating worker pool with %zu workers\n", size);
+    fprintf(stderr, "Creating worker pool with %zu workers\n", size);
 
     for (size_t i = 0; i < size; i++) {
         pool->workers[i].scheduler = scheduler;

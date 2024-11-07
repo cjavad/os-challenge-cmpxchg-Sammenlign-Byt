@@ -196,14 +196,13 @@ void consume_request(
     if (bytes_received != PROTOCOL_REQ_SIZE) {
 #ifdef DEBUG
         if (bytes_received == 0) {
-            // fprintf(stderr, "Received 0 bytes (perhaps closed)\n");
+            fprintf(stderr, "Received 0 bytes (perhaps closed)\n");
         } else if (bytes_received < 0) {
-            // fprintf(stderr, "Failed to receive request (perhaps closed):
-            // %s\n", strerror(errno));
-        } else
+            fprintf(stderr, "Failed to receive request (perhaps closed): s\n", strerror(errno));
+        } else {
+            fprintf(stderr, "Invalid request size: %lu\n", bytes_received);
+        }
 #endif
-        fprintf(stderr, "Invalid request size: %lu\n", bytes_received);
-
         return;
     }
 

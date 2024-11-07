@@ -219,15 +219,15 @@ void* scheduler_priority_worker(
 
         // Try to get the next job to work on.
         if (!scheduler_priority_schedule(
-                scheduler,
-                &local_jobs,
-                &prev_max_job_id,
-                &prev_job_id,
-                target_hash,
-                &job_idx,
-                &start,
-                &end
-            )) {
+            scheduler,
+            &local_jobs,
+            &prev_max_job_id,
+            &prev_job_id,
+            target_hash,
+            &job_idx,
+            &start,
+            &end
+        )) {
             // Wait until a new job is available.
             scheduler_park_worker(&scheduler->base, prev_max_job_id);
             continue;

@@ -1,15 +1,20 @@
 #!/bin/sh
 
 CC=gcc
-BIN=server_pgo
-CFLAGS="-O3 -g -masm=intel -march=native -std=gnu11 -DRELEASE -lpthread -lrt -lm -I./src"
+BIN=pgo_server
+CFLAGS="-O1 -g -masm=intel -march=sandybridge -mtune=sandybridge -std=gnu11 -DRELEASE -lpthread -lrt -lm -I./src"
 FILES=$(find src -name "*.c")
 
-$CC $CFLAGS $FILES -o $BIN
+$CC $CFLAGS $FILES -DPROFILE_GENERATION -fprofile-generate -o $BIN
 
-# Run profiling
-#./$BIN benchmark
-#$CC $CFLAGS $FILES -fprofile-use -Werror=missing-profile -o $BIN
+./$BIN 8080 &
+SERVER_PID=$!
 
-# Cleanup
-#rm -f *.gcda
+./run-client.sh midway
+
+kill -2 $SERVER_PID
+wait $SERVER_PID
+
+$CC $CFLAGS $FILES -fprofile-use -Werror=missing-profile -Wno-error=coverage-mismatch -o $BIN
+
+rm -f *.gcda
