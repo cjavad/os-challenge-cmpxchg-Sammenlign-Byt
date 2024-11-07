@@ -9,7 +9,8 @@ typedef uint32_t SchedulerJobId;
 #define SCHEDULER_NO_ANSWER_SENTINEL 0
 
 struct SchedulerBase {
-    uint32_t waker;
+    pthread_mutex_t waker_lock;
+    pthread_cond_t waker_cond;
     struct Cache* cache;
     SchedulerJobId job_id;
     uint32_t running;
@@ -30,7 +31,7 @@ struct SchedulerJobRecipient {
 
 void scheduler_base_init(struct SchedulerBase* scheduler, uint32_t default_cap);
 void scheduler_base_close(struct SchedulerBase* scheduler);
-void scheduler_base_destroy(const struct SchedulerBase* scheduler);
+void scheduler_base_destroy(struct SchedulerBase* scheduler);
 
 void scheduler_wake_workers(struct SchedulerBase* scheduler);
 void scheduler_park_worker(struct SchedulerBase* scheduler, SchedulerJobId job_id);

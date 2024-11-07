@@ -10,7 +10,8 @@
 #include <unistd.h>
 
 void scheduler_base_init(struct SchedulerBase* scheduler, const uint32_t default_cap) {
-    scheduler->waker = 0;
+    scheduler->waker_lock = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
+    scheduler->waker_cond = (pthread_cond_t)PTHREAD_COND_INITIALIZER;
     scheduler->cache = cache_create(default_cap);
     scheduler->job_id = 0;
     scheduler->running = 1;
@@ -20,35 +21,25 @@ void scheduler_base_close(struct SchedulerBase* scheduler) {
     scheduler->running = 0;
     scheduler_wake_workers(scheduler);
 }
-void scheduler_base_destroy(const struct SchedulerBase* scheduler) { cache_destroy(scheduler->cache); }
-
-void scheduler_wake_workers(struct SchedulerBase* scheduler) {
-    const int64_t s = futex(&scheduler->waker, FUTEX_WAKE, UINT32_MAX, NULL, NULL, 0);
-
-    if (s == -1) {
-        __builtin_unreachable();
-    }
+void scheduler_base_destroy(struct SchedulerBase* scheduler) {
+    pthread_cond_destroy(&scheduler->waker_cond);
+    pthread_mutex_destroy(&scheduler->waker_lock);
+    cache_destroy(scheduler->cache);
 }
+
+void scheduler_wake_workers(struct SchedulerBase* scheduler) { pthread_cond_broadcast(&scheduler->waker_cond); }
+
 void scheduler_park_worker(struct SchedulerBase* scheduler, const SchedulerJobId job_id) {
     while (scheduler->running) {
         const SchedulerJobId current_job_id = atomic_load(&scheduler->job_id);
 
-        if (current_job_id != job_id) {
+        if (current_job_id > job_id) {
             break;
         }
 
-        struct timespec ts = {.tv_sec = 1, .tv_nsec = 0};
-        const int64_t s = futex(&scheduler->waker, FUTEX_WAIT, 0, &ts, NULL, 0);
-
-        if (s == -1) {
-            if (errno == EAGAIN) {
-                break;
-            }
-
-            continue;
-        }
-
-        break;
+        pthread_mutex_lock(&scheduler->waker_lock);
+        pthread_cond_wait(&scheduler->waker_cond, &scheduler->waker_lock);
+        pthread_mutex_unlock(&scheduler->waker_lock);
     }
 }
 
