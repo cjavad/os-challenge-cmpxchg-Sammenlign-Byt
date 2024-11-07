@@ -23,4 +23,8 @@ struct Cache* cache_create(uint32_t default_cap);
 void cache_destroy(struct Cache* cache);
 
 void cache_process_pending(struct Cache* cache);
-void cache_insert_pending(struct Cache* cache, const HashDigest key, uint64_t value);
+void cache_insert_pending(
+    struct Cache* cache,
+    const HashDigest key,
+    uint64_t value
+);

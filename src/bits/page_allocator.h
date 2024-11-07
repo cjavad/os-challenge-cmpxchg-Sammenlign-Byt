@@ -19,7 +19,8 @@ struct PageAllocatorHeader {
 };
 
 // The writable space of the page.
-#define page_allocator_page_size(allocator) ((allocator)->page_size - sizeof(struct PageAllocatorHeader))
+#define page_allocator_page_size(allocator)                                    \
+    ((allocator)->page_size - sizeof(struct PageAllocatorHeader))
 
 struct PageAllocator* page_allocator_create();
 void* page_allocator_alloc(struct PageAllocator* allocator);

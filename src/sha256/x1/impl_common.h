@@ -13,40 +13,52 @@ static const uint32_t k[64] = {
     0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
     0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a,
     0x5b9cca4f, 0x682e6ff3, 0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208,
-    0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2};
+    0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
+};
 
-
-__attribute__((unused))
-static uint32_t rotr(const uint32_t x, const uint32_t n) {
+__attribute__((unused)) static uint32_t rotr(
+    const uint32_t x,
+    const uint32_t n
+) {
     return (x >> n) | (x << (32 - n));
 }
 
-__attribute__((unused))
-static uint32_t s0(const uint32_t w) {
+__attribute__((unused)) static uint32_t s0(
+    const uint32_t w
+) {
     return rotr(w, 7) ^ rotr(w, 18) ^ (w >> 3);
 }
 
-__attribute__((unused))
-static uint32_t s1(const uint32_t w) {
+__attribute__((unused)) static uint32_t s1(
+    const uint32_t w
+) {
     return rotr(w, 17) ^ rotr(w, 19) ^ (w >> 10);
 }
 
-__attribute__((unused))
-static uint32_t ch(const uint32_t e, const uint32_t f, const uint32_t g) {
+__attribute__((unused)) static uint32_t ch(
+    const uint32_t e,
+    const uint32_t f,
+    const uint32_t g
+) {
     return (e & f) ^ ((~e) & g);
 }
 
-__attribute__((unused))
-static uint32_t maj(const uint32_t a, const uint32_t b, const uint32_t c) {
+__attribute__((unused)) static uint32_t maj(
+    const uint32_t a,
+    const uint32_t b,
+    const uint32_t c
+) {
     return (a & b) ^ (a & c) ^ (b & c);
 }
 
-__attribute__((unused))
-static uint32_t S0(const uint32_t a) {
+__attribute__((unused)) static uint32_t S0(
+    const uint32_t a
+) {
     return rotr(a, 2) ^ rotr(a, 13) ^ rotr(a, 22);
 }
 
-__attribute__((unused))
-static uint32_t S1(const uint32_t e) {
+__attribute__((unused)) static uint32_t S1(
+    const uint32_t e
+) {
     return rotr(e, 6) ^ rotr(e, 11) ^ rotr(e, 25);
 }

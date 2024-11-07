@@ -7,4 +7,3 @@
 
 typedef uint8_t HashDigest[SHA256_DIGEST_LENGTH];
 typedef uint8_t HashInput[SHA256_INPUT_LENGTH];
-

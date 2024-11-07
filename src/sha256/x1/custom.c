@@ -12,26 +12,37 @@ static const uint32_t K[64] = {
     0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
     0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a,
     0x5b9cca4f, 0x682e6ff3, 0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208,
-    0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2};
+    0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
+};
 
-static const uint32_t H_INIT[8] = {0x6a09e667, 0xbb67ae85, 0x3c6ef372,
-                                   0xa54ff53a, 0x510e527f, 0x9b05688c,
-                                   0x1f83d9ab, 0x5be0cd19};
+static const uint32_t H_INIT[8] = {
+    0x6a09e667,
+    0xbb67ae85,
+    0x3c6ef372,
+    0xa54ff53a,
+    0x510e527f,
+    0x9b05688c,
+    0x1f83d9ab,
+    0x5be0cd19
+};
 
 // Inline circular right shift
 #define ROTR(x, n) ((x >> n) | (x << (32 - n)))
 
 // Inline SHA-256 functions
-#define Ch(x, y, z) ((x & y) ^ (~x & z))
+#define Ch(x, y, z)  ((x & y) ^ (~x & z))
 #define Maj(x, y, z) ((x & y) ^ (x & z) ^ (y & z))
-#define Sigma0(x) (ROTR(x, 2) ^ ROTR(x, 13) ^ ROTR(x, 22))
-#define Sigma1(x) (ROTR(x, 6) ^ ROTR(x, 11) ^ ROTR(x, 25))
-#define sigma0(x) (ROTR(x, 7) ^ ROTR(x, 18) ^ (x >> 3))
-#define sigma1(x) (ROTR(x, 17) ^ ROTR(x, 19) ^ (x >> 10))
+#define Sigma0(x)    (ROTR(x, 2) ^ ROTR(x, 13) ^ ROTR(x, 22))
+#define Sigma1(x)    (ROTR(x, 6) ^ ROTR(x, 11) ^ ROTR(x, 25))
+#define sigma0(x)    (ROTR(x, 7) ^ ROTR(x, 18) ^ (x >> 3))
+#define sigma1(x)    (ROTR(x, 17) ^ ROTR(x, 19) ^ (x >> 10))
 
 // Optimized SHA-256 padding and preprocessing for 64-bit data (8 bytes)
 // Optimized final hash calculation for fixed 64-bit input
-void sha256_custom(HashDigest hash, const HashInput data) {
+void sha256_custom(
+    HashDigest hash,
+    const HashInput data
+) {
     uint32_t W[64];
 
     uint32_t o[8]; // output state
@@ -80,6 +91,6 @@ void sha256_custom(HashDigest hash, const HashInput data) {
 
     // Output the final state (big endian)
     for (int i = 0; i < 8; i++) {
-        *(uint32_t *)(hash + i * 4) = __builtin_bswap32(o[i]);
+        *(uint32_t*)(hash + i * 4) = __builtin_bswap32(o[i]);
     }
 }

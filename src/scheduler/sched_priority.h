@@ -19,8 +19,10 @@ struct PriorityScheduler {
     IndexPriorityHeap* jobs_r;
     IndexPriorityHeap* jobs_w;
 
-    struct SRWLock rlock; // Prevents jobs ptr from being invalidated by growing.
-    struct SRWLock wlock; // Prevents jobs ptr from being invalidated by swapping.
+    struct SRWLock
+        rlock; // Prevents jobs ptr from being invalidated by growing.
+    struct SRWLock
+        wlock; // Prevents jobs ptr from being invalidated by swapping.
 };
 
 struct PrioritySchedulerJob {
@@ -37,21 +39,31 @@ struct PrioritySchedulerJob {
     uint32_t rc;       // Reference count
 };
 
-inline void scheduler_priority_job_mark_as_done(struct PrioritySchedulerJob* job) {
+inline void scheduler_priority_job_mark_as_done(
+    struct PrioritySchedulerJob* job
+) {
     atomic_store(&job->block_idx, job->block_count);
 }
 
-inline bool scheduler_priority_job_is_done(const struct PrioritySchedulerJob* job) {
+inline bool scheduler_priority_job_is_done(
+    const struct PrioritySchedulerJob* job
+) {
     return atomic_load(&job->block_idx) >= job->block_count;
 }
 
-inline void scheduler_priority_enter_job(struct PriorityScheduler* scheduler, const uint32_t job_idx) {
+inline void scheduler_priority_enter_job(
+    struct PriorityScheduler* scheduler,
+    const uint32_t job_idx
+) {
     spin_rwlock_rdlock(&scheduler->rlock);
     __atomic_add_fetch(&scheduler->jobs.data[job_idx].rc, 1, __ATOMIC_RELAXED);
     spin_rwlock_rdunlock(&scheduler->rlock);
 }
 
-inline void scheduler_priority_leave_job(struct PriorityScheduler* scheduler, const uint32_t job_idx) {
+inline void scheduler_priority_leave_job(
+    struct PriorityScheduler* scheduler,
+    const uint32_t job_idx
+) {
     spin_rwlock_rdlock(&scheduler->rlock);
     __atomic_sub_fetch(&scheduler->jobs.data[job_idx].rc, 1, __ATOMIC_RELAXED);
     spin_rwlock_rdunlock(&scheduler->rlock);
@@ -61,9 +73,14 @@ struct PriorityScheduler* scheduler_priority_create(uint32_t default_cap);
 void scheduler_priority_destroy(struct PriorityScheduler* scheduler);
 
 SchedulerJobId scheduler_priority_submit(
-    struct PriorityScheduler* scheduler, const struct ProtocolRequest* request, struct SchedulerJobRecipient* recipient
+    struct PriorityScheduler* scheduler,
+    const struct ProtocolRequest* request,
+    struct SchedulerJobRecipient* recipient
 );
 
-void scheduler_priority_cancel(const struct PriorityScheduler* scheduler, SchedulerJobId job_id);
+void scheduler_priority_cancel(
+    const struct PriorityScheduler* scheduler,
+    SchedulerJobId job_id
+);
 
 void* scheduler_priority_worker(struct PriorityScheduler* scheduler);

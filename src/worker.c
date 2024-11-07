@@ -20,13 +20,20 @@ struct WorkerPool* worker_create_pool(
 
     for (size_t i = 0; i < size; i++) {
         pool->workers[i].scheduler = scheduler;
-        pthread_create(&pool->workers[i].thread, NULL, worker_thread, scheduler);
+        pthread_create(
+            &pool->workers[i].thread,
+            NULL,
+            worker_thread,
+            scheduler
+        );
     }
 
     return pool;
 }
 
-void worker_destroy_pool(struct WorkerPool* pool) {
+void worker_destroy_pool(
+    struct WorkerPool* pool
+) {
     scheduler_base_close(pool->scheduler);
 
     // Wait for all worker threads to exit.

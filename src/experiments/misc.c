@@ -8,7 +8,9 @@
 #include <stdio.h>
 #include <unistd.h>
 
-void* writer(void* arg) {
+void* writer(
+    void* arg
+) {
     struct SRWLock* lock = arg;
 
     spin_rwlock_wrlock(lock);
@@ -18,7 +20,9 @@ void* writer(void* arg) {
     return NULL;
 }
 
-void* reader(void* arg) {
+void* reader(
+    void* arg
+) {
     struct SRWLock* lock = arg;
 
     spin_rwlock_rdlock(lock);
@@ -108,7 +112,9 @@ void test_priority_heap() {
 #define MISC_PAGE_ALLOCATOR_TEST_FREE_EVERY   100
 
 // Spam allocation and deallocation.
-void* page_allocator_thread(void* arg) {
+void* page_allocator_thread(
+    void* arg
+) {
     struct PageAllocator* allocator = arg;
 
     for (uint64_t i = 0; i < MISC_PAGE_ALLOCATOR_TEST_ITERATIONS; i++) {
@@ -187,7 +193,8 @@ void test_page_allocator() {
     assert(
         page_count == MISC_PAGE_ALLOCATOR_TEST_THREAD_COUNT *
                           (MISC_PAGE_ALLOCATOR_TEST_ITERATIONS -
-                           (MISC_PAGE_ALLOCATOR_TEST_ITERATIONS / MISC_PAGE_ALLOCATOR_TEST_FREE_EVERY))
+                           (MISC_PAGE_ALLOCATOR_TEST_ITERATIONS /
+                            MISC_PAGE_ALLOCATOR_TEST_FREE_EVERY))
     );
 
     assert(free_count == 0);

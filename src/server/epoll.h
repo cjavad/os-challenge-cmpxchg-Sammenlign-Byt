@@ -26,7 +26,10 @@ union EpollEventData {
 };
 
 // Both io_uring and epoll allow for 64 bits of user data per request.
-_Static_assert(sizeof(union EpollEventData) <= sizeof(uint64_t), "UserData struct is too large");
+_Static_assert(
+    sizeof(union EpollEventData) <= sizeof(uint64_t),
+    "UserData struct is too large"
+);
 
 int epoll_server_init(const Server* server, struct EpollServerCtx* ctx);
 int epoll_server_poll(const struct EpollServerCtx* ctx);

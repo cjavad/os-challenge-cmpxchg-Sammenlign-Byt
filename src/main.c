@@ -6,7 +6,9 @@
 #include <stdio.h>
 #include <string.h>
 
-int server(const int port) {
+int server(
+    const int port
+) {
     Server server;
     struct EpollServerCtx ctx;
     int ret = 0;
@@ -53,7 +55,10 @@ int benchmark() {
     return 0;
 }
 
-int main(int argc, char** argv) {
+int main(
+    int argc,
+    char** argv
+) {
     if (argc < 2) {
         fprintf(stderr, "Usage: %s benchmark|<port>\n", argv[0]);
         return 1;

@@ -18,13 +18,19 @@ struct PageAllocator* page_allocator_create() {
     return allocator;
 }
 
-void* page_allocator_alloc(struct PageAllocator* allocator) {
+void* page_allocator_alloc(
+    struct PageAllocator* allocator
+) {
     // Find a free page.
     struct PageAllocatorHeader* header;
 
     // Find a free page.
     while ((header = atomic_load(&allocator->free_list)) != NULL &&
-           !atomic_compare_exchange_weak(&allocator->free_list, &header, header->next_free)) {
+           !atomic_compare_exchange_weak(
+               &allocator->free_list,
+               &header,
+               header->next_free
+           )) {
     }
 
     // Create a new page if no free page is found.
@@ -32,7 +38,14 @@ void* page_allocator_alloc(struct PageAllocator* allocator) {
 #if PAGE_ALLOCATOR_USE_MALLOC
         header = malloc(allocator->page_size);
 #else
-        header = mmap(NULL, allocator->page_size, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+        header = mmap(
+            NULL,
+            allocator->page_size,
+            PROT_READ | PROT_WRITE,
+            MAP_ANONYMOUS | MAP_PRIVATE,
+            -1,
+            0
+        );
 #endif
         if (header == MAP_FAILED) {
             return NULL;
@@ -42,10 +55,15 @@ void* page_allocator_alloc(struct PageAllocator* allocator) {
         header->next_free = NULL;
 
         // Add to all_pages list
-        struct PageAllocatorHeader* old_all_pages = atomic_load(&allocator->all_pages);
+        struct PageAllocatorHeader* old_all_pages =
+            atomic_load(&allocator->all_pages);
         do {
             header->next_any = old_all_pages;
-        } while (!atomic_compare_exchange_weak(&allocator->all_pages, &old_all_pages, header));
+        } while (!atomic_compare_exchange_weak(
+            &allocator->all_pages,
+            &old_all_pages,
+            header
+        ));
     } else {
         header->next_free = NULL;
     }
@@ -54,20 +72,32 @@ void* page_allocator_alloc(struct PageAllocator* allocator) {
     return (void*)((uintptr_t)header + sizeof(struct PageAllocatorHeader));
 }
 
-void page_allocator_free(struct PageAllocator* allocator, void* ptr) {
+void page_allocator_free(
+    struct PageAllocator* allocator,
+    void* ptr
+) {
     struct PageAllocatorHeader* header =
-        (struct PageAllocatorHeader*)((uintptr_t)ptr - sizeof(struct PageAllocatorHeader));
+        (struct PageAllocatorHeader*)((uintptr_t)ptr -
+                                      sizeof(struct PageAllocatorHeader));
 
     // Add to free list.
-    struct PageAllocatorHeader* old_free_list = atomic_load(&allocator->free_list);
+    struct PageAllocatorHeader* old_free_list =
+        atomic_load(&allocator->free_list);
     do {
         header->next_free = old_free_list;
-    } while (!atomic_compare_exchange_weak(&allocator->free_list, &old_free_list, header));
+    } while (!atomic_compare_exchange_weak(
+        &allocator->free_list,
+        &old_free_list,
+        header
+    ));
 }
 
-void page_allocator_destroy(struct PageAllocator* allocator) {
+void page_allocator_destroy(
+    struct PageAllocator* allocator
+) {
     // Free all pages
-    struct PageAllocatorHeader* header = atomic_exchange(&allocator->all_pages, NULL);
+    struct PageAllocatorHeader* header =
+        atomic_exchange(&allocator->all_pages, NULL);
     while (header != NULL) {
         struct PageAllocatorHeader* next = header->next_any;
 #if PAGE_ALLOCATOR_USE_MALLOC

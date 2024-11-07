@@ -34,8 +34,17 @@ void scheduler_base_close(struct SchedulerBase* scheduler);
 void scheduler_base_destroy(struct SchedulerBase* scheduler);
 
 void scheduler_wake_workers(struct SchedulerBase* scheduler);
-void scheduler_park_worker(struct SchedulerBase* scheduler, SchedulerJobId job_id);
+void scheduler_park_worker(
+    struct SchedulerBase* scheduler,
+    SchedulerJobId job_id
+);
 
-struct SchedulerJobRecipient* scheduler_create_job_recipient(enum SchedulerJobRecipientType type, uint32_t data);
+struct SchedulerJobRecipient* scheduler_create_job_recipient(
+    enum SchedulerJobRecipientType type,
+    uint32_t data
+);
 void scheduler_destroy_job_recipient(struct SchedulerJobRecipient* recipient);
-void scheduler_job_notify_recipient(struct SchedulerJobRecipient* recipient, uint64_t answer);
+void scheduler_job_notify_recipient(
+    struct SchedulerJobRecipient* recipient,
+    uint64_t answer
+);

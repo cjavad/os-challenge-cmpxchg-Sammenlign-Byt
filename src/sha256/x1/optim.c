@@ -1,13 +1,15 @@
-#include "sha256x1.h"
 #include "impl_common.h"
+#include "sha256x1.h"
 
-__attribute__((flatten))
-void sha256_optim(HashDigest hash, const HashInput data) {
-    uint32_t w[64]  __attribute__((aligned(64)));
+__attribute__((flatten)) void sha256_optim(
+    HashDigest hash,
+    const HashInput data
+) {
+    uint32_t w[64] __attribute__((aligned(64)));
 
     // setting of initial block
-    w[0] = __builtin_bswap32(((uint32_t *)data)[0]);
-    w[1] = __builtin_bswap32(((uint32_t *)data)[1]);
+    w[0] = __builtin_bswap32(((uint32_t*)data)[0]);
+    w[1] = __builtin_bswap32(((uint32_t*)data)[1]);
     w[2] = 0x80000000;
     __builtin_memset(&w[3], 0, (15 - 3) * sizeof(uint32_t));
     w[15] = 64;
@@ -36,7 +38,6 @@ void sha256_optim(HashDigest hash, const HashInput data) {
     w[30] = s0(64) + w[23] + s1(w[28]);
 
     w[31] = 64 + s0(w[16]) + w[24] + s1(w[29]);
-
 
     // loop rest
     for (uint32_t i = 32; i < 64; i++) {
@@ -71,12 +72,12 @@ void sha256_optim(HashDigest hash, const HashInput data) {
         a = temp1 + temp2;
     }
 
-    ((uint32_t *)hash)[0] = __builtin_bswap32(a + 0x6a09e667);
-    ((uint32_t *)hash)[1] = __builtin_bswap32(b + 0xbb67ae85);
-    ((uint32_t *)hash)[2] = __builtin_bswap32(c + 0x3c6ef372);
-    ((uint32_t *)hash)[3] = __builtin_bswap32(d + 0xa54ff53a);
-    ((uint32_t *)hash)[4] = __builtin_bswap32(e + 0x510e527f);
-    ((uint32_t *)hash)[5] = __builtin_bswap32(f + 0x9b05688c);
-    ((uint32_t *)hash)[6] = __builtin_bswap32(g + 0x1f83d9ab);
-    ((uint32_t *)hash)[7] = __builtin_bswap32(h + 0x5be0cd19);
+    ((uint32_t*)hash)[0] = __builtin_bswap32(a + 0x6a09e667);
+    ((uint32_t*)hash)[1] = __builtin_bswap32(b + 0xbb67ae85);
+    ((uint32_t*)hash)[2] = __builtin_bswap32(c + 0x3c6ef372);
+    ((uint32_t*)hash)[3] = __builtin_bswap32(d + 0xa54ff53a);
+    ((uint32_t*)hash)[4] = __builtin_bswap32(e + 0x510e527f);
+    ((uint32_t*)hash)[5] = __builtin_bswap32(f + 0x9b05688c);
+    ((uint32_t*)hash)[6] = __builtin_bswap32(g + 0x1f83d9ab);
+    ((uint32_t*)hash)[7] = __builtin_bswap32(h + 0x5be0cd19);
 }

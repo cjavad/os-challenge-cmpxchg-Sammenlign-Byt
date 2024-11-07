@@ -1,0 +1,221 @@
+#include "parser.h"
+#include "lexer.h"
+
+#include <stdint.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <stdbool.h>
+
+#define error_exit(line, col, fmt, ...) { printf("ERROR[%u,%u]: ", line, col); printf(fmt "\n" __VA_OPT__(,) __VA_ARGS__); exit(1); } 
+
+#define get_word() {}
+
+struct LexStream
+{
+	uint32_t index;
+	struct LexemeList* ll;
+};
+
+static bool hasNext(struct LexStream* stream) { return stream->index < stream->ll->len; }
+static struct Lexeme peekLex(struct LexStream* stream) { return stream->ll->data[stream->index]; };
+static struct Lexeme nextLex(struct LexStream* stream) { return stream->ll->data[stream->index++]; };
+static void consume(struct LexStream* stream) { stream->index++; }
+
+static bool tryMatchWord(struct LexStream* stream, const char* word) {
+	
+	if (!hasNext(stream)) return false;
+	
+	struct Lexeme l = peekLex(stream);
+
+	if (l.type != LX_WORD) return false;
+	if (!strcmp(word, stream->ll->strbuff->data[l.index])) return false;
+
+	return true;
+}
+
+static const char* nextWord(struct LexStream* stream) {
+	if (!hasNext(stream)) error_exit(0, 0, "expected word, got EOF");
+
+	struct Lexeme l = nextLex(stream);
+
+	if (l.type != LX_WORD) error_exit(0, 0, "expected word, got other");
+}
+
+static uint64_t parseNum(const char* str)
+{
+	if (*str == '0' && *(str + 1) == 'x')
+	{
+		// hex
+		str+=2;
+		uint64_t num = 0;
+		while (*str)
+		{
+			num = (num * 16) + (*str <= '9' ? *str - '0' : *str <= 'F' ? *str - 'F' : *str - 'f');
+			str++;
+		}
+		return num;
+	}
+	else 
+	{
+		// dec
+		uint64_t num = 0;
+		while (*str)
+		{
+			num = (num * 10) + *str - '0';
+			str++;
+		}
+		return num;
+	}
+}
+
+struct ParseResult parseLex(struct LexemeList* ll)
+{
+	struct ParseResult result = (struct ParseResult) {.define_offset = 0, .define_count = 0, .func_count = 0};
+	struct StringBuffer* sb = ll->strbuff;
+	struct LexStream ls = (struct LexStream) { .index = 0, .ll = ll };
+
+	for (;hasNext(&ls);)
+	{
+		struct Lexeme l = nextLex(&ls);
+
+		enum {
+			START,
+			UNKNOWN_WEIGHT,
+			DEFINE,
+			DEFINE_BYTE,
+			DEFINE_DWORD,
+			FUNC,
+			FUNC_ARGS,
+			FUNC_BODY,
+			BODY
+		} state = START;
+
+		switch (state)
+		{
+	        case START: {
+				switch (l.type)
+				{
+					case LX_NOT_A_KILO: {
+						state = UNKNOWN_WEIGHT;
+					} break;
+					default: {
+						error_exit(l.line, l.col, "expected #");
+					}
+				}
+			} break;
+	        case UNKNOWN_WEIGHT: {
+				switch (l.type)
+				{
+					case LX_WORD: {
+						if (strcmp("define", &(sb->data[l.index]))) {
+							state = DEFINE;
+						}
+						else if (strcmp("func", &(sb->data[l.index]))) {
+							state = FUNC;
+						}
+						else if (strcmp("body", &(sb->data[l.index]))) {
+							state = BODY;
+						}
+						else {
+							error_exit(l.line, l.col, "expected \"define\", \"func\", or \"body\"");
+						}
+					} break;
+					default: {
+						error_exit(l.line, l.col, "expected word");
+					}
+				}
+			} break;
+			case DEFINE: {
+				switch (l.type)
+				{
+					case LX_WORD: {
+						if (strcmp("db", &(sb->data[l.index]))) {
+							state = DEFINE_BYTE;
+							result.defines[result.define_count].name = 
+						}
+						else if (strcmp("dw", &(sb->data[l.index]))) {
+							state = DEFINE_DWORD;
+						}
+						else {
+							error_exit(l.line, l.col, "expected \"db\" or \"dw\"");
+						}
+					} break;
+					default : {
+						error_exit(l.line, l.col, "expected word");
+					}
+				}
+			} break;
+	        case DEFINE_BYTE: {
+				switch (l.type)
+				{
+					case LX_ANOTHA: {} break;
+					case LX_NUM: {
+						uint8_t byte = parseNum(&(sb->data[l.index]));
+						// parse num idk lol
+					} break;
+					case LX_NOT_A_KILO: {
+						// TODO :: save define
+						state = UNKNOWN_WEIGHT;
+					} break;
+					default: {
+						error_exit(l.line, l.col, "expected number or #");
+					}
+				}
+			} break;
+	        case DEFINE_DWORD: {
+				switch (l.type)
+				{
+					case LX_ANOTHA: {} break;
+					case LX_NUM: {
+						// parse num but 4 bytes (dummmy thicc)
+					} break;
+					case LX_NOT_A_KILO: {
+						// TODO :: save again (copy paste from above)
+						state = UNKNOWN_WEIGHT;
+					} break;
+					default: {
+						error_exit(l.line, l.col, "expected number or #");
+					}
+				}
+			} break;
+	        case FUNC: {
+				switch (l.type)
+				{
+					case LX_WORD: {
+						// this function name
+					} break;
+					default: {
+						error_exit(l.line, l.col, "expected word");
+					}
+				}
+			} break;
+			case FUNC_ARGS: {
+				switch (l.type)
+				{
+					case LX_WORD: {
+						// this function arg
+					} break;
+					case LX_ANOTHA: {
+						// done with args
+						state = FUNC_BODY;
+					} break;
+					default: {
+						error_exit(l.line, l.col, "expected ");
+					}
+				}
+			} break;
+			case FUNC_BODY: {
+				// parse instructions (for func)
+			} break;
+	        case BODY: {
+				// parse instructions (for body)
+			} break;
+			default : {
+				error_exit(l.line, l.col, "divine intervention by cosmic ray");
+			}
+		}
+	}
+
+	return result;
+}

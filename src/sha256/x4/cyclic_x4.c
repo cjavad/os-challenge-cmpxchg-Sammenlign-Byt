@@ -8,9 +8,10 @@
 
 #include "impl_common.h"
 
-__attribute__((flatten)) void
-sha256x4_cyclic(uint8_t hash[SHA256_DIGEST_LENGTH * 4],
-               const uint8_t data[SHA256_INPUT_LENGTH * 4]) {
+__attribute__((flatten)) void sha256x4_cyclic(
+    uint8_t hash[SHA256_DIGEST_LENGTH * 4],
+    const uint8_t data[SHA256_INPUT_LENGTH * 4]
+) {
     __m128i w[16] __attribute__((aligned(16)));
 
     // interleave input data words
@@ -18,24 +19,22 @@ sha256x4_cyclic(uint8_t hash[SHA256_DIGEST_LENGTH * 4],
     register __m128i t0;
     register __m128i t1;
 
-    __m128i
-        h0 = _mm_load_si128((__m128i*)&H[0]),
-        h1 = _mm_load_si128((__m128i*)&H[4]);
+    __m128i h0 = _mm_load_si128((__m128i*)&H[0]),
+            h1 = _mm_load_si128((__m128i*)&H[4]);
 
-    __m128i
-		a = _mm_shuffle_epi32(h0, 0b00000000),
-		b = _mm_shuffle_epi32(h0, 0b01010101),
-		c = _mm_shuffle_epi32(h0, 0b10101010),
-		d = _mm_shuffle_epi32(h0, 0b11111111),
-		e = _mm_shuffle_epi32(h1, 0b00000000),
-		f = _mm_shuffle_epi32(h1, 0b01010101),
-		g = _mm_shuffle_epi32(h1, 0b10101010),
-		h = _mm_shuffle_epi32(h1, 0b11111111);
+    __m128i a = _mm_shuffle_epi32(h0, 0b00000000),
+            b = _mm_shuffle_epi32(h0, 0b01010101),
+            c = _mm_shuffle_epi32(h0, 0b10101010),
+            d = _mm_shuffle_epi32(h0, 0b11111111),
+            e = _mm_shuffle_epi32(h1, 0b00000000),
+            f = _mm_shuffle_epi32(h1, 0b01010101),
+            g = _mm_shuffle_epi32(h1, 0b10101010),
+            h = _mm_shuffle_epi32(h1, 0b11111111);
 
     {
-        __m128i mask = _mm_load_si128((__m128i *)byteswap_mask),
-                l0 = _mm_load_si128((__m128i *)&data[0]),
-                l1 = _mm_load_si128((__m128i *)&data[16]);
+        __m128i mask = _mm_load_si128((__m128i*)byteswap_mask),
+                l0 = _mm_load_si128((__m128i*)&data[0]),
+                l1 = _mm_load_si128((__m128i*)&data[16]);
 
         __m128i h0 = _mm_shuffle_epi8(l0, mask),
                 h1 = _mm_shuffle_epi8(l1, mask);
@@ -53,30 +52,28 @@ sha256x4_cyclic(uint8_t hash[SHA256_DIGEST_LENGTH * 4],
         COMPRESS_ROUND(t1, 1)
     }
 
-    __m128i c80 = _mm_load_si128((__m128i *)x80000000),
-            c64 = _mm_load_si128((__m128i *)d64);
+    __m128i c80 = _mm_load_si128((__m128i*)x80000000),
+            c64 = _mm_load_si128((__m128i*)d64);
 
     COMPRESS_ROUND(c80, 2)
-    
+
     for (uint32_t i = 3; i < 15; i++) {
-        __m128i 
-			ki = _mm_castps_si128(BROADCAST_SS(k[i]));
-		
-		__m128i 
-			temp2 = _mm_add_epi32(S0(a), maj(a, b, c)),
-			temp1 = _mm_add_epi32(
-				_mm_add_epi32(S1(e), ch(e, f, g)),
-				_mm_add_epi32(h, ki)
-			);
-		
-		h = g;
-		g = f;
-		f = e;
-		e = _mm_add_epi32(d, temp1);
-		d = c;
-		c = b;
-		b = a;
-		a = _mm_add_epi32(temp1, temp2);
+        __m128i ki = _mm_castps_si128(BROADCAST_SS(k[i]));
+
+        __m128i temp2 = _mm_add_epi32(S0(a), maj(a, b, c)),
+                temp1 = _mm_add_epi32(
+                    _mm_add_epi32(S1(e), ch(e, f, g)),
+                    _mm_add_epi32(h, ki)
+                );
+
+        h = g;
+        g = f;
+        f = e;
+        e = _mm_add_epi32(d, temp1);
+        d = c;
+        c = b;
+        b = a;
+        a = _mm_add_epi32(temp1, temp2);
     }
 
     COMPRESS_ROUND(c64, 15)
@@ -174,8 +171,10 @@ sha256x4_cyclic(uint8_t hash[SHA256_DIGEST_LENGTH * 4],
         COMPRESS_ROUND(t0, 30)
         l1 = _mm_load_si128(&w[0]);
 
-        __m128i w31 = _mm_add_epi32(_mm_add_epi32(l0, s1(t1)),
-                                    _mm_add_epi32(c64, s0(l1)));
+        __m128i w31 = _mm_add_epi32(
+            _mm_add_epi32(l0, s1(t1)),
+            _mm_add_epi32(c64, s0(l1))
+        );
         _mm_store_si128(&w[15], w31);
         t1 = w31;
         COMPRESS_ROUND(t1, 31)
@@ -194,43 +193,41 @@ sha256x4_cyclic(uint8_t hash[SHA256_DIGEST_LENGTH * 4],
         _mm_store_si128(&w[i & 15], wi);
         t1 = wi;
 
-        __m128i 
-			ki = _mm_castps_si128(BROADCAST_SS(k[i]));
-		
-		__m128i 
-			temp2 = _mm_add_epi32(S0(a), maj(a, b, c)),
-			temp1 = _mm_add_epi32(
-				_mm_add_epi32(S1(e), ch(e, f, g)),
-				_mm_add_epi32(h, _mm_add_epi32(ki, wi))
-			);
-		
-		h = g;
-		g = f;
-		f = e;
-		e = _mm_add_epi32(d, temp1);
-		d = c;
-		c = b;
-		b = a;
-		a = _mm_add_epi32(temp1, temp2);
+        __m128i ki = _mm_castps_si128(BROADCAST_SS(k[i]));
+
+        __m128i temp2 = _mm_add_epi32(S0(a), maj(a, b, c)),
+                temp1 = _mm_add_epi32(
+                    _mm_add_epi32(S1(e), ch(e, f, g)),
+                    _mm_add_epi32(h, _mm_add_epi32(ki, wi))
+                );
+
+        h = g;
+        g = f;
+        f = e;
+        e = _mm_add_epi32(d, temp1);
+        d = c;
+        c = b;
+        b = a;
+        a = _mm_add_epi32(temp1, temp2);
     }
 
-	// RIP 8 registers, at least no stack
+    // RIP 8 registers, at least no stack
 
-	a = _mm_add_epi32(a, _mm_castps_si128(BROADCAST_SS(H[0])));
-	b = _mm_add_epi32(b, _mm_castps_si128(BROADCAST_SS(H[1])));
-	c = _mm_add_epi32(c, _mm_castps_si128(BROADCAST_SS(H[2])));
-	d = _mm_add_epi32(d, _mm_castps_si128(BROADCAST_SS(H[3])));
-	e = _mm_add_epi32(e, _mm_castps_si128(BROADCAST_SS(H[4])));
-	f = _mm_add_epi32(f, _mm_castps_si128(BROADCAST_SS(H[5])));
-	g = _mm_add_epi32(g, _mm_castps_si128(BROADCAST_SS(H[6])));
-	h = _mm_add_epi32(h, _mm_castps_si128(BROADCAST_SS(H[7])));
+    a = _mm_add_epi32(a, _mm_castps_si128(BROADCAST_SS(H[0])));
+    b = _mm_add_epi32(b, _mm_castps_si128(BROADCAST_SS(H[1])));
+    c = _mm_add_epi32(c, _mm_castps_si128(BROADCAST_SS(H[2])));
+    d = _mm_add_epi32(d, _mm_castps_si128(BROADCAST_SS(H[3])));
+    e = _mm_add_epi32(e, _mm_castps_si128(BROADCAST_SS(H[4])));
+    f = _mm_add_epi32(f, _mm_castps_si128(BROADCAST_SS(H[5])));
+    g = _mm_add_epi32(g, _mm_castps_si128(BROADCAST_SS(H[6])));
+    h = _mm_add_epi32(h, _mm_castps_si128(BROADCAST_SS(H[7])));
 
     // trans pose ma trix ????
     // MATH REFERECNE ?????????
     // OMG im losing it right now
     // unpackhilomovhilo time
 
-    __m128i mask = _mm_load_si128((__m128i *)byteswap_mask);
+    __m128i mask = _mm_load_si128((__m128i*)byteswap_mask);
 
     // first half
     {
@@ -240,13 +237,17 @@ sha256x4_cyclic(uint8_t hash[SHA256_DIGEST_LENGTH * 4],
                 tmp3 = _mm_unpackhi_epi32(c, d);
 
         a = _mm_castps_si128(
-            _mm_movelh_ps(_mm_castsi128_ps(tmp0), _mm_castsi128_ps(tmp2)));
+            _mm_movelh_ps(_mm_castsi128_ps(tmp0), _mm_castsi128_ps(tmp2))
+        );
         b = _mm_castps_si128(
-            _mm_movehl_ps(_mm_castsi128_ps(tmp2), _mm_castsi128_ps(tmp0)));
+            _mm_movehl_ps(_mm_castsi128_ps(tmp2), _mm_castsi128_ps(tmp0))
+        );
         c = _mm_castps_si128(
-            _mm_movelh_ps(_mm_castsi128_ps(tmp1), _mm_castsi128_ps(tmp3)));
+            _mm_movelh_ps(_mm_castsi128_ps(tmp1), _mm_castsi128_ps(tmp3))
+        );
         d = _mm_castps_si128(
-            _mm_movehl_ps(_mm_castsi128_ps(tmp3), _mm_castsi128_ps(tmp1)));
+            _mm_movehl_ps(_mm_castsi128_ps(tmp3), _mm_castsi128_ps(tmp1))
+        );
     }
     // second half
     {
@@ -256,13 +257,17 @@ sha256x4_cyclic(uint8_t hash[SHA256_DIGEST_LENGTH * 4],
                 tmp3 = _mm_unpackhi_epi32(g, h);
 
         e = _mm_castps_si128(
-            _mm_movelh_ps(_mm_castsi128_ps(tmp0), _mm_castsi128_ps(tmp2)));
+            _mm_movelh_ps(_mm_castsi128_ps(tmp0), _mm_castsi128_ps(tmp2))
+        );
         f = _mm_castps_si128(
-            _mm_movehl_ps(_mm_castsi128_ps(tmp2), _mm_castsi128_ps(tmp0)));
+            _mm_movehl_ps(_mm_castsi128_ps(tmp2), _mm_castsi128_ps(tmp0))
+        );
         g = _mm_castps_si128(
-            _mm_movelh_ps(_mm_castsi128_ps(tmp1), _mm_castsi128_ps(tmp3)));
+            _mm_movelh_ps(_mm_castsi128_ps(tmp1), _mm_castsi128_ps(tmp3))
+        );
         h = _mm_castps_si128(
-            _mm_movehl_ps(_mm_castsi128_ps(tmp3), _mm_castsi128_ps(tmp1)));
+            _mm_movehl_ps(_mm_castsi128_ps(tmp3), _mm_castsi128_ps(tmp1))
+        );
     }
 
     // byteswap and store
@@ -276,12 +281,12 @@ sha256x4_cyclic(uint8_t hash[SHA256_DIGEST_LENGTH * 4],
     g = _mm_shuffle_epi8(g, mask);
     h = _mm_shuffle_epi8(h, mask);
 
-    _mm_store_si128((__m128i *)&hash[0], a);
-    _mm_store_si128((__m128i *)&hash[16], e);
-    _mm_store_si128((__m128i *)&hash[32], b);
-    _mm_store_si128((__m128i *)&hash[48], f);
-    _mm_store_si128((__m128i *)&hash[64], c);
-    _mm_store_si128((__m128i *)&hash[80], g);
-    _mm_store_si128((__m128i *)&hash[96], d);
-    _mm_store_si128((__m128i *)&hash[112], h);
+    _mm_store_si128((__m128i*)&hash[0], a);
+    _mm_store_si128((__m128i*)&hash[16], e);
+    _mm_store_si128((__m128i*)&hash[32], b);
+    _mm_store_si128((__m128i*)&hash[48], f);
+    _mm_store_si128((__m128i*)&hash[64], c);
+    _mm_store_si128((__m128i*)&hash[80], g);
+    _mm_store_si128((__m128i*)&hash[96], d);
+    _mm_store_si128((__m128i*)&hash[112], h);
 }
