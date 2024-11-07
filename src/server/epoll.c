@@ -1,4 +1,11 @@
 #include "epoll.h"
+#include "../protocol.h"
+#include "../scheduler/sched_priority.h"
+#include "../worker.h"
+#include <errno.h>
+#include <fcntl.h>
+#include <stdio.h>
+#include <unistd.h>
 
 void accept_client(const struct EpollServerCtx* ctx, union EpollEventData* data);
 void consume_request(const struct EpollServerCtx* ctx, const union EpollEventData* data);
@@ -6,13 +13,12 @@ void remove_client(const struct EpollServerCtx* ctx, const union EpollEventData*
 
 int epoll_server_init(const Server* server, struct EpollServerCtx* ctx) {
     int ret = 0;
-
-    bzero(ctx, sizeof(struct EpollServerCtx));
+    memset(ctx, 0, sizeof(struct EpollServerCtx));
 
     ret = epoll_create(EPOLL_MAX_EVENTS);
 
     if (ret < 0) {
-		printf("Failed to create epoll fd for server context: %s\n", strerror(errno));
+        printf("Failed to create epoll fd for server context: %s\n", strerror(errno));
         return ret;
     }
 
@@ -26,13 +32,14 @@ int epoll_server_init(const Server* server, struct EpollServerCtx* ctx) {
     memcpy(&ev.data.u64, &async_data, sizeof(async_data));
 
     if ((ret = epoll_ctl(ctx->epoll_fd, EPOLL_CTL_ADD, server->fd, &ev)) < 0) {
-		printf("Failed to add server fd to epoll fd for server context: %s\n", strerror(errno));
+        printf("Failed to add server fd to epoll fd for server context: %s\n", strerror(errno));
         return ret;
     }
 
     // Spawn worker pool
-    ctx->scheduler = scheduler_create(8);
-    ctx->worker_pool = worker_create_pool(cpu_core_count(), ctx->scheduler);
+    ctx->scheduler = (void*)scheduler_priority_create(8);
+    ctx->worker_pool =
+        worker_create_pool(cpu_core_count(), ctx->scheduler, (void* (*)(void*))scheduler_priority_worker);
 
     return ret;
 }
@@ -80,7 +87,7 @@ int epoll_server_exit(const Server* server, const struct EpollServerCtx* ctx) {
     // it's *very* important that the worker pool is destroyed before the scheduler
     // since the worker threads are still running and may access the scheduler.
     worker_destroy_pool(ctx->worker_pool);
-    scheduler_destroy(ctx->scheduler);
+    scheduler_priority_destroy((void*)ctx->scheduler);
     return close(ctx->epoll_fd) + close(server->fd);
 }
 
@@ -139,9 +146,10 @@ void consume_request(const struct EpollServerCtx* ctx, const union EpollEventDat
 
     protocol_request_to_le(&request);
 
-    struct JobData* job_data = scheduler_create_job_data(JOB_TYPE_FD, client_fd);
+    struct SchedulerJobRecipient* recipient =
+        scheduler_create_job_recipient(SCHEDULER_JOB_RECIPIENT_TYPE_FD, client_fd);
 
-    scheduler_submit(ctx->scheduler, &request, job_data);
+    scheduler_priority_submit((void*)ctx->scheduler, &request, recipient);
 }
 
 void remove_client(const struct EpollServerCtx* ctx, const union EpollEventData* data) {

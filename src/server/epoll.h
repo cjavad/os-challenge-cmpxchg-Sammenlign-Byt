@@ -1,14 +1,13 @@
+#include "../scheduler/scheduler.h"
 #include "server.h"
 
-#include <errno.h>
-#include <stdio.h>
 #include <sys/epoll.h>
 
 #define EPOLL_MAX_EVENTS 64
 
 struct EpollServerCtx {
-    WorkerPool* worker_pool;
-    Scheduler* scheduler;
+    struct WorkerPool* worker_pool;
+    struct SchedulerBase* scheduler;
     int epoll_fd;
 };
 

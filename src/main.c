@@ -2,9 +2,9 @@
 #include "experiments/misc.h"
 #include "server/epoll.h"
 #include "server/server.h"
-
-#include <stdint.h>
+#include <errno.h>
 #include <stdio.h>
+#include <string.h>
 
 int server(const int port) {
     Server server;

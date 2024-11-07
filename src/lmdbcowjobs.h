@@ -1,5 +1,3 @@
-https://cdn.discordapp.com/attachments/1302974338814705684/1302974469676990464/BambuClient.log?ex=672a1109&is=6728bf89&hm=d4d350aba64f8362f63a5e91988f96d11b6d190a82129fa972bb744d44889e12&#pragma once
-
 // Implementation of CoW storage for jobs inspired by https://github.com/LMDB/lmdb /
 // https://en.wikipedia.org/wiki/Lightning_Memory-Mapped_Database.
 //

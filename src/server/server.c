@@ -1,11 +1,14 @@
-#include <stdio.h>
-
 #include "server.h"
+#include <errno.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
 
 int server_init(Server* server, const int port) {
     int ret = 0;
 
-    bzero(server, sizeof(Server));
+    memset(server, 0, sizeof(Server));
+
     ret = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);
 
     if (ret < 0) {
@@ -36,12 +39,12 @@ int server_listen(Server* server, const int backlog) {
     int ret = 0;
 
     if ((ret = bind(server->fd, (struct sockaddr*)&server->addr, sizeof(struct sockaddr))) < 0) {
-		printf("Failed to bin server to port: %s\n", strerror(errno));
+        printf("Failed to bin server to port: %s\n", strerror(errno));
         return ret;
     }
 
     if ((ret = listen(server->fd, backlog)) < 0) {
-		printf("Failed to have server listen on port: %s\n", strerror(errno));
+        printf("Failed to have server listen on port: %s\n", strerror(errno));
         return ret;
     }
 

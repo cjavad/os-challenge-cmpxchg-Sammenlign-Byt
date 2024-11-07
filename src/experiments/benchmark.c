@@ -1,8 +1,10 @@
 #include "benchmark.h"
 
+#include "../bits/futex.h"
 #include "../bits/prng.h"
+#include "../bits/radix_tree.h"
 #include "../protocol.h"
-#include "../scheduler.h"
+#include "../scheduler/sched_priority.h"
 #include "../sha256/sha256.h"
 #include "../sha256/x1/benchmark.h"
 #include "../sha256/x4/benchmark.h"
@@ -57,25 +59,26 @@ void benchmark_scheduler() {
     // Randomly seed the PRNG
     // getrandom(&BENCHMARK_PRNG_STATE, sizeof(BENCHMARK_PRNG_STATE), 0);
 
-    Scheduler* scheduler = scheduler_create(8);
+    struct PriorityScheduler* scheduler = scheduler_priority_create(8);
 
     const uint64_t count = 8;
 
     struct ProtocolRequest reqs[count];
-    struct JobData** data = calloc(count, sizeof(struct JobData*));
+    struct SchedulerJobRecipient** data = calloc(count, sizeof(struct JobData*));
 
     for (uint64_t i = 0; i < count; i++) {
         benchmark_random_req(&reqs[i], true);
 
         reqs[i].priority = (count - i) % 4;
 
-        data[i] = scheduler_create_job_data(JOB_TYPE_FUTEX, 0);
-        scheduler_submit(scheduler, &reqs[i], data[i]);
+        data[i] = scheduler_create_job_recipient(SCHEDULER_JOB_RECIPIENT_TYPE_FUTEX, 0);
+        scheduler_priority_submit(scheduler, &reqs[i], data[i]);
     }
 
     benchmark_reference_block_time(&reqs[count - 1]);
 
-    WorkerPool* pool = worker_create_pool(cpu_core_count(), scheduler);
+    struct WorkerPool* pool =
+        worker_create_pool(cpu_core_count(), (void*)scheduler, (void* (*)(void*))scheduler_priority_worker);
 
     D_BENCHMARK_TIME_START()
     for (uint64_t i = 0; i < count; i++) {
@@ -93,7 +96,7 @@ void benchmark_scheduler() {
     D_BENCHMARK_TIME_END("scheduler")
 
     worker_destroy_pool(pool);
-    scheduler_destroy(scheduler);
+    scheduler_priority_destroy(scheduler);
     free(data);
 }
 

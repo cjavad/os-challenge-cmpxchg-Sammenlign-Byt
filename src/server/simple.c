@@ -1,4 +1,9 @@
 #include "simple.h"
+#include "../protocol.h"
+
+#include <string.h>
+#include <sys/socket.h>
+#include <unistd.h>
 
 // Simple server implementation.
 int simple_server_init() { return 0; }
@@ -24,9 +29,7 @@ int simple_server_poll(const Server* server) {
 
     protocol_debug_print_request(&req);
 
-    struct ProtocolResponse resp;
-
-    bzero(&resp, sizeof(struct ProtocolResponse));
+    struct ProtocolResponse resp = {0};
 
     resp.answer = 0x69;
 
