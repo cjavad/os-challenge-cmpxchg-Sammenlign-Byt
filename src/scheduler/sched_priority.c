@@ -34,7 +34,9 @@ void scheduler_priority_destroy(struct PriorityScheduler* scheduler) {
 }
 
 SchedulerJobId scheduler_priority_submit(
-    struct PriorityScheduler* scheduler, const struct ProtocolRequest* request, struct SchedulerJobRecipient* recipient
+    struct PriorityScheduler* scheduler,
+    const struct ProtocolRequest* request,
+    struct SchedulerJobRecipient* recipient
 ) {
     // Cache hit/miss code is duplicated for now, as it is really simple.
     cache_process_pending(scheduler->base.cache);
@@ -124,8 +126,14 @@ void scheduler_priority_cancel(const struct PriorityScheduler* scheduler, const 
 }
 
 bool scheduler_priority_schedule(
-    struct PriorityScheduler* scheduler, IndexPriorityHeap* local_jobs, SchedulerJobId* prev_max_job_id,
-    SchedulerJobId* prev_job_id, HashDigest target_hash, uint32_t* job_idx, uint64_t* start, uint64_t* end
+    struct PriorityScheduler* scheduler,
+    IndexPriorityHeap* local_jobs,
+    SchedulerJobId* prev_max_job_id,
+    SchedulerJobId* prev_job_id,
+    HashDigest target_hash,
+    uint32_t* job_idx,
+    uint64_t* start,
+    uint64_t* end
 ) {
 
     // First attempt to get the newest version of the jobs heap (if the job id is newer)
@@ -191,7 +199,14 @@ void* scheduler_priority_worker(struct PriorityScheduler* scheduler) {
 
         // Try to get the next job to work on.
         if (!scheduler_priority_schedule(
-                scheduler, &local_jobs, &prev_max_job_id, &prev_job_id, target_hash, &job_idx, &start, &end
+                scheduler,
+                &local_jobs,
+                &prev_max_job_id,
+                &prev_job_id,
+                target_hash,
+                &job_idx,
+                &start,
+                &end
             )) {
             // Wait until a new job is available.
             scheduler_park_worker(&scheduler->base, prev_max_job_id);
@@ -207,17 +222,15 @@ void* scheduler_priority_worker(struct PriorityScheduler* scheduler) {
             continue;
         }
 
-        // TODO: Two threads can race on same recipient (double work is being performed)
-        // Answer was found, extract recipient ptr and mark job as done.
+        // Answer was found, extract recipient ptr and mark job as done (it will be deleted).
         spin_rwlock_rdlock(&scheduler->rlock);
         struct PrioritySchedulerJob* job = &scheduler->jobs.data[job_idx];
         struct SchedulerJobRecipient* recipient = job->recipient;
-        job->recipient = NULL;
-        // Send answer to recipient and store in cache.
-        scheduler_job_notify_recipient(recipient, answer);
         scheduler_priority_job_mark_as_done(job);
         spin_rwlock_rdunlock(&scheduler->rlock);
 
+        // Send answer to recipient and store in cache.
+        scheduler_job_notify_recipient(recipient, answer);
         cache_insert_pending(scheduler->base.cache, target_hash, answer);
     }
 

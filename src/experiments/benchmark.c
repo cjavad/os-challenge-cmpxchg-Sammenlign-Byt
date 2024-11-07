@@ -221,9 +221,12 @@ void benchmark_manual_radix_tree() {
     // getrandom(&BENCHMARK_PRNG_STATE, sizeof(BENCHMARK_PRNG_STATE), 0);
 
     const struct EntryRandomKeyLength entries[] = {
-        {.key = {0xb7, 0x7e, 0x5b}, .length = 3, .data = 1}, {.key = {0xb7, 0x24, 0xae}, .length = 3, .data = 2},
-        {.key = {0xb7, 0x03, 0x14}, .length = 3, .data = 3}, {.key = {0xb4, 0x17, 0x4e}, .length = 3, .data = 4},
-        {.key = {0xb7, 0xee, 0x21}, .length = 3, .data = 5}, {.key = {0xb7}, .length = 1, .data = 69}
+        {.key = {0xb7, 0x7e, 0x5b}, .length = 3, .data = 1},
+        {.key = {0xb7, 0x24, 0xae}, .length = 3, .data = 2},
+        {.key = {0xb7, 0x03, 0x14}, .length = 3, .data = 3},
+        {.key = {0xb4, 0x17, 0x4e}, .length = 3, .data = 4},
+        {.key = {0xb7, 0xee, 0x21}, .length = 3, .data = 5},
+        {.key = {0xb7}, .length = 1, .data = 69}
     };
 
     const uint64_t N = sizeof(entries) / sizeof(struct EntryRandomKeyLength);

@@ -7,7 +7,9 @@
 #include <unistd.h>
 
 struct WorkerPool* worker_create_pool(
-    const size_t size, struct SchedulerBase* scheduler, void* (*worker_thread)(void*)
+    const size_t size,
+    struct SchedulerBase* scheduler,
+    void* (*worker_thread)(void*)
 ) {
     struct WorkerPool* pool = calloc(1, sizeof(struct WorkerPool));
     pool->workers = calloc(size, sizeof(struct WorkerState));
