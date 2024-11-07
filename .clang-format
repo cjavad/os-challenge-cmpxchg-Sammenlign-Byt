@@ -2,7 +2,7 @@
 # FUCK CLION
 IndentWidth: 4
 TabWidth: 4
-ColumnLimit: 0
+ColumnLimit: 80
 UseTab: Never
 AlignAfterOpenBracket: BlockIndent
 # clang docs lied to me
@@ -17,4 +17,4 @@ BinPackParameters: false
 AllowAllParametersOfDeclarationOnNextLine: false
 BinPackArguments: false
 AllowAllArgumentsOnNextLine: false
-
+BreakFunctionDefinitionParameters: true
