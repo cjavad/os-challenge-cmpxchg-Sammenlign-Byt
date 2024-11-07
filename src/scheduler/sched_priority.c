@@ -155,7 +155,7 @@ bool scheduler_priority_schedule(
 
         if (block_idx <= job->block_count) {
             *start = job->request.start + block_idx * job->block_size;
-            *end = min(job->request.end, *start + job->block_size);
+            *end = min(job->request.end, *start + job->block_size - 1);
 
             // Update target hash only when the target job id changes to
             // minimize overhead.
@@ -178,9 +178,9 @@ bool scheduler_priority_schedule(
 
 void* scheduler_priority_worker(struct PriorityScheduler* scheduler) {
     // Each thread holds local copies of data it works on for optimal performance.
-    HashDigest target_hash = {0};
+    HashDigest target_hash;
     // Job id starts at 1
-    SchedulerJobId prev_job_id = 0;
+    SchedulerJobId prev_job_id = SCHEDULER_NO_JOB_ID_SENTINEL;
     SchedulerJobId prev_max_job_id = 0;
     IndexPriorityHeap local_jobs = {0};
 
