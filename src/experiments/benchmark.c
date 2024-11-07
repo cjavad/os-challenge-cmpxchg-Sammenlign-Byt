@@ -93,7 +93,7 @@ void benchmark_scheduler() {
     benchmark_reference_block_time(&reqs[count - 1]);
 
     struct WorkerPool* pool = worker_create_pool(
-        cpu_core_count(),
+        get_worker_count(),
         (void*)scheduler,
         (void* (*)(void*))scheduler_priority_worker
     );

@@ -60,7 +60,7 @@ int epoll_server_init(
     // Spawn worker pool
     ctx->scheduler = scheduler_priority_create(8);
     ctx->worker_pool = worker_create_pool(
-        cpu_core_count(),
+        get_worker_count(),
         (void*)ctx->scheduler,
         scheduler_worker_thread(ctx->scheduler)
     );

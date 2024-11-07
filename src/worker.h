@@ -23,4 +23,4 @@ void worker_destroy_pool(struct WorkerPool* pool);
 
 void* worker_thread(void* arguments);
 
-int cpu_core_count();
+int get_worker_count();

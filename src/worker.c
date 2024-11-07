@@ -46,14 +46,4 @@ void worker_destroy_pool(
     free(pool);
 }
 
-int cpu_core_count() {
-    int64_t count = sysconf(_SC_NPROCESSORS_ONLN);
-
-#ifdef RELEASE
-    if (count < 16) {
-        return 16;
-    }
-#endif
-
-    return count;
-}
+int get_worker_count() { return sysconf(_SC_NPROCESSORS_ONLN); }
