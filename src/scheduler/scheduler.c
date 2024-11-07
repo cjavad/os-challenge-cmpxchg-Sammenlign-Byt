@@ -26,6 +26,7 @@ void scheduler_base_close(
     scheduler->running = 0;
     scheduler_wake_workers(scheduler);
 }
+
 void scheduler_base_destroy(
     struct SchedulerBase* scheduler
 ) {
@@ -58,7 +59,7 @@ void scheduler_park_worker(
 }
 
 struct SchedulerJobRecipient* scheduler_create_job_recipient(
-    enum SchedulerJobRecipientType type,
+    const enum SchedulerJobRecipientType type,
     const uint32_t data
 ) {
     struct SchedulerJobRecipient* recipient =

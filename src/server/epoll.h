@@ -1,4 +1,4 @@
-#include "../scheduler/scheduler.h"
+#include "../scheduler/sched_priority.h"
 #include "server.h"
 
 #include <sys/epoll.h>
@@ -7,7 +7,7 @@
 
 struct EpollServerCtx {
     struct WorkerPool* worker_pool;
-    struct SchedulerBase* scheduler;
+    struct PriorityScheduler* scheduler;
     int epoll_fd;
 };
 

@@ -1,6 +1,6 @@
 #include "epoll.h"
 #include "../protocol.h"
-#include "../scheduler/sched_priority.h"
+#include "../scheduler/generic.h"
 #include "../worker.h"
 #include <errno.h>
 #include <fcntl.h>
@@ -58,11 +58,11 @@ int epoll_server_init(
     }
 
     // Spawn worker pool
-    ctx->scheduler = (void*)scheduler_priority_create(8);
+    ctx->scheduler = scheduler_priority_create(8);
     ctx->worker_pool = worker_create_pool(
         cpu_core_count(),
-        ctx->scheduler,
-        (void* (*)(void*))scheduler_priority_worker
+        (void*)ctx->scheduler,
+        scheduler_worker_thread(ctx->scheduler)
     );
 
     return ret;
@@ -123,7 +123,7 @@ int epoll_server_exit(
     // scheduler since the worker threads are still running and may access the
     // scheduler.
     worker_destroy_pool(ctx->worker_pool);
-    scheduler_priority_destroy((void*)ctx->scheduler);
+    scheduler_destroy(ctx->scheduler);
     return close(ctx->epoll_fd) + close(server->fd);
 }
 
@@ -216,7 +216,7 @@ void consume_request(
         client_fd
     );
 
-    scheduler_priority_submit((void*)ctx->scheduler, &request, recipient);
+    scheduler_submit(ctx->scheduler, &request, recipient);
 }
 
 void remove_client(
