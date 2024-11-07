@@ -2,12 +2,19 @@
 # FUCK CLION
 IndentWidth: 4
 TabWidth: 4
-ColumnLimit: 120
+ColumnLimit: 0
 UseTab: Never
 AlignAfterOpenBracket: BlockIndent
 # clang docs lied to me
+# it's deprecated and i hate this stupid formatter
 # BinPackParameters: OnePerLine
 BreakBeforeBraces: Attach
 PointerAlignment: Left
 AlignConsecutiveMacros: true
 PenaltyReturnTypeOnItsOwnLine: 10000
+
+BinPackParameters: false
+AllowAllParametersOfDeclarationOnNextLine: false
+BinPackArguments: false
+AllowAllArgumentsOnNextLine: false
+
