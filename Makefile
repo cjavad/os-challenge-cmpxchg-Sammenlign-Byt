@@ -14,9 +14,9 @@ PPFLAGS =
 # include flags
 IFLAGS = -I$(INCDIR)
 # compile flags
-CFLAGS = -march=sandybridge -mtune=sandybridge -masm=intel -std=gnu11 -D_GNU_SOURCE -DNO_AVX -mno-avx
+CFLAGS = -march=sandybridge -mtune=sandybridge -masm=intel -std=gnu11
 # linker flags
-LFLAGS = -lpthread -lrt -lm -Wl,-rpath,lib
+LFLAGS = -lpthread -lrt -lm
 
 # build
 
@@ -82,8 +82,6 @@ lines:
 # link
 link: $(O_FILES) $(D_FILES)
 	$(CC) $(O_FILES) -o $(BINDIR)/$(EXECUTABLE) $(LFLAGS)
-	@bash ./debug.sh
-
 # build dependency files
 $(DEPDIR)/%.d: $(SRCDIR)/%.c
 	@mkdir -p $(@D)

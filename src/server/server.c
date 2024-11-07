@@ -9,7 +9,7 @@ int server_init(Server* server, const int port) {
     ret = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);
 
     if (ret < 0) {
-        fprintf(stderr, "Failed to create socket: %s\n", strerror(-ret));
+        fprintf(stderr, "Failed to create socket: %s\n", strerror(errno));
         return ret;
     }
 
@@ -21,7 +21,7 @@ int server_init(Server* server, const int port) {
 
     if ((ret = setsockopt(server->fd, SOL_SOCKET, SO_REUSEADDR, &opt_level, sizeof(opt_level))) < 0) {
 
-        fprintf(stderr, "Failed to set socket options: %s\n", strerror(-ret));
+        fprintf(stderr, "Failed to set socket options: %s\n", strerror(errno));
         return ret;
     }
 
@@ -36,10 +36,12 @@ int server_listen(Server* server, const int backlog) {
     int ret = 0;
 
     if ((ret = bind(server->fd, (struct sockaddr*)&server->addr, sizeof(struct sockaddr))) < 0) {
+		printf("Failed to bin server to port: %s\n", strerror(errno));
         return ret;
     }
 
     if ((ret = listen(server->fd, backlog)) < 0) {
+		printf("Failed to have server listen on port: %s\n", strerror(errno));
         return ret;
     }
 

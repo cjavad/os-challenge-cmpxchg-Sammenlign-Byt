@@ -12,6 +12,7 @@ int epoll_server_init(const Server* server, struct EpollServerCtx* ctx) {
     ret = epoll_create(EPOLL_MAX_EVENTS);
 
     if (ret < 0) {
+		printf("Failed to create epoll fd for server context: %s\n", strerror(errno));
         return ret;
     }
 
@@ -25,6 +26,7 @@ int epoll_server_init(const Server* server, struct EpollServerCtx* ctx) {
     memcpy(&ev.data.u64, &async_data, sizeof(async_data));
 
     if ((ret = epoll_ctl(ctx->epoll_fd, EPOLL_CTL_ADD, server->fd, &ev)) < 0) {
+		printf("Failed to add server fd to epoll fd for server context: %s\n", strerror(errno));
         return ret;
     }
 
@@ -91,7 +93,7 @@ void accept_client(const struct EpollServerCtx* ctx, union EpollEventData* data)
     const int32_t client_fd = accept(data->fd, (struct sockaddr*)&addr, &client_len);
 
     if (client_fd < 0) {
-        fprintf(stderr, "Failed to accept client: %s from %d\n", strerror(-client_fd), data->fd);
+        fprintf(stderr, "Failed to accept client: %s from %d\n", strerror(errno), data->fd);
         return;
     }
 
