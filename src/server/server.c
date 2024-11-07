@@ -4,7 +4,10 @@
 #include <string.h>
 #include <unistd.h>
 
-int server_init(Server* server, const int port) {
+int server_init(
+    Server* server,
+    const int port
+) {
     int ret = 0;
 
     memset(server, 0, sizeof(Server));
@@ -22,7 +25,13 @@ int server_init(Server* server, const int port) {
 
     printf("Got socket fd: %d\n", server->fd);
 
-    if ((ret = setsockopt(server->fd, SOL_SOCKET, SO_REUSEADDR, &opt_level, sizeof(opt_level))) < 0) {
+    if ((ret = setsockopt(
+             server->fd,
+             SOL_SOCKET,
+             SO_REUSEADDR,
+             &opt_level,
+             sizeof(opt_level)
+         )) < 0) {
 
         fprintf(stderr, "Failed to set socket options: %s\n", strerror(errno));
         return ret;
@@ -35,10 +44,17 @@ int server_init(Server* server, const int port) {
     return ret;
 }
 
-int server_listen(Server* server, const int backlog) {
+int server_listen(
+    Server* server,
+    const int backlog
+) {
     int ret = 0;
 
-    if ((ret = bind(server->fd, (struct sockaddr*)&server->addr, sizeof(struct sockaddr))) < 0) {
+    if ((ret = bind(
+             server->fd,
+             (struct sockaddr*)&server->addr,
+             sizeof(struct sockaddr)
+         )) < 0) {
         printf("Failed to bin server to port: %s\n", strerror(errno));
         return ret;
     }
@@ -51,4 +67,8 @@ int server_listen(Server* server, const int backlog) {
     return ret;
 }
 
-int server_close(const Server* server) { return close(server->fd); }
+int server_close(
+    const Server* server
+) {
+    return close(server->fd);
+}
