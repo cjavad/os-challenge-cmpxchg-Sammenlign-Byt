@@ -198,7 +198,7 @@ void consume_request(
         if (bytes_received == 0) {
             fprintf(stderr, "Received 0 bytes (perhaps closed)\n");
         } else if (bytes_received < 0) {
-            fprintf(stderr, "Failed to receive request (perhaps closed): s\n", strerror(errno));
+            fprintf(stderr, "Failed to receive request (perhaps closed): %s\n", strerror(errno));
         } else {
             fprintf(stderr, "Invalid request size: %lu\n", bytes_received);
         }

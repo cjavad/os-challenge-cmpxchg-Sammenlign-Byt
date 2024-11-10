@@ -26,6 +26,7 @@ struct RandScheduler {
     struct SchedulerBase base;
     uint64_t block_size;
 
+    pthread_mutex_t lock;
     RingBuffer(struct RandSchedulerJob) pending_jobs;
     Vec(struct RandSchedulerJob) jobs;
 

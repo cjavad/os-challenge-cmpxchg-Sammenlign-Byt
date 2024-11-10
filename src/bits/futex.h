@@ -14,4 +14,4 @@ int64_t futex(
 );
 
 int64_t futex_wait(uint32_t* uaddr);
-int64_t futex_wake_single(uint32_t* uaddr);
+int64_t futex_wake(uint32_t* uaddr);

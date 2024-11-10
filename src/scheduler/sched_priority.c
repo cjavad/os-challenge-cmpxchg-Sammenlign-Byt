@@ -2,6 +2,7 @@
 
 #include "../bits/minmax.h"
 #include "../cache.h"
+#include "../bits/futex.h"
 #include "../sha256/sha256.h"
 
 struct PriorityScheduler* scheduler_priority_create(
@@ -109,17 +110,15 @@ SchedulerJobId scheduler_priority_submit(
     priority_heap_insert(scheduler->jobs_w, &job_idx, request->priority);
 
     // Swap read and write heaps
-    // TODO: Could this be an compare and exchange?
     spin_rwlock_wrlock(&scheduler->wlock);
     IndexPriorityHeap* tmp = scheduler->jobs_r;
     scheduler->jobs_r = scheduler->jobs_w;
     scheduler->jobs_w = tmp;
     // Increment job_id (We are a single writer so this is fine)
-    atomic_store(&scheduler->base.job_id, next_id);
-    spin_rwlock_wrunlock(&scheduler->wlock);
-
+    scheduler->base.job_id = next_id;
     // Wake up workers
     scheduler_wake_workers(&scheduler->base);
+    spin_rwlock_wrunlock(&scheduler->wlock);
 
     return next_id;
 }
@@ -198,6 +197,21 @@ bool scheduler_priority_schedule(
         priority_heap_extract_max(local_jobs, NULL);
     }
 
+    // Wait until a new job is available.
+    while (scheduler->base.running) {
+        // To prevent race conditions we have to ensure that the
+        // waking and incrementing happens sequentially.
+        spin_rwlock_rdlock(&scheduler->wlock);
+        const SchedulerJobId current_job_id = scheduler->base.job_id;
+        spin_rwlock_rdunlock(&scheduler->wlock);
+
+        if (current_job_id > *prev_max_job_id) {
+            break;
+        }
+
+        scheduler_yield_worker(&scheduler->base);
+    }
+
     return false;
 }
 
@@ -228,8 +242,6 @@ void* scheduler_priority_worker(
             &start,
             &end
         )) {
-            // Wait until a new job is available.
-            scheduler_park_worker(&scheduler->base, prev_max_job_id);
             continue;
         }
 

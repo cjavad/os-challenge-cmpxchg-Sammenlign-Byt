@@ -3,6 +3,7 @@
 #include "../bits/minmax.h"
 #include "../bits/prng.h"
 #include "../cache.h"
+#include "../bits/futex.h"
 #include "../sha256/sha256.h"
 
 struct RandScheduler* scheduler_rand_create(
@@ -12,6 +13,7 @@ struct RandScheduler* scheduler_rand_create(
 
     scheduler->block_size = 1 << 16;
 
+    scheduler->lock = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
     ringbuffer_init(&scheduler->pending_jobs, default_cap);
     vec_init(&scheduler->jobs, default_cap);
 
@@ -28,6 +30,7 @@ struct RandScheduler* scheduler_rand_create(
 void scheduler_rand_destroy(
     struct RandScheduler* scheduler
 ) {
+    pthread_mutex_destroy(&scheduler->lock);
     ringbuffer_destroy(&scheduler->pending_jobs);
     vec_destroy(&scheduler->jobs);
     scheduler_base_destroy(&scheduler->base);
@@ -118,7 +121,7 @@ void scheduler_rand_cancel(
     struct RandScheduler* scheduler,
     const SchedulerJobId job_id
 ) {
-    pthread_mutex_lock(&scheduler->base.waker_lock);
+    pthread_mutex_lock(&scheduler->lock);
 
     for (uint32_t i = 0; i < scheduler->jobs.len; i++) {
         const struct RandSchedulerJob* job = &scheduler->jobs.data[i];
@@ -132,31 +135,34 @@ void scheduler_rand_cancel(
         }
     }
 
-    pthread_mutex_unlock(&scheduler->base.waker_lock);
+    pthread_mutex_unlock(&scheduler->lock);
 }
 
 bool scheduler_rand_schedule(
     struct RandScheduler* scheduler,
     struct RandSchedulerTask* task
 ) {
-    pthread_mutex_lock(&scheduler->base.waker_lock);
-
     while (true) {
+        pthread_mutex_lock(&scheduler->lock);
+
         if (!scheduler->base.running) {
-            pthread_mutex_unlock(&scheduler->base.waker_lock);
+            pthread_mutex_unlock(&scheduler->lock);
             return false;
         }
 
         scheduler_rand_process_pending_jobs(scheduler);
 
+        // Exit loop with lock
         if (scheduler->jobs.len > 0) {
             break;
         }
 
-        pthread_cond_wait(
-            &scheduler->base.waker_cond,
-            &scheduler->base.waker_lock
-        );
+        // Give up lock and wait for next job
+        pthread_mutex_unlock(&scheduler->lock);
+
+        while (scheduler->base.running && scheduler->jobs.len == 0) {
+            scheduler_yield_worker(&scheduler->base);
+        }
     }
 
     uint32_t offset =
@@ -201,7 +207,7 @@ bool scheduler_rand_schedule(
         scheduler->priority_idx = 0;
     }
 
-    pthread_mutex_unlock(&scheduler->base.waker_lock);
+    pthread_mutex_unlock(&scheduler->lock);
 
     return true;
 }

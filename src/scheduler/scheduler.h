@@ -7,14 +7,34 @@ typedef uint32_t SchedulerJobId;
 #define SCHEDULER_NO_JOB_ID_SENTINEL UINT32_MAX
 #define SCHEDULER_NO_ANSWER_SENTINEL 0
 
+#define SCHEDULER_WAKER_TYPE_SPIN 0
+#define SCHEDULER_WAKER_TYPE_FUTEX 1
+#define SCHEDULER_WAKER_TYPE_PTHREAD 2
+
+#define SCHEDULER_WAKER_TYPE SCHEDULER_WAKER_TYPE_PTHREAD
+
+
 struct SchedulerBase
 {
+#if SCHEDULER_WAKER_TYPE == SCHEDULER_WAKER_TYPE_SPIN || SCHEDULER_WAKER_TYPE == SCHEDULER_WAKER_TYPE_FUTEX
+    uint32_t waker;
+#elif SCHEDULER_WAKER_TYPE == SCHEDULER_WAKER_TYPE_PTHREAD
     pthread_mutex_t waker_lock;
     pthread_cond_t waker_cond;
+#endif
+
     struct Cache* cache;
     SchedulerJobId job_id;
     uint32_t running;
 };
+
+
+void scheduler_base_init(struct SchedulerBase* scheduler, uint32_t default_cap);
+void scheduler_base_close(struct SchedulerBase* scheduler);
+void scheduler_base_destroy(struct SchedulerBase* scheduler);
+
+void scheduler_wake_workers(struct SchedulerBase* scheduler);
+void scheduler_yield_worker(struct SchedulerBase* scheduler);
 
 struct SchedulerJobRecipient
 {
@@ -31,16 +51,6 @@ struct SchedulerJobRecipient
         int32_t fd;
     };
 };
-
-void scheduler_base_init(struct SchedulerBase* scheduler, uint32_t default_cap);
-void scheduler_base_close(struct SchedulerBase* scheduler);
-void scheduler_base_destroy(struct SchedulerBase* scheduler);
-
-void scheduler_wake_workers(struct SchedulerBase* scheduler);
-void scheduler_park_worker(
-    struct SchedulerBase* scheduler,
-    SchedulerJobId job_id
-);
 
 struct SchedulerJobRecipient* scheduler_create_job_recipient(
     enum SchedulerJobRecipientType type,

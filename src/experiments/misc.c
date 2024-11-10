@@ -208,5 +208,8 @@ int misc_main() {
     test_priority_heap();
     test_spinlock();
     test_page_allocator();
+    misc_pthread_waker_vs_pure_futex();
     return 0;
-};
+}
+
+;
