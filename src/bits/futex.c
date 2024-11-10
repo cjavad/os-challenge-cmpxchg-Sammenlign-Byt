@@ -26,9 +26,13 @@ int64_t futex_wait(uint32_t* uaddr) {
 #ifdef _BITS_FUTEX_TIMEOUT_NS
     const struct timespec timeout = {.tv_sec = 0, .tv_nsec = _BITS_FUTEX_TIMEOUT_NS};
 #endif
+#if _BITS_FUTEX_SPIN_LIMIT > 0
+    int32_t spins;
+
+#endif;
 start:
 #if _BITS_FUTEX_SPIN_LIMIT > 0
-    int32_t spins = 0;
+    spins = 0;
 spin:
 #endif
 
