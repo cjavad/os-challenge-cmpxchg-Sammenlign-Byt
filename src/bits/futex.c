@@ -29,7 +29,7 @@ int64_t futex_wait(uint32_t* uaddr) {
 #if _BITS_FUTEX_SPIN_LIMIT > 0
     int32_t spins;
 
-#endif;
+#endif
 start:
 #if _BITS_FUTEX_SPIN_LIMIT > 0
     spins = 0;
