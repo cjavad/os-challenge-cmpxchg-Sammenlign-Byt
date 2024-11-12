@@ -245,7 +245,7 @@ void* scheduler_priority_worker(
 ) {
     // Each thread holds local copies of data it works on for optimal
     // performance.
-    HashDigest target_hash;
+    HashDigest target_hash __attribute__((aligned(64)));
     // Job id starts at 1
     SchedulerJobId prev_job_id = SCHEDULER_NO_JOB_ID_SENTINEL;
     SchedulerJobId prev_max_job_id = 0;

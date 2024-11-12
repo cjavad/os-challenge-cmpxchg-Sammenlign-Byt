@@ -41,10 +41,11 @@ uint64_t reverse_sha256_x4(
     const HashDigest target
 ) {
     const uint64_t* target_u64 = (const uint64_t*)target;
-    uint64_t data[4] = {start, start + 1, start + 2, start + 3};
+    uint64_t data[4] __attribute__((aligned(64))) = {
+        start, start + 1, start + 2, start + 3};
 
     do {
-        uint64_t out_64[4 * 4];
+        uint64_t out_64[4 * 4] __attribute__((aligned(64)));
         HASH_FUNC_X4((uint8_t*)out_64, (uint8_t*)data);
 
         // Smartly compare the results
