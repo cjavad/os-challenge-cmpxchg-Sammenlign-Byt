@@ -19,10 +19,8 @@ struct PriorityScheduler {
     IndexPriorityHeap* jobs_r;
     IndexPriorityHeap* jobs_w;
 
-    struct SRWLock
-        rlock; // Prevents jobs ptr from being invalidated by growing.
-    struct SRWLock
-        wlock; // Prevents jobs ptr from being invalidated by swapping.
+    struct SRWLock rlock; // Prevents jobs ptr from being invalidated by growing.
+    struct SRWLock wlock; // Prevents jobs ptr from being invalidated by swapping.
 };
 
 struct PrioritySchedulerJob {
@@ -78,9 +76,6 @@ SchedulerJobId scheduler_priority_submit(
     struct SchedulerJobRecipient* recipient
 );
 
-void scheduler_priority_cancel(
-    const struct PriorityScheduler* scheduler,
-    SchedulerJobId job_id
-);
+void scheduler_priority_cancel(const struct PriorityScheduler* scheduler, SchedulerJobId job_id);
 
 void* scheduler_priority_worker(struct PriorityScheduler* scheduler);
