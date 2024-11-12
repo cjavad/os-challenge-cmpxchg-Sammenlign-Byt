@@ -5,7 +5,7 @@ pkgs.stdenv.mkDerivation {
   src = ./.;
 
   buildInputs = [
-    pkgs.clang-tools
+    pkgs.clang-tools_19
     pkgs.gnumake
     pkgs.gcc
     pkgs.liburing

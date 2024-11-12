@@ -1,6 +1,6 @@
-#include "worker.h"
+#include "worker_pool.h"
 
-#include "scheduler/scheduler.h"
+#include "../scheduler/scheduler.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -16,7 +16,7 @@ struct WorkerPool* worker_create_pool(
     pool->size = size;
     pool->scheduler = scheduler;
 
-    printf("Creating worker pool with %zu workers\n", size);
+    fprintf(stderr, "Creating worker pool with %zu workers\n", size);
 
     for (size_t i = 0; i < size; i++) {
         pool->workers[i].scheduler = scheduler;
@@ -46,14 +46,4 @@ void worker_destroy_pool(
     free(pool);
 }
 
-int cpu_core_count() {
-    int64_t count = sysconf(_SC_NPROCESSORS_ONLN);
-
-#ifdef RELEASE
-    if (count < 16) {
-        return 16;
-    }
-#endif
-
-    return count;
-}
+int worker_pool_get_concurrency() { return (int)sysconf(_SC_NPROCESSORS_ONLN); }

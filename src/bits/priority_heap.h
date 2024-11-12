@@ -30,6 +30,13 @@ typedef PriorityHeapNode(void*) _AnyPriorityHeapNode;
 #define priority_heap_elem_size(heap) (sizeof((heap)->data[0].elem))
 #define priority_heap_node_type(heap) typeof((heap)->data[0])
 
+void _priority_heap_swap_indices(
+    const _AnyPriorityHeap* heap,
+    uint32_t i,
+    uint32_t j,
+    uint32_t node_size
+);
+
 void _priority_heap_insert(
     _AnyPriorityHeap* heap,
     const void* elem,

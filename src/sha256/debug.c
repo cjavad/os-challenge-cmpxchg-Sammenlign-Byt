@@ -1,5 +1,4 @@
 #include "sha256.h"
-
 #include <stdio.h>
 
 void sprintf_hash(

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdint.h>
+#include "atomic.h"
 
 // Slow linked list thread-safe page allocator.
 // We maintain two linked lists
@@ -8,8 +9,8 @@
 // one for cleanup    (all_pages)
 
 struct PageAllocator {
-    struct PageAllocatorHeader* all_pages;
-    struct PageAllocatorHeader* free_list;
+    Atomic(struct PageAllocatorHeader*) all_pages;
+    Atomic(struct PageAllocatorHeader*) free_list;
     uint64_t page_size;
 };
 

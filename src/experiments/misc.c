@@ -7,6 +7,7 @@
 #include <pthread.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <stdbool.h>
 
 void* writer(
     void* arg
@@ -192,9 +193,9 @@ void test_page_allocator() {
 
     assert(
         page_count == MISC_PAGE_ALLOCATOR_TEST_THREAD_COUNT *
-                          (MISC_PAGE_ALLOCATOR_TEST_ITERATIONS -
-                           (MISC_PAGE_ALLOCATOR_TEST_ITERATIONS /
-                            MISC_PAGE_ALLOCATOR_TEST_FREE_EVERY))
+        (MISC_PAGE_ALLOCATOR_TEST_ITERATIONS -
+            (MISC_PAGE_ALLOCATOR_TEST_ITERATIONS /
+                MISC_PAGE_ALLOCATOR_TEST_FREE_EVERY))
     );
 
     assert(free_count == 0);
@@ -208,5 +209,8 @@ int misc_main() {
     test_priority_heap();
     test_spinlock();
     test_page_allocator();
+    misc_pthread_waker_vs_pure_futex();
     return 0;
-};
+}
+
+;

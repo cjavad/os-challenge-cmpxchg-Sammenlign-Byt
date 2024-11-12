@@ -3,6 +3,10 @@
 #include <errno.h>
 #include <sys/syscall.h>
 #include <unistd.h>
+#include <xmmintrin.h>
+
+// #define BITS__FUTEX_SPIN_LIMIT 50
+// #define BITS__FUTEX_TIMEOUT_NS 10000
 
 int64_t futex(
     uint32_t* uaddr,
@@ -15,34 +19,50 @@ int64_t futex(
     return syscall(SYS_futex, uaddr, futex_op, val, timeout, uaddr2, val3);
 }
 
-int64_t futex_wait(
-    uint32_t* uaddr
-) {
-    while (1) {
-        // wait for futex to be 1, then make it 0.
-        if (__sync_bool_compare_and_swap(uaddr, 1, 0)) {
-            return 0;
-        }
+int64_t futex_wait(uint32_t* uaddr) {
+#ifdef BITS__FUTEX_TIMEOUT_NS
+    const struct timespec timeout = {.tv_sec = 0, .tv_nsec = BITS__FUTEX_TIMEOUT_NS};
+#endif
+#if BITS__FUTEX_SPIN_LIMIT
+    int32_t spins;
+#endif
+start:
+#if BITS__FUTEX_SPIN_LIMIT
+    spins = 0;
+spin:
+#endif
 
-        const int64_t s = futex(uaddr, FUTEX_WAIT, 0, NULL, NULL, 0);
-
-        if (s == -1) {
-            if (errno == EAGAIN || errno == EINTR) {
-                continue;
-            }
-
-            return -1;
-        }
+    if (*uaddr != 0) {
+        return 0;
     }
+
+#if BITS__FUTEX_SPIN_LIMIT
+    if (++spins < BITS__FUTEX_SPIN_LIMIT) {
+        _mm_pause();
+        goto spin;
+    }
+#endif
+
+    // If still zero after spin-wait, perform futex wait
+    futex(
+        uaddr,
+        FUTEX_WAIT,
+        0,
+#ifdef BITS__FUTEX_TIMEOUT_NS
+        &timeout,
+#else
+        NULL,
+#endif
+        NULL,
+        0
+    );
+    goto start;
 }
 
-int64_t futex_wake_single(
-    uint32_t* uaddr
-) {
-    if (__sync_bool_compare_and_swap(uaddr, 0, 1)) {
-        return futex(uaddr, FUTEX_WAKE, 1, NULL, NULL, 0);
-    }
+int64_t futex_wake(uint32_t* uaddr) {
+    // Set the value to 1 to signal all waiters
+    *uaddr = 1;
 
-    // No need to wake up.
-    return 0;
+    // Wake up all threads waiting on uaddr at once
+    return futex(uaddr, FUTEX_WAKE, INT32_MAX, NULL, NULL, 0);
 }

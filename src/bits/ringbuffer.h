@@ -2,13 +2,14 @@
 
 #include <stdatomic.h>
 #include <stdlib.h>
+#include "atomic.h"
 
 #define RingBuffer(T)                                                          \
     struct {                                                                   \
         T* data;                                                               \
         uint32_t size;                                                         \
-        uint32_t head;                                                         \
-        uint32_t tail;                                                         \
+        Atomic(uint32_t) head;                                                 \
+        Atomic(uint32_t) tail;                                                 \
     }
 
 #define ringbuffer_head(rb) (atomic_load(&(rb)->head))

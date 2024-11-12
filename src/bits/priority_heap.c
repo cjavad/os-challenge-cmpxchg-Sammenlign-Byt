@@ -5,19 +5,20 @@
 #include <stdio.h>
 #include <string.h>
 
-void priority_heap_swap_indices(
+void _priority_heap_swap_indices(
     const _AnyPriorityHeap* heap,
     const uint32_t i,
     const uint32_t j,
     const uint32_t node_size
 ) {
+    uint8_t tmp[node_size];
+
     _AnyPriorityHeapNode* node_i = vec_get_unsafe(heap, i, node_size);
     _AnyPriorityHeapNode* node_j = vec_get_unsafe(heap, j, node_size);
 
-    uint8_t tmp[node_size];
-    memcpy(tmp, node_i, node_size);
-    memcpy(node_i, node_j, node_size);
-    memcpy(node_j, tmp, node_size);
+    memcpy((void*)tmp, (void*)node_i, node_size);
+    memcpy((void*)node_i, (void*)node_j, node_size);
+    memcpy((void*)node_j, (void*)tmp, node_size);
 }
 
 inline uint32_t priority_heap_parent(
@@ -25,11 +26,13 @@ inline uint32_t priority_heap_parent(
 ) {
     return (i - 1) / 2;
 }
+
 inline uint32_t priority_heap_left(
     const uint32_t i
 ) {
     return 2 * i + 1;
 }
+
 inline uint32_t priority_heap_right(
     const uint32_t i
 ) {
@@ -53,7 +56,7 @@ void priority_heap_shift_up(
             break;
         }
 
-        priority_heap_swap_indices(heap, i, parent, node_size);
+        _priority_heap_swap_indices(heap, i, parent, node_size);
 
         i = parent;
     }
@@ -89,7 +92,7 @@ void priority_heap_shift_down(
         }
 
         if (max_idx != i) {
-            priority_heap_swap_indices(heap, i, max_idx, node_size);
+            _priority_heap_swap_indices(heap, i, max_idx, node_size);
             i = max_idx;
             continue;
         }
@@ -105,11 +108,11 @@ void _priority_heap_insert(
     const uint32_t node_size,
     const uint32_t elem_size
 ) {
-    PriorityHeapNode(union { uint8_t elem[elem_size]; }) node;
-    memset(&node, 0, sizeof(node));
-    node.priority = priority;
-    memcpy(node.elem.elem, elem, elem_size);
-    vec_push_unsafe(heap, &node, node_size);
+    uint8_t node_buf[node_size];
+    memset(node_buf, 0, elem_size);
+    memcpy(node_buf, &priority, sizeof(uint32_t));
+    memcpy(node_buf + sizeof(uint32_t), elem, elem_size);
+    vec_push_unsafe(heap, node_buf, node_size);
     priority_heap_shift_up(heap, heap->len - 1, node_size);
 }
 
@@ -156,7 +159,7 @@ void _priority_heap_extract_max(
         memcpy(node, vec_get_unsafe(heap, 0, node_size), node_size);
     }
 
-    priority_heap_swap_indices(heap, 0, heap->len - 1, node_size);
+    _priority_heap_swap_indices(heap, 0, heap->len - 1, node_size);
     vec_pop_unsafe(heap, node_size);
     priority_heap_shift_down(heap, 0, node_size);
 }

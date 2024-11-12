@@ -1,5 +1,6 @@
 #include "sched_priority.h"
 
+#include "../bits/futex.h"
 #include "../bits/minmax.h"
 #include "../cache.h"
 #include "../sha256/sha256.h"
@@ -24,6 +25,34 @@ struct PriorityScheduler* scheduler_priority_create(
     scheduler_base_init(&scheduler->base, default_cap);
 
     return scheduler;
+}
+
+inline void scheduler_priority_job_mark_as_done(
+    struct PrioritySchedulerJob* job) {
+    atomic_store(&job->block_idx, job->block_count);
+}
+
+inline bool scheduler_priority_job_is_done(
+    const struct PrioritySchedulerJob* job) {
+    return atomic_load(&job->block_idx) >= job->block_count;
+}
+
+inline void scheduler_priority_enter_job(struct PriorityScheduler* scheduler,
+                                         const uint32_t job_idx) {
+    spin_rwlock_rdlock(&scheduler->rlock);
+    __atomic_add_fetch((uint32_t*)&scheduler->jobs.data[job_idx].rc,
+                       1,
+                       __ATOMIC_RELAXED);
+    spin_rwlock_rdunlock(&scheduler->rlock);
+}
+
+inline void scheduler_priority_leave_job(struct PriorityScheduler* scheduler,
+                                         const uint32_t job_idx) {
+    spin_rwlock_rdlock(&scheduler->rlock);
+    __atomic_sub_fetch((uint32_t*)&scheduler->jobs.data[job_idx].rc,
+                       1,
+                       __ATOMIC_RELAXED);
+    spin_rwlock_rdunlock(&scheduler->rlock);
 }
 
 void scheduler_priority_destroy(
@@ -62,7 +91,7 @@ SchedulerJobId scheduler_priority_submit(
 
     // Submit new job to scheduler. (Starts at 1)
     const SchedulerJobId next_id = scheduler->base.job_id + 1;
-    const uint64_t block_size = 1024;
+    const uint64_t block_size = 4096;
     const uint64_t difficulty = request->end - request->start;
 
     struct PrioritySchedulerJob job = {
@@ -109,17 +138,15 @@ SchedulerJobId scheduler_priority_submit(
     priority_heap_insert(scheduler->jobs_w, &job_idx, request->priority);
 
     // Swap read and write heaps
-    // TODO: Could this be an compare and exchange?
     spin_rwlock_wrlock(&scheduler->wlock);
     IndexPriorityHeap* tmp = scheduler->jobs_r;
     scheduler->jobs_r = scheduler->jobs_w;
     scheduler->jobs_w = tmp;
     // Increment job_id (We are a single writer so this is fine)
-    atomic_store(&scheduler->base.job_id, next_id);
-    spin_rwlock_wrunlock(&scheduler->wlock);
-
+    scheduler->base.job_id = next_id;
     // Wake up workers
     scheduler_wake_workers(&scheduler->base);
+    spin_rwlock_wrunlock(&scheduler->wlock);
 
     return next_id;
 }
@@ -198,15 +225,31 @@ bool scheduler_priority_schedule(
         priority_heap_extract_max(local_jobs, NULL);
     }
 
+    // Wait until a new job is available.
+    while (scheduler->base.running) {
+        // To prevent race conditions we have to ensure that the
+        // waking and incrementing happens sequentially.
+        spin_rwlock_rdlock(&scheduler->wlock);
+        const SchedulerJobId current_job_id = scheduler->base.job_id;
+        spin_rwlock_rdunlock(&scheduler->wlock);
+
+        if (current_job_id > *prev_max_job_id) {
+            break;
+        }
+
+        scheduler_yield_worker(&scheduler->base);
+    }
+
     return false;
 }
 
+__attribute__((flatten))
 void* scheduler_priority_worker(
     struct PriorityScheduler* scheduler
 ) {
     // Each thread holds local copies of data it works on for optimal
     // performance.
-    HashDigest target_hash;
+    HashDigest target_hash __attribute__((aligned(64)));
     // Job id starts at 1
     SchedulerJobId prev_job_id = SCHEDULER_NO_JOB_ID_SENTINEL;
     SchedulerJobId prev_max_job_id = 0;
@@ -219,23 +262,22 @@ void* scheduler_priority_worker(
 
         // Try to get the next job to work on.
         if (!scheduler_priority_schedule(
-                scheduler,
-                &local_jobs,
-                &prev_max_job_id,
-                &prev_job_id,
-                target_hash,
-                &job_idx,
-                &start,
-                &end
-            )) {
-            // Wait until a new job is available.
-            scheduler_park_worker(&scheduler->base, prev_max_job_id);
+            scheduler,
+            &local_jobs,
+            &prev_max_job_id,
+            &prev_job_id,
+            target_hash,
+            &job_idx,
+            &start,
+            &end
+        )) {
             continue;
         }
 
         scheduler_priority_enter_job(scheduler, job_idx);
 
-        const uint64_t answer = reverse_sha256_x4(start, end, target_hash);
+        const uint64_t answer =
+            reverse_sha256_x4(start, end, target_hash);
 
         if (answer == SCHEDULER_NO_ANSWER_SENTINEL) {
             scheduler_priority_leave_job(scheduler, job_idx);
@@ -253,6 +295,10 @@ void* scheduler_priority_worker(
         // Send answer to recipient and store in cache.
         scheduler_job_notify_recipient(recipient, answer);
         cache_insert_pending(scheduler->base.cache, target_hash, answer);
+    }
+
+    if (local_jobs.data != NULL) {
+        priority_heap_destroy(&local_jobs);
     }
 
     return NULL;

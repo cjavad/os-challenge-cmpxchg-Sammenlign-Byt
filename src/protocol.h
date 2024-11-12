@@ -24,8 +24,8 @@ struct ProtocolResponse {
     uint64_t answer;
 };
 
-void protocol_request_to_le(struct ProtocolRequest* be);
-void protocol_response_to_be(struct ProtocolResponse* le);
+void protocol_request_to_le(struct ProtocolRequest* request);
+void protocol_response_to_be(struct ProtocolResponse* response);
 
-void protocol_debug_print_request(const struct ProtocolRequest* req);
-void protocol_debug_print_response(const struct ProtocolResponse* resp);
+void protocol_debug_print_request(const struct ProtocolRequest* request);
+void protocol_debug_print_response(const struct ProtocolResponse* response);

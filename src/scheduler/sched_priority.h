@@ -1,15 +1,20 @@
 #pragma once
 
+#include <stdatomic.h>
+
 #include "../bits/freelist.h"
 #include "../bits/priority_heap.h"
+#include "../bits/atomic.h"
 #include "../protocol.h"
 #include "scheduler.h"
 #include <stdbool.h>
 
 typedef PriorityHeap(uint32_t) IndexPriorityHeap;
+
 typedef PriorityHeapNode(uint32_t) IndexPriorityHeapNode;
 
-struct PriorityScheduler {
+struct PriorityScheduler
+{
     struct SchedulerBase base;
 
     // Jobs storage
@@ -18,14 +23,22 @@ struct PriorityScheduler {
     // List of indexes into jobs ordered by priority
     IndexPriorityHeap* jobs_r;
     IndexPriorityHeap* jobs_w;
+<<<<<<< HEAD
 
     struct SRWLock rlock; // Prevents jobs ptr from being invalidated by growing.
     struct SRWLock wlock; // Prevents jobs ptr from being invalidated by swapping.
+=======
+    // Prevents jobs ptr from being invalidated by growing.
+    struct SRWLock rlock;
+    // Prevents jobs ptr from being invalidated by swapping.
+    struct SRWLock wlock;
+>>>>>>> 25236b40bc7289d5cdceccf41e31c89b1ba7e696
 };
 
-struct PrioritySchedulerJob {
+struct PrioritySchedulerJob
+{
     // Track job progress by atomically incrementing index
-    uint64_t block_idx;
+    Atomic(uint64_t) block_idx;
     uint64_t block_size;
     uint64_t block_count;
 
@@ -34,38 +47,26 @@ struct PrioritySchedulerJob {
     struct ProtocolRequest request;
 
     SchedulerJobId id; // Job id
-    uint32_t rc;       // Reference count
+    Atomic(uint32_t) rc; // Reference count
 };
 
-inline void scheduler_priority_job_mark_as_done(
+void scheduler_priority_job_mark_as_done(
     struct PrioritySchedulerJob* job
-) {
-    atomic_store(&job->block_idx, job->block_count);
-}
+);
 
-inline bool scheduler_priority_job_is_done(
+bool scheduler_priority_job_is_done(
     const struct PrioritySchedulerJob* job
-) {
-    return atomic_load(&job->block_idx) >= job->block_count;
-}
+);
 
-inline void scheduler_priority_enter_job(
+void scheduler_priority_enter_job(
     struct PriorityScheduler* scheduler,
-    const uint32_t job_idx
-) {
-    spin_rwlock_rdlock(&scheduler->rlock);
-    __atomic_add_fetch(&scheduler->jobs.data[job_idx].rc, 1, __ATOMIC_RELAXED);
-    spin_rwlock_rdunlock(&scheduler->rlock);
-}
+    uint32_t job_idx
+);
 
-inline void scheduler_priority_leave_job(
+void scheduler_priority_leave_job(
     struct PriorityScheduler* scheduler,
-    const uint32_t job_idx
-) {
-    spin_rwlock_rdlock(&scheduler->rlock);
-    __atomic_sub_fetch(&scheduler->jobs.data[job_idx].rc, 1, __ATOMIC_RELAXED);
-    spin_rwlock_rdunlock(&scheduler->rlock);
-}
+    uint32_t job_idx
+);
 
 struct PriorityScheduler* scheduler_priority_create(uint32_t default_cap);
 void scheduler_priority_destroy(struct PriorityScheduler* scheduler);
@@ -77,5 +78,16 @@ SchedulerJobId scheduler_priority_submit(
 );
 
 void scheduler_priority_cancel(const struct PriorityScheduler* scheduler, SchedulerJobId job_id);
+
+bool scheduler_priority_schedule(
+    struct PriorityScheduler* scheduler,
+    IndexPriorityHeap* local_jobs,
+    SchedulerJobId* prev_max_job_id,
+    SchedulerJobId* prev_job_id,
+    HashDigest target_hash,
+    uint32_t* job_idx,
+    uint64_t* start,
+    uint64_t* end
+);
 
 void* scheduler_priority_worker(struct PriorityScheduler* scheduler);
