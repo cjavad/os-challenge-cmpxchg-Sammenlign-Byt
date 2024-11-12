@@ -40,14 +40,18 @@ inline bool scheduler_priority_job_is_done(
 inline void scheduler_priority_enter_job(struct PriorityScheduler* scheduler,
                                          const uint32_t job_idx) {
     spin_rwlock_rdlock(&scheduler->rlock);
-    __atomic_add_fetch((uint32_t*)&scheduler->jobs.data[job_idx].rc, 1, __ATOMIC_RELAXED);
+    __atomic_add_fetch((uint32_t*)&scheduler->jobs.data[job_idx].rc,
+                       1,
+                       __ATOMIC_RELAXED);
     spin_rwlock_rdunlock(&scheduler->rlock);
 }
 
 inline void scheduler_priority_leave_job(struct PriorityScheduler* scheduler,
                                          const uint32_t job_idx) {
     spin_rwlock_rdlock(&scheduler->rlock);
-    __atomic_sub_fetch((uint32_t*)&scheduler->jobs.data[job_idx].rc, 1, __ATOMIC_RELAXED);
+    __atomic_sub_fetch((uint32_t*)&scheduler->jobs.data[job_idx].rc,
+                       1,
+                       __ATOMIC_RELAXED);
     spin_rwlock_rdunlock(&scheduler->rlock);
 }
 
@@ -272,7 +276,8 @@ void* scheduler_priority_worker(
 
         scheduler_priority_enter_job(scheduler, job_idx);
 
-        const uint64_t answer = reverse_sha256_x4(start, end, target_hash);
+        const uint64_t answer =
+            reverse_sha256_x4(start, end, target_hash);
 
         if (answer == SCHEDULER_NO_ANSWER_SENTINEL) {
             scheduler_priority_leave_job(scheduler, job_idx);
