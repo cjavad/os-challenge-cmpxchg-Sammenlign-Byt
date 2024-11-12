@@ -1,10 +1,12 @@
 #include "futex.h"
 
 #include <errno.h>
-#include <stdbool.h>
 #include <sys/syscall.h>
 #include <unistd.h>
 #include <xmmintrin.h>
+
+// #define BITS__FUTEX_SPIN_LIMIT 50
+// #define BITS__FUTEX_TIMEOUT_NS 10000
 
 int64_t futex(
     uint32_t* uaddr,
@@ -17,21 +19,15 @@ int64_t futex(
     return syscall(SYS_futex, uaddr, futex_op, val, timeout, uaddr2, val3);
 }
 
-#ifndef _BITS_FUTEX_SPIN_LIMIT
-#define _BITS_FUTEX_SPIN_LIMIT 100
-#endif
-
-
 int64_t futex_wait(uint32_t* uaddr) {
-#ifdef _BITS_FUTEX_TIMEOUT_NS
-    const struct timespec timeout = {.tv_sec = 0, .tv_nsec = _BITS_FUTEX_TIMEOUT_NS};
+#ifdef BITS__FUTEX_TIMEOUT_NS
+    const struct timespec timeout = {.tv_sec = 0, .tv_nsec = BITS__FUTEX_TIMEOUT_NS};
 #endif
-#if _BITS_FUTEX_SPIN_LIMIT > 0
+#if BITS__FUTEX_SPIN_LIMIT
     int32_t spins;
-
 #endif
 start:
-#if _BITS_FUTEX_SPIN_LIMIT > 0
+#if BITS__FUTEX_SPIN_LIMIT
     spins = 0;
 spin:
 #endif
@@ -40,8 +36,8 @@ spin:
         return 0;
     }
 
-#if _BITS_FUTEX_SPIN_LIMIT > 0
-    if (++spins < _BITS_FUTEX_SPIN_LIMIT) {
+#if BITS__FUTEX_SPIN_LIMIT
+    if (++spins < BITS__FUTEX_SPIN_LIMIT) {
         _mm_pause();
         goto spin;
     }
@@ -52,7 +48,7 @@ spin:
         uaddr,
         FUTEX_WAIT,
         0,
-#ifdef _BITS_FUTEX_TIMEOUT_NS
+#ifdef BITS__FUTEX_TIMEOUT_NS
         &timeout,
 #else
         NULL,

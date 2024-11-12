@@ -21,11 +21,8 @@ void remove_client(
 );
 
 int epoll_server_init(
-    const Server* server,
     struct EpollServerCtx* ctx
 ) {
-    memset(ctx, 0, sizeof(struct EpollServerCtx));
-
     // Setup server fd.
     ctx->epoll_fd = epoll_create(EPOLL_MAX_EVENTS);
 
@@ -44,11 +41,11 @@ int epoll_server_init(
 
     const union EpollEventData async_data = {
         .type = SERVER_ACCEPT,
-        .fd = server->fd
+        .fd = ctx->server.fd
     };
     memcpy(&ev.data.u64, &async_data, sizeof(async_data));
 
-    if (epoll_ctl(ctx->epoll_fd, EPOLL_CTL_ADD, server->fd, &ev) < 0) {
+    if (epoll_ctl(ctx->epoll_fd, EPOLL_CTL_ADD, ctx->server.fd, &ev) < 0) {
         fprintf(
             stderr,
             "Failed to add server fd to epoll fd for server context: %s\n",
@@ -58,13 +55,7 @@ int epoll_server_init(
         return -1;
     }
 
-    // Spawn worker pool
-    ctx->scheduler = scheduler_create(ctx->scheduler, 1024);
-    ctx->worker_pool = worker_create_pool(
-        worker_pool_get_concurrency(),
-        (void*)ctx->scheduler,
-        scheduler_worker_thread(ctx->scheduler)
-    );
+    server_scheduler_init(&ctx->sched, 32);
 
     return 0;
 }
@@ -117,15 +108,10 @@ int epoll_server_poll(
 }
 
 int epoll_server_exit(
-    const Server* server,
-    const struct EpollServerCtx* ctx
+    struct EpollServerCtx* ctx
 ) {
-    // it's *very* important that the worker pool is destroyed before the
-    // scheduler since the worker threads are still running and may access the
-    // scheduler.
-    worker_destroy_pool(ctx->worker_pool);
-    scheduler_destroy(ctx->scheduler);
-    return close(ctx->epoll_fd) + close(server->fd);
+    server_scheduler_destroy(&ctx->sched);
+    return close(ctx->epoll_fd) + close(ctx->server.fd);
 }
 
 void accept_client(
@@ -213,7 +199,7 @@ void consume_request(
         client_fd
     );
 
-    scheduler_submit(ctx->scheduler, &request, recipient);
+    scheduler_submit(ctx->sched.scheduler, &request, recipient);
 }
 
 void remove_client(

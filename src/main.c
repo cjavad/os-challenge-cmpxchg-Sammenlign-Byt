@@ -1,7 +1,7 @@
 #include "experiments/benchmark.h"
 #include "experiments/misc.h"
-#include "server/epoll.h"
-#include "server/server.h"
+#include "server/generic.h"
+#include "config.h"
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
@@ -27,15 +27,14 @@ int server(
     signal(SIGINT, signal_handler);
     signal(SIGTERM, signal_handler);
 
-    Server server;
-    struct EpollServerCtx ctx;
+    ServerImplCtx ctx = {0};
 
-    if (server_init(&server, port) < 0) {
+    if (server_init(&ctx.server, port) < 0) {
         fprintf(stderr, "Failed to initialize server: %s\n", strerror(errno));
         return 1;
     }
 
-    if (server_listen(&server, 512) < 0) {
+    if (server_listen(&ctx.server, 512) < 0) {
         fprintf(stderr,
                 "Failed to listen on port %d: %s\n",
                 port,
@@ -45,7 +44,7 @@ int server(
 
     fprintf(stderr, "Listening on port %i\n", port);
 
-    if (epoll_server_init(&server, &ctx) < 0) {
+    if (server_impl_init(&ctx) < 0) {
         fprintf(stderr,
                 "Failed to initialize async server: %s\n",
                 strerror(errno));
@@ -53,7 +52,7 @@ int server(
     }
 
     while (!stop_flag) {
-        if (epoll_server_poll(&ctx) >= 0) {
+        if (server_impl_poll(&ctx) >= 0 || errno == EAGAIN) {
             continue;
         }
 
@@ -61,7 +60,7 @@ int server(
         break;
     }
 
-    epoll_server_exit(&server, &ctx);
+    server_impl_exit(&ctx);
 
     fprintf(stderr, "Closed server\n");
 

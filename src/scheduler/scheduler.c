@@ -1,8 +1,6 @@
 #include "scheduler.h"
-
-#define _BITS_FUTEX_SPIN_LIMIT 50
-#define _BITS_FUTEX_TIMEOUT_NS 10000
 #include "../bits/futex.h"
+
 #if SCHEDULER_WAKER_TYPE == SCHEDULER_WAKER_TYPE_SPIN
 #include <stdatomic.h>
 #include <xmmintrin.h>

@@ -1,15 +1,14 @@
 #include "server.h"
+#include "worker_pool.h"
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
 
 int server_init(
-    Server* server,
+    struct Server* server,
     const int port
 ) {
-    memset(server, 0, sizeof(Server));
-
     server->fd = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);
 
     if (server->fd < 0) {
@@ -38,7 +37,7 @@ int server_init(
 }
 
 int server_listen(
-    Server* server,
+    struct Server* server,
     const int backlog
 ) {
     if (bind(
@@ -61,7 +60,26 @@ int server_listen(
 }
 
 int server_close(
-    const Server* server
+    const struct Server* server
 ) {
     return close(server->fd);
+}
+
+void server_scheduler_init(struct ServerScheduler* sched,
+                           const uint32_t default_cap) {
+    // Spawn worker pool
+    sched->scheduler = scheduler_create(sched->scheduler, default_cap);
+    sched->worker_pool = worker_create_pool(
+        worker_pool_get_concurrency(),
+        (void*)sched->scheduler,
+        scheduler_worker_thread(sched->scheduler)
+    );
+}
+
+void server_scheduler_destroy(struct ServerScheduler* sched) {
+    // it's *very* important that the worker pool is destroyed before the
+    // scheduler since the worker threads are still running and may access the
+    // scheduler.
+    worker_destroy_pool(sched->worker_pool);
+    scheduler_destroy(sched->scheduler);
 }

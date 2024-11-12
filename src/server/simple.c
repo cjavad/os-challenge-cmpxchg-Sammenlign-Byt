@@ -1,58 +1,60 @@
 #include "simple.h"
 #include "../protocol.h"
+#include "../scheduler/generic.h"
 
+#include <fcntl.h>
+#include <stdio.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <unistd.h>
 
 // Simple server implementation.
-int simple_server_init() { return 0; }
+int simple_server_init(struct SimpleServerCtx* ctx) {
+    // Make socket blocking again
+    if (fcntl(ctx->server.fd, F_SETFL, SOCK_STREAM) < 0) {
+        return -1;
+    }
+
+    server_scheduler_init(&ctx->sched, 32);
+    return 0;
+}
 
 int simple_server_poll(
-    const Server* server
+    struct SimpleServerCtx* ctx
 ) {
     struct sockaddr_in addr = {0};
     uint32_t client_len = sizeof(addr);
 
     const int32_t client_fd =
-        accept(server->fd, (struct sockaddr*)&addr, &client_len);
+        accept(ctx->server.fd, (struct sockaddr*)&addr, &client_len);
 
     if (client_fd < 0) {
+        fprintf(stderr, "Failed to accept connection\n");
         return -1;
     }
 
-    // Read struct BEProtocolRequest
     struct ProtocolRequest req;
 
     if (read(client_fd, &req, sizeof(struct ProtocolRequest)) !=
-        sizeof(struct ProtocolRequest)) {
-        return -1;
+        PROTOCOL_REQ_SIZE) {
+        return 0;
     }
 
     protocol_request_to_le(&req);
 
-    protocol_debug_print_request(&req);
+    struct SchedulerJobRecipient* recipient = scheduler_create_job_recipient(
+        SCHEDULER_JOB_RECIPIENT_TYPE_FD,
+        client_fd
+    );
 
-    struct ProtocolResponse resp = {0};
-
-    resp.answer = 0x69;
-
-    protocol_debug_print_response(&resp);
-
-    if (write(client_fd, &resp, sizeof(struct ProtocolResponse)) !=
-        sizeof(struct ProtocolResponse)) {
-        return -1;
-    }
-
-    if (close(client_fd) < 0) {
-        return -1;
-    }
+    scheduler_submit(ctx->sched.scheduler, &req, recipient);
 
     return 0;
 }
 
 int simple_server_exit(
-    const Server* server
+    struct SimpleServerCtx* ctx
 ) {
-    return server_close(server);
+    server_scheduler_destroy(&ctx->sched);
+    return server_close(&ctx->server);
 }

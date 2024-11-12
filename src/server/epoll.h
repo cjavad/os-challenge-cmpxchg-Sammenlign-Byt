@@ -1,23 +1,26 @@
-#include "../scheduler/sched_priority.h"
 #include "server.h"
 
 #include <sys/epoll.h>
 
 #define EPOLL_MAX_EVENTS 64
 
-struct EpollServerCtx {
-    struct WorkerPool* worker_pool;
-    struct PriorityScheduler* scheduler;
+struct EpollServerCtx
+{
+    struct Server server;
+    struct ServerScheduler sched;
     int epoll_fd;
 };
 
-enum EpollServerEventType {
+enum EpollServerEventType
+{
     SERVER_ACCEPT,
     CLIENT_EVENT,
 };
 
-union EpollEventData {
-    struct {
+union EpollEventData
+{
+    struct
+    {
         enum EpollServerEventType type;
         int32_t fd;
     };
@@ -31,6 +34,6 @@ _Static_assert(
     "UserData struct is too large"
 );
 
-int epoll_server_init(const Server* server, struct EpollServerCtx* ctx);
+int epoll_server_init(struct EpollServerCtx* ctx);
 int epoll_server_poll(const struct EpollServerCtx* ctx);
-int epoll_server_exit(const Server* server, const struct EpollServerCtx* ctx);
+int epoll_server_exit(struct EpollServerCtx* ctx);

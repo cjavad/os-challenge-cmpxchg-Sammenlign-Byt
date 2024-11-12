@@ -11,8 +11,9 @@ typedef uint32_t SchedulerJobId;
 #define SCHEDULER_WAKER_TYPE_FUTEX 1
 #define SCHEDULER_WAKER_TYPE_PTHREAD 2
 
+#ifndef SCHEDULER_WAKER_TYPE
 #define SCHEDULER_WAKER_TYPE SCHEDULER_WAKER_TYPE_PTHREAD
-
+#endif
 
 struct SchedulerBase
 {
