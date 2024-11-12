@@ -108,11 +108,11 @@ void _priority_heap_insert(
     const uint32_t node_size,
     const uint32_t elem_size
 ) {
-    PriorityHeapNode(union { uint8_t elem[elem_size]; }) node;
-    memset(&node, 0, sizeof(node));
-    node.priority = priority;
-    memcpy(node.elem.elem, elem, elem_size);
-    vec_push_unsafe(heap, &node, node_size);
+    uint8_t node_buf[node_size];
+    memset(node_buf, 0, elem_size);
+    memcpy(node_buf, &priority, sizeof(uint32_t));
+    memcpy(node_buf + sizeof(uint32_t), elem, elem_size);
+    vec_push_unsafe(heap, node_buf, node_size);
     priority_heap_shift_up(heap, heap->len - 1, node_size);
 }
 

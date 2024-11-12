@@ -4,6 +4,7 @@
 
 #include "../bits/freelist.h"
 #include "../bits/priority_heap.h"
+#include "../bits/atomic.h"
 #include "../protocol.h"
 #include "scheduler.h"
 #include <stdbool.h>
@@ -31,7 +32,7 @@ struct PriorityScheduler
 struct PrioritySchedulerJob
 {
     // Track job progress by atomically incrementing index
-    uint64_t block_idx;
+    Atomic(uint64_t) block_idx;
     uint64_t block_size;
     uint64_t block_count;
 
@@ -40,7 +41,7 @@ struct PrioritySchedulerJob
     struct ProtocolRequest request;
 
     SchedulerJobId id; // Job id
-    uint32_t rc; // Reference count
+    Atomic(uint32_t) rc; // Reference count
 };
 
 void scheduler_priority_job_mark_as_done(

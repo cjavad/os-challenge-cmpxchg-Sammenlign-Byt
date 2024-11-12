@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include "../bits/futex.h"
+#include "../bits/atomic.h"
 
 #include <errno.h>
 #include <xmmintrin.h>
@@ -30,8 +31,8 @@ struct SpinWaker {
 };
 
 struct Waker {
-    uint32_t started;
-    uint32_t finished;
+    Atomic(uint32_t) started;
+    Atomic(uint32_t) finished;
 
     union {
         struct MutexCondWaker mutex_cond_waker;

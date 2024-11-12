@@ -2,6 +2,7 @@
 
 
 #include <stdint.h>
+#include "atomic.h"
 
 /*
     Spinning read-write spinlock implementation.
@@ -11,7 +12,7 @@
 
 struct SRWLock
 {
-    uint32_t lock;
+    Atomic(uint32_t) lock;
 };
 
 #define SPIN_RWLOCK_WRITER_MASK 0x80000000 // Highest bit for writer lock

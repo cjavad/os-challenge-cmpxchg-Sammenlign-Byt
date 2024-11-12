@@ -8,7 +8,7 @@ inline void spin_rwlock_init(struct SRWLock* lock) {
 
 inline void spin_rwlock_rdlock(struct SRWLock* lock) {
     while (1) {
-        const uint32_t e = atomic_load(&lock->lock) & SPIN_RWLOCK_READER_MASK;
+        uint32_t e = atomic_load(&lock->lock) & SPIN_RWLOCK_READER_MASK;
         const uint32_t d = e + 1;
 
         if (atomic_compare_exchange_weak(&lock->lock, &e, d)) {

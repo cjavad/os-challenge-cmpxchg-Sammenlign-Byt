@@ -39,6 +39,17 @@ void sha256x4_asm(
     uint8_t hash[SHA256_DIGEST_LENGTH * 4],
     const uint8_t data[SHA256_INPUT_LENGTH * 4]
 ) {
+
+#ifdef __clang__
+    (void)k;
+    (void)H;
+    (void)byteswap_mask;
+    (void)punpack_mask;
+    (void)x80000000;
+    (void)d64;
+    (void)hash;
+    (void)data;
+#else
     // cant clobber
     // rdi, rsp, rbp
 
@@ -686,14 +697,14 @@ void sha256x4_asm(
         :
         // input operands (System V ABI), incase gcc decides to inline function
         : "rdi"(hash),
-          "rsi"(data),
-          // constants
-          [byteswap_mask] "m"(byteswap_mask),
-          [k] "m"(k),
-          [x80000000] "m"(x80000000),
-          [d64] "m"(d64),
-          [H] "m"(H),
-          [punpack_mask] "m"(punpack_mask)
+        "rsi"(data),
+        // constants
+        [byteswap_mask] "m"(byteswap_mask),
+        [k] "m"(k),
+        [x80000000] "m"(x80000000),
+        [d64] "m"(d64),
+        [H] "m"(H),
+        [punpack_mask] "m"(punpack_mask)
         : // TODO :: proper clobbers based off of final assembly
         "rax",
         "rcx",
@@ -719,6 +730,6 @@ void sha256x4_asm(
         "xmm15",
         "memory"
     );
-
+#endif
     return;
 }
