@@ -23,16 +23,11 @@ struct PriorityScheduler
     // List of indexes into jobs ordered by priority
     IndexPriorityHeap* jobs_r;
     IndexPriorityHeap* jobs_w;
-<<<<<<< HEAD
 
-    struct SRWLock rlock; // Prevents jobs ptr from being invalidated by growing.
-    struct SRWLock wlock; // Prevents jobs ptr from being invalidated by swapping.
-=======
     // Prevents jobs ptr from being invalidated by growing.
     struct SRWLock rlock;
     // Prevents jobs ptr from being invalidated by swapping.
     struct SRWLock wlock;
->>>>>>> 25236b40bc7289d5cdceccf41e31c89b1ba7e696
 };
 
 struct PrioritySchedulerJob

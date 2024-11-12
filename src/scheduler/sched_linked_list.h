@@ -1,11 +1,12 @@
 #pragma once
 
 #include "../protocol.h"
+#include "../bits/atomic.h"
 #include "scheduler.h"
 #include <stdint.h>
 
-struct LLJob {
-
+struct LLJob
+{
     /* 1st cache line */
 
     // single writer
@@ -30,13 +31,14 @@ struct LLJob {
     // idk lol
     struct SchedulerJobRecipient* recipient;
     // atomic inc
-    uint64_t block_idx;
+    Atomic(uint64_t) block_idx;
 
     // TODO :: atomic inc variable where all workers can mark job as seen as
     // done
 } __attribute__((aligned(64)));
 
-struct LinkedListScheduler {
+struct LinkedListScheduler
+{
     struct SchedulerBase base;
     struct LLJob* current_job;
     uint32_t block_size;

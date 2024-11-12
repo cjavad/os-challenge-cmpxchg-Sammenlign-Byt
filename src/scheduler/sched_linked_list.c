@@ -1,8 +1,8 @@
 #include "sched_linked_list.h"
 #include "scheduler.h"
 #include <string.h>
-#include <time.h>
-
+#include <stdlib.h>
+#include <stdatomic.h>
 #include "../sha256/sha256.h"
 
 #undef NULL
@@ -20,11 +20,17 @@ struct LinkedListScheduler* scheduler_linked_list_create(
 }
 
 SchedulerJobId scheduler_linked_list_submit(
-    struct LinkedListScheduler* scheduler,  // my stuff
-    const struct ProtocolRequest* req,      // request
+    struct LinkedListScheduler* scheduler,
+    // my stuff
+    const struct ProtocolRequest* req,
+    // request
     struct SchedulerJobRecipient* recipient // fd to reply
 ) {
     //
+    (void)req;
+    (void)recipient;
+    (void)scheduler;
+    return 0;
 }
 
 //
@@ -33,6 +39,8 @@ void scheduler_linked_list_cancel(
     SchedulerJobId job_id
 ) {
     // this is morally wrong
+    (void)scheduler;
+    (void)job_id;
 }
 
 // pthread funcy
@@ -80,7 +88,7 @@ somewhere:
     }
 
     const uint64_t start = jstart + block_idx * block_size;
-    const uint64_t end = ({
+    const uint64_t end = ( {
         uint64_t tempy = start + block_size;
         if (tempy > jend || tempy < start)
             tempy = jend;
