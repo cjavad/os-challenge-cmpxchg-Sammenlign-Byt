@@ -10,7 +10,7 @@ int main(
     char** argv
 ) {
     if (argc < 2) {
-        fprintf(stderr, "Usage: %s benchmark|<port>\n", argv[0]);
+        fprintf(stderr, "Usage: %s benchmark|misc|<port>\n", argv[0]);
         return 1;
     }
 

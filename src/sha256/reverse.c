@@ -1,4 +1,13 @@
 #include "sha256.h"
+#include "../config.h"
+
+#ifndef HASH_FUNC
+#define HASH_FUNC sha256_fullyfused
+#endif
+
+#ifndef HASH_FUNC_X4
+#define HASH_FUNC_X4 sha256x4_fullyfused
+#endif
 
 #define HASH_COMPARE_U64(ptr, target)                                          \
     ((ptr)[0] == (target)[0] && (ptr)[1] == (target)[1] && (ptr)[2] == (target)[2] &&      \
@@ -15,7 +24,7 @@ uint64_t reverse_sha256(
     for (uint64_t i = start; i <= end; i++) {
         uint64_t out_64[4];
 
-        sha256_fullyfused((uint8_t*)out_64, (uint8_t*)&i);
+        HASH_FUNC((uint8_t*)out_64, (uint8_t*)&i);
 
         if (HASH_COMPARE_U64(out_64, target_u64)) {
             return i;
@@ -35,7 +44,7 @@ uint64_t reverse_sha256_x4(
 
     do {
         uint64_t out_64[4 * 4];
-        sha256x4_fullyfused((uint8_t*)out_64, (uint8_t*)data);
+        HASH_FUNC_X4((uint8_t*)out_64, (uint8_t*)data);
 
         // Smartly compare the results
         for (int i = 0; i < 4; i++) {
