@@ -100,6 +100,9 @@ static void signal_handler(
 int server(
     const uint16_t port
 ) {
+    // Set process priority to highest
+    worker_set_nice(-20);
+
     // Setup signal handler
     signal(SIGINT, signal_handler);
     signal(SIGTERM, signal_handler);

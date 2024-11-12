@@ -10,7 +10,7 @@ OBJDIR := obj
 BINDIR := .
 
 # preprocessor flags
-PPFLAGS =
+PPFLAGS = -D_GNU_SOURCE
 # include flags
 IFLAGS = -I$(INCDIR)
 # compile flags

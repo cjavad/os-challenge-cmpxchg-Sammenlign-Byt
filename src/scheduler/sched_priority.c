@@ -1,5 +1,4 @@
 #include "sched_priority.h"
-
 #include "../bits/futex.h"
 #include "../bits/minmax.h"
 #include "../cache.h"
