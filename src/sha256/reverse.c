@@ -34,6 +34,7 @@ uint64_t reverse_sha256(
     return 0;
 }
 
+__attribute__((flatten))
 uint64_t reverse_sha256_x4(
     const uint64_t start,
     const uint64_t end,

@@ -239,6 +239,7 @@ bool scheduler_priority_schedule(
     return false;
 }
 
+__attribute__((flatten))
 void* scheduler_priority_worker(
     struct PriorityScheduler* scheduler
 ) {
