@@ -10,10 +10,16 @@ $CC $CFLAGS $FILES -DPROFILE_GENERATION -fprofile-generate -o $BIN
 ./$BIN 8080 &
 SERVER_PID=$!
 
-./run-client.sh midway
+echo "Server PID: $SERVER_PID"
+
+./run-client.sh initial
 
 kill -2 $SERVER_PID
 wait $SERVER_PID
+
+SERVER_EXIT_CODE=$?
+
+echo "Server stopped with exit code: $SERVER_EXIT_CODE"
 
 $CC $CFLAGS $FILES -fprofile-use -Werror=missing-profile -Wno-error=coverage-mismatch -o $BIN
 

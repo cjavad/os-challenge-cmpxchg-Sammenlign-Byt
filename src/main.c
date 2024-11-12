@@ -1,84 +1,9 @@
 #include "experiments/benchmark.h"
 #include "experiments/misc.h"
-#include "server/generic.h"
-#include "config.h"
+#include "server/server.h"
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
-#include <signal.h>
-
-static volatile sig_atomic_t stop_flag = 0;
-
-void signal_handler(
-    const int signal
-) {
-    (void)signal;
-    stop_flag = 1;
-}
-
-#ifdef PROFILE_GENERATION
-#include <gcov.h>
-#endif
-
-int server(
-    const int port
-) {
-    // Setup signal handler
-    signal(SIGINT, signal_handler);
-    signal(SIGTERM, signal_handler);
-
-    ServerImplCtx ctx = {0};
-
-    if (server_init(&ctx.server, port) < 0) {
-        fprintf(stderr, "Failed to initialize server: %s\n", strerror(errno));
-        return 1;
-    }
-
-    if (server_listen(&ctx.server, 512) < 0) {
-        fprintf(stderr,
-                "Failed to listen on port %d: %s\n",
-                port,
-                strerror(errno));
-        return 1;
-    }
-
-    fprintf(stderr, "Listening on port %i\n", port);
-
-    if (server_impl_init(&ctx) < 0) {
-        fprintf(stderr,
-                "Failed to initialize async server: %s\n",
-                strerror(errno));
-        return 1;
-    }
-
-    while (!stop_flag) {
-        if (server_impl_poll(&ctx) >= 0 || errno == EAGAIN) {
-            continue;
-        }
-
-        fprintf(stderr, "Failed to poll server: %s\n", strerror(errno));
-        break;
-    }
-
-    server_impl_exit(&ctx);
-
-    fprintf(stderr, "Closed server\n");
-
-#ifdef PROFILE_GENERATION
-   __gcov_dump();
-#endif
-
-    return 0;
-}
-
-int benchmark() {
-    benchmark_hash();
-    benchmark_scheduler();
-    benchmark_sha256_radix_tree_lookup();
-    benchmark_random_key_radix_tree_lookup();
-    benchmark_manual_radix_tree();
-    return 0;
-}
 
 int main(
     int argc,
@@ -90,7 +15,8 @@ int main(
     }
 
     if (strcmp(argv[1], "benchmark") == 0) {
-        return benchmark();
+        benchmark();
+        return 0;
     }
 
     if (strcmp(argv[1], "misc") == 0) {
@@ -99,5 +25,6 @@ int main(
 
     const int port = atoi(argv[1]);
 
-    return server(port);
+    server(port);
+    return 0;
 }

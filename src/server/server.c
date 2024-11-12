@@ -1,6 +1,9 @@
 #include "server.h"
+#include "generic.h"
+#include "../config.h"
 #include "worker_pool.h"
 #include <errno.h>
+#include <signal.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -82,4 +85,61 @@ void server_scheduler_destroy(struct ServerScheduler* sched) {
     // scheduler.
     worker_destroy_pool(sched->worker_pool);
     scheduler_destroy(sched->scheduler);
+}
+
+// Main function
+static volatile sig_atomic_t stop_flag = 0;
+
+static void signal_handler(
+    const int signal
+) {
+    (void)signal;
+    stop_flag = 1;
+}
+
+int server(
+    const uint16_t port
+) {
+    // Setup signal handler
+    signal(SIGINT, signal_handler);
+    signal(SIGTERM, signal_handler);
+
+    ServerImplCtx ctx = {0};
+
+    if (server_init(&ctx.server, port) < 0) {
+        fprintf(stderr, "Failed to initialize server: %s\n", strerror(errno));
+        return 1;
+    }
+
+    if (server_listen(&ctx.server, 512) < 0) {
+        fprintf(stderr,
+                "Failed to listen on port %d: %s\n",
+                port,
+                strerror(errno));
+        return 1;
+    }
+
+    fprintf(stderr, "Listening on port %i\n", port);
+
+    if (server_impl_init(&ctx) < 0) {
+        fprintf(stderr,
+                "Failed to initialize async server: %s\n",
+                strerror(errno));
+        return 1;
+    }
+
+    while (!stop_flag) {
+        if (server_impl_poll(&ctx) >= 0 || errno == EAGAIN) {
+            continue;
+        }
+
+        fprintf(stderr, "Failed to poll server: %s\n", strerror(errno));
+        break;
+    }
+
+    server_impl_exit(&ctx);
+
+    fprintf(stderr, "Closed server\n");
+
+    return 0;
 }

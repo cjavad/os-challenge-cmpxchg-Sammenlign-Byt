@@ -52,10 +52,11 @@
 #define vec_copy(dest, src) __vec_copy(dest, src, sizeof(*(src)->data))
 
 #define vec_get_unsafe(vec, idx, size)                                         \
-    ({ (((void*)(vec)->data) + ((idx) * (size))); })
+    ({ (void*)(((uintptr_t)(vec)->data) + ((idx) * (size))); })
 
 #define vec_set_unsafe(vec, idx, val, size)                                    \
-    memcpy(((void*)(vec)->data) + ((idx) * (size)), val, size)
+    memcpy(vec_get_unsafe(vec, idx, size), val, size)
+
 #define vec_push_unsafe(vec, val, size)                                        \
     {                                                                          \
         __vec_maybe_grow(vec, size);                                           \

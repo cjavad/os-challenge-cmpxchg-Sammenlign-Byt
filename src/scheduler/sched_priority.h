@@ -1,5 +1,7 @@
 #pragma once
 
+#include <stdatomic.h>
+
 #include "../bits/freelist.h"
 #include "../bits/priority_heap.h"
 #include "../protocol.h"
@@ -41,39 +43,23 @@ struct PrioritySchedulerJob
     uint32_t rc; // Reference count
 };
 
-inline void scheduler_priority_job_mark_as_done(
+void scheduler_priority_job_mark_as_done(
     struct PrioritySchedulerJob* job
-)
-{
-    atomic_store(&job->block_idx, job->block_count);
-}
+);
 
-inline bool scheduler_priority_job_is_done(
+bool scheduler_priority_job_is_done(
     const struct PrioritySchedulerJob* job
-)
-{
-    return atomic_load(&job->block_idx) >= job->block_count;
-}
+);
 
-inline void scheduler_priority_enter_job(
+void scheduler_priority_enter_job(
     struct PriorityScheduler* scheduler,
-    const uint32_t job_idx
-)
-{
-    spin_rwlock_rdlock(&scheduler->rlock);
-    __atomic_add_fetch(&scheduler->jobs.data[job_idx].rc, 1, __ATOMIC_RELAXED);
-    spin_rwlock_rdunlock(&scheduler->rlock);
-}
+    uint32_t job_idx
+);
 
-inline void scheduler_priority_leave_job(
+void scheduler_priority_leave_job(
     struct PriorityScheduler* scheduler,
-    const uint32_t job_idx
-)
-{
-    spin_rwlock_rdlock(&scheduler->rlock);
-    __atomic_sub_fetch(&scheduler->jobs.data[job_idx].rc, 1, __ATOMIC_RELAXED);
-    spin_rwlock_rdunlock(&scheduler->rlock);
-}
+    uint32_t job_idx
+);
 
 struct PriorityScheduler* scheduler_priority_create(uint32_t default_cap);
 void scheduler_priority_destroy(struct PriorityScheduler* scheduler);

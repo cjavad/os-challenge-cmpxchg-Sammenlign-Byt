@@ -16,6 +16,9 @@ struct ServerScheduler
     SchedulerImpl* scheduler;
 };
 
+// Main server loop
+int server(uint16_t port);
+
 // Setup socket fd (shared between all implementations)
 int server_init(struct Server* server, int port);
 int server_listen(struct Server* server, int backlog);

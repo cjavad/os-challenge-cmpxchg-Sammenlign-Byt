@@ -1,22 +1,16 @@
 #include "scheduler.h"
 #include "../bits/futex.h"
-
-#if SCHEDULER_WAKER_TYPE == SCHEDULER_WAKER_TYPE_SPIN
-#include <stdatomic.h>
-#include <xmmintrin.h>
-#elif SCHEDULER_WAKER_TYPE == SCHEDULER_WAKER_TYPE_PTHREAD
-#include <pthread.h>
-#endif
-
-
 #include "../cache.h"
 #include "../protocol.h"
-
 #include <errno.h>
 #include <stdlib.h>
 #include <sys/socket.h>
 #include <unistd.h>
 
+#if SCHEDULER_WAKER_TYPE == SCHEDULER_WAKER_TYPE_SPIN
+#include <stdatomic.h>
+#include <xmmintrin.h>
+#endif
 
 void scheduler_base_init(
     struct SchedulerBase* scheduler,

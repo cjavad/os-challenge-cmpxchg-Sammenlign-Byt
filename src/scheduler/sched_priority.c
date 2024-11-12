@@ -27,6 +27,30 @@ struct PriorityScheduler* scheduler_priority_create(
     return scheduler;
 }
 
+inline void scheduler_priority_job_mark_as_done(
+    struct PrioritySchedulerJob* job) {
+    atomic_store(&job->block_idx, job->block_count);
+}
+
+inline bool scheduler_priority_job_is_done(
+    const struct PrioritySchedulerJob* job) {
+    return atomic_load(&job->block_idx) >= job->block_count;
+}
+
+inline void scheduler_priority_enter_job(struct PriorityScheduler* scheduler,
+                                         const uint32_t job_idx) {
+    spin_rwlock_rdlock(&scheduler->rlock);
+    __atomic_add_fetch(&scheduler->jobs.data[job_idx].rc, 1, __ATOMIC_RELAXED);
+    spin_rwlock_rdunlock(&scheduler->rlock);
+}
+
+inline void scheduler_priority_leave_job(struct PriorityScheduler* scheduler,
+                                         const uint32_t job_idx) {
+    spin_rwlock_rdlock(&scheduler->rlock);
+    __atomic_sub_fetch(&scheduler->jobs.data[job_idx].rc, 1, __ATOMIC_RELAXED);
+    spin_rwlock_rdunlock(&scheduler->rlock);
+}
+
 void scheduler_priority_destroy(
     struct PriorityScheduler* scheduler
 ) {
@@ -265,6 +289,10 @@ void* scheduler_priority_worker(
         // Send answer to recipient and store in cache.
         scheduler_job_notify_recipient(recipient, answer);
         cache_insert_pending(scheduler->base.cache, target_hash, answer);
+    }
+
+    if (local_jobs.data != NULL) {
+        priority_heap_destroy(&local_jobs);
     }
 
     return NULL;

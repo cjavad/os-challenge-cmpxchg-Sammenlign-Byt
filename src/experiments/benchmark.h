@@ -77,3 +77,4 @@ void benchmark_scheduler();
 void benchmark_sha256_radix_tree_lookup();
 void benchmark_random_key_radix_tree_lookup();
 void benchmark_manual_radix_tree();
+void benchmark();

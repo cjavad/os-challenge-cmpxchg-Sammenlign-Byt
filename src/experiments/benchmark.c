@@ -325,3 +325,11 @@ void benchmark_manual_radix_tree() {
 
     radix_tree_destroy(&tree);
 }
+
+void benchmark() {
+    benchmark_hash();
+    benchmark_scheduler();
+    benchmark_sha256_radix_tree_lookup();
+    benchmark_random_key_radix_tree_lookup();
+    benchmark_manual_radix_tree();
+}
