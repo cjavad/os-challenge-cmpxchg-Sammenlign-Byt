@@ -18,3 +18,5 @@ AllowAllParametersOfDeclarationOnNextLine: false
 BinPackArguments: false
 AllowAllArgumentsOnNextLine: false
 BreakFunctionDefinitionParameters: true
+IndentGotoLabels: true
+IndentCaseLabels: true
