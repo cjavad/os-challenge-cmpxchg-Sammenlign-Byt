@@ -90,7 +90,7 @@ SchedulerJobId scheduler_priority_submit(
 
     // Submit new job to scheduler. (Starts at 1)
     const SchedulerJobId next_id = scheduler->base.job_id + 1;
-    const uint64_t block_size = 4096;
+    const uint64_t block_size = 16384;
     const uint64_t difficulty = request->end - request->start;
 
     struct PrioritySchedulerJob job = {
