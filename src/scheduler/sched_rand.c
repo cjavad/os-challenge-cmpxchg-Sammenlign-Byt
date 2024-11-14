@@ -11,7 +11,7 @@ struct RandScheduler* scheduler_rand_create(
 ) {
     struct RandScheduler* scheduler = calloc(1, sizeof(struct RandScheduler));
 
-    scheduler->block_size = 1 << 16;
+    scheduler->block_size = SCHEDULER_RAND_BLOCK_SIZE;
 
     scheduler->lock = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
     ringbuffer_init(&scheduler->pending_jobs, default_cap);

@@ -9,6 +9,8 @@
 #include "scheduler.h"
 #include <stdbool.h>
 
+#define SCHEDULER_PRIORITY_BLOCK_SIZE (1 << 16)
+
 typedef PriorityHeap(uint32_t) IndexPriorityHeap;
 
 typedef PriorityHeapNode(uint32_t) IndexPriorityHeapNode;

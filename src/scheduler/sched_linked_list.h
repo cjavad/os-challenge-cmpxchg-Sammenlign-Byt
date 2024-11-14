@@ -1,18 +1,17 @@
 #pragma once
 
-#include "../protocol.h"
 #include "../bits/atomic.h"
+#include "../protocol.h"
 #include "scheduler.h"
 #include <stdint.h>
 
-struct LLJob
-{
+#define SCHEDULER_LL_BLOCK_SIZE (1 << 16)
+
+struct LLJob {
     /* 1st cache line */
 
     // single writer
     uint32_t done;
-    // read only
-    uint32_t fumber; // not 0
     // read only
     uint8_t priority;
     // read only
@@ -38,20 +37,14 @@ struct LLJob
     // done
 } __attribute__((aligned(64)));
 
-struct LinkedListScheduler
-{
+struct LinkedListScheduler {
     struct SchedulerBase base;
     struct LLJob* current_job;
-    uint32_t block_size;
 };
 
-struct LinkedListScheduler* scheduler_linked_list_create(
-    uint32_t default_cap
-);
+struct LinkedListScheduler* scheduler_linked_list_create(uint32_t default_cap);
 
-void scheduler_linked_list_destroy(
-    struct LinkedListScheduler* scheduler
-);
+void scheduler_linked_list_destroy(struct LinkedListScheduler* scheduler);
 
 SchedulerJobId scheduler_linked_list_submit(
     struct LinkedListScheduler* scheduler,

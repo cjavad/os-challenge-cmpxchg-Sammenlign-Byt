@@ -14,7 +14,6 @@ struct LinkedListScheduler* scheduler_linked_list_create(
         aligned_alloc(64, sizeof(struct LinkedListScheduler));
 
     memset(scheduler, 0, sizeof(struct LinkedListScheduler));
-    scheduler->block_size = 1 << 12;
     scheduler_base_init((struct SchedulerBase*)scheduler, default_cap);
     return scheduler;
 }
@@ -64,12 +63,12 @@ SchedulerJobId scheduler_linked_list_submit(
         .end = request->end,
         .priority = request->priority,
         .block_idx = 0,
-        .block_count = (request->end - request->start) / scheduler->block_size,
+        .block_count =
+            (request->end - request->start) / SCHEDULER_LL_BLOCK_SIZE,
         .done = 0,
         .recipient = recipient,
         .answer = 0,
         .next = NULL,
-        .fumber = (++scheduler->base.job_id) % (2 << 25) + 1,
     };
 
     memcpy(new_job->hash, request->hash, sizeof(HashDigest));
@@ -114,14 +113,13 @@ void scheduler_linked_list_cancel(
 void* scheduler_linked_list_worker(
     struct LinkedListScheduler* scheduler
 ) {
-    const uint32_t block_size = scheduler->block_size;
-    uint32_t jfumber = 0;
     HashDigest jhash = {0};
     uint64_t jstart = 0;
     uint64_t jend = 0;
     uint64_t jblock_count = 0;
 
     struct LLJob* job = NULL;
+    struct LLJob* prev_job = NULL;
 
 start:
     if (!scheduler->base.running) {
@@ -142,12 +140,12 @@ next_job:
 
     // check if job is last worked on job
     // TODO :: replace fumber with ptr cmp
-    if (job->fumber != jfumber) {
-        jfumber = job->fumber;
+    if (job != prev_job) {
         jstart = job->start;
         jend = job->end;
         jblock_count = job->block_count;
         memcpy(jhash, job->hash, sizeof(HashDigest));
+        prev_job = job;
     }
 
     // get block_idx and increment for next
@@ -157,9 +155,9 @@ next_job:
         goto next_job;
     }
 
-    const uint64_t start = jstart + block_idx * block_size;
+    const uint64_t start = jstart + block_idx * SCHEDULER_LL_BLOCK_SIZE;
     const uint64_t end = ({
-        uint64_t tempy = start + block_size;
+        uint64_t tempy = start + SCHEDULER_LL_BLOCK_SIZE;
         if (tempy > jend || tempy < start)
             tempy = jend;
         tempy;

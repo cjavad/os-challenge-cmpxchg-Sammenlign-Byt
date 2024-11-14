@@ -5,6 +5,8 @@
 #include "../protocol.h"
 #include "scheduler.h"
 
+#define SCHEDULER_RAND_BLOCK_SIZE (1 << 16)
+
 struct RandSchedulerJob {
     HashDigest hash;
     uint64_t start;
