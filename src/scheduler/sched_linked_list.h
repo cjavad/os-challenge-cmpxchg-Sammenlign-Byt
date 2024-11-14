@@ -25,6 +25,7 @@ struct LLJob
     HashDigest hash;
 
     /* 2nd cache line */
+    struct LLJob* next;
 
     // single writer
     uint64_t answer;
@@ -45,12 +46,16 @@ struct LinkedListScheduler
 };
 
 struct LinkedListScheduler* scheduler_linked_list_create(
-    const uint32_t default_cap
+    uint32_t default_cap
+);
+
+void scheduler_linked_list_destroy(
+    struct LinkedListScheduler* scheduler
 );
 
 SchedulerJobId scheduler_linked_list_submit(
     struct LinkedListScheduler* scheduler,
-    const struct ProtocolRequest* req,
+    const struct ProtocolRequest* request,
     struct SchedulerJobRecipient* recipient
 );
 

@@ -1,42 +1,109 @@
 #include "sched_linked_list.h"
+#include "../cache.h"
 #include "scheduler.h"
-#include <string.h>
-#include <stdlib.h>
-#include <stdatomic.h>
-#include "../sha256/sha256.h"
 
-#undef NULL
-#define NULL                                                                   \
-    0;                                                                         \
-    somewhere_else:
+#include "../sha256/sha256.h"
+#include <stdatomic.h>
+#include <stdlib.h>
+#include <string.h>
 
 struct LinkedListScheduler* scheduler_linked_list_create(
     const uint32_t default_cap
 ) {
-    struct LinkedListScheduler* shed =
-        calloc(1, sizeof(struct LinkedListScheduler));
-    scheduler_base_init((struct SchedulerBase*)shed, default_cap);
-    return shed;
+    struct LinkedListScheduler* scheduler =
+        aligned_alloc(64, sizeof(struct LinkedListScheduler));
+
+    memset(scheduler, 0, sizeof(struct LinkedListScheduler));
+    scheduler->block_size = 1 << 12;
+    scheduler_base_init((struct SchedulerBase*)scheduler, default_cap);
+    return scheduler;
+}
+
+void scheduler_linked_list_destroy(
+    struct LinkedListScheduler* scheduler
+) {
+    scheduler_base_destroy(&scheduler->base);
+    free(scheduler);
 }
 
 SchedulerJobId scheduler_linked_list_submit(
     struct LinkedListScheduler* scheduler,
     // my stuff
-    const struct ProtocolRequest* req,
+    const struct ProtocolRequest* request,
     // request
     struct SchedulerJobRecipient* recipient // fd to reply
 ) {
-    //
-    (void)req;
-    (void)recipient;
-    (void)scheduler;
+    cache_process_pending(scheduler->base.cache);
+
+    uint64_t* cached_answer;
+
+    radix_tree_get(
+        &scheduler->base.cache->tree,
+        request->hash,
+        SHA256_DIGEST_LENGTH,
+        &cached_answer
+    );
+
+    if (cached_answer != NULL) {
+        scheduler_job_notify_recipient(recipient, *cached_answer);
+        return SCHEDULER_NO_JOB_ID_SENTINEL;
+    }
+
+    struct LLJob* job = scheduler->current_job;
+
+    while (job != NULL && !job->done) {
+        job = job->next;
+    }
+
+    scheduler->current_job = job;
+
+    struct LLJob* new_job = aligned_alloc(64, sizeof(struct LLJob));
+
+    *new_job = (struct LLJob){
+        .start = request->start,
+        .end = request->end,
+        .priority = request->priority,
+        .block_idx = 0,
+        .block_count = (request->end - request->start) / scheduler->block_size,
+        .done = 0,
+        .recipient = recipient,
+        .answer = 0,
+        .next = NULL,
+        .fumber = (++scheduler->base.job_id) % (2 << 25) + 1,
+    };
+
+    memcpy(new_job->hash, request->hash, sizeof(HashDigest));
+
+    if (job == NULL) {
+        scheduler->current_job = new_job;
+        goto wake;
+    }
+
+    struct LLJob* prev_job = NULL;
+
+    while (job != NULL && job->priority <= new_job->priority) {
+        prev_job = job;
+        job = job->next;
+    }
+
+    if (prev_job == NULL) {
+        new_job->next = job;
+        scheduler->current_job = new_job;
+        goto wake;
+    }
+
+    new_job->next = job;
+    prev_job->next = new_job;
+
+wake:
+    scheduler_wake_workers(&scheduler->base);
+
     return 0;
 }
 
-//
 void scheduler_linked_list_cancel(
     struct LinkedListScheduler* scheduler,
-    SchedulerJobId job_id
+    const SchedulerJobId job_id
 ) {
     // this is morally wrong
     (void)scheduler;
@@ -56,39 +123,42 @@ void* scheduler_linked_list_worker(
 
     struct LLJob* job = NULL;
 
-    job = scheduler->current_job;
-
-somewhere:
-    for (; job && job->done;) {
-        // TODO :: get next job
+start:
+    if (!scheduler->base.running) {
+        return NULL;
     }
 
-    if (!job) {
-        // TODO :: sleep until stuff to do
+    job = scheduler->current_job;
 
-        // return to start
-        goto somewhere_else;
+next_job:
+    while (job != NULL && job->done) {
+        job = job->next;
+    }
+
+    if (job == NULL) {
+        scheduler_yield_worker(&scheduler->base);
+        goto start;
     }
 
     // check if job is last worked on job
+    // TODO :: replace fumber with ptr cmp
     if (job->fumber != jfumber) {
         jfumber = job->fumber;
         jstart = job->start;
         jend = job->end;
         jblock_count = job->block_count;
-        memcpy(jhash, job->hash, 32);
+        memcpy(jhash, job->hash, sizeof(HashDigest));
     }
 
     // get block_idx and increment for next
-    uint64_t block_idx = atomic_fetch_add(&job->block_idx, 1);
+    const uint64_t block_idx = atomic_fetch_add(&job->block_idx, 1);
 
     if (block_idx >= jblock_count) {
-        // TODO :: set job to next job
-        goto somewhere;
+        goto next_job;
     }
 
     const uint64_t start = jstart + block_idx * block_size;
-    const uint64_t end = ( {
+    const uint64_t end = ({
         uint64_t tempy = start + block_size;
         if (tempy > jend || tempy < start)
             tempy = jend;
@@ -100,11 +170,13 @@ somewhere:
     if (answer != SCHEDULER_NO_ANSWER_SENTINEL) {
         job->answer = answer;
         job->done = 1;
+        scheduler_job_notify_recipient(job->recipient, answer);
+        cache_insert_pending(scheduler->base.cache, jhash, answer);
     }
 
     if (__builtin_expect(!scheduler->base.running, 0)) {
-        return 0;
+        return NULL;
     }
 
-    goto somewhere_else;
+    goto start;
 }
