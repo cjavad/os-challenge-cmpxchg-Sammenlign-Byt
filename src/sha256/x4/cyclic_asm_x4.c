@@ -72,6 +72,7 @@ __attribute__((always_inline)) inline void sha256x4_cyclic_asm(
     uint8_t hash[SHA256_DIGEST_LENGTH * 4],
     const uint8_t data[SHA256_INPUT_LENGTH * 4]
 ) {
+#ifndef __clang__
     // print current stack pointer
     __asm__ volatile(
         R"""(
@@ -1150,7 +1151,6 @@ __attribute__((always_inline)) inline void sha256x4_cyclic_asm(
 
     // restore stack
 	add	rsp, 392
-	ret
         )"""
         :
         : "rdi"(hash),
@@ -1190,4 +1190,7 @@ __attribute__((always_inline)) inline void sha256x4_cyclic_asm(
         "xmm15",
         "memory"
     );
+#endif
+
+    return;
 }
