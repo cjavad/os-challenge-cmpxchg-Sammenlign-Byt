@@ -1,5 +1,5 @@
-#include "sha256.h"
 #include "../config.h"
+#include "sha256.h"
 
 #include "x1/sha256x1.h"
 #include "x4/sha256x4.h"
@@ -18,8 +18,8 @@
 #endif
 
 #define HASH_COMPARE_U64(ptr, target)                                          \
-    ((ptr)[0] == (target)[0] && (ptr)[1] == (target)[1] && (ptr)[2] == (target)[2] &&      \
-     (ptr)[3] == (target)[3])
+    ((ptr)[0] == (target)[0] && (ptr)[1] == (target)[1] &&                     \
+     (ptr)[2] == (target)[2] && (ptr)[3] == (target)[3])
 
 uint64_t reverse_sha256(
     const uint64_t start,
@@ -42,15 +42,14 @@ uint64_t reverse_sha256(
     return 0;
 }
 
-__attribute__((flatten))
-uint64_t reverse_sha256_x4(
+__attribute__((flatten)) uint64_t reverse_sha256_x4(
     const uint64_t start,
     const uint64_t end,
     const HashDigest target
 ) {
     const uint64_t* target_u64 = (const uint64_t*)target;
-    uint64_t data[4] __attribute__((aligned(64))) = {
-        start, start + 1, start + 2, start + 3};
+    uint64_t data[4]
+        __attribute__((aligned(64))) = {start, start + 1, start + 2, start + 3};
 
     do {
         uint64_t out_64[4 * 4] __attribute__((aligned(64)));
@@ -72,15 +71,23 @@ uint64_t reverse_sha256_x4(
     return 0;
 }
 
-__attribute__((flatten))
-uint64_t reverse_sha256_x4x2orx8(const uint64_t start,
-                                 const uint64_t end,
-                                 const HashDigest target) {
+__attribute__((flatten)) uint64_t reverse_sha256_x4x2orx8(
+    const uint64_t start,
+    const uint64_t end,
+    const HashDigest target
+) {
     const uint64_t* target_u64 = (const uint64_t*)target;
 
     uint64_t data[8] __attribute__((aligned(64))) = {
-        start, start + 1, start + 2, start + 3,
-        start + 4, start + 5, start + 6, start + 7};
+        start,
+        start + 1,
+        start + 2,
+        start + 3,
+        start + 4,
+        start + 5,
+        start + 6,
+        start + 7
+    };
 
     do {
         uint64_t out_64[4 * 8] __attribute__((aligned(64)));

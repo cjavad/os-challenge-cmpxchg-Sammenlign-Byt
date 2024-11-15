@@ -2,6 +2,7 @@
 #include "../bits/futex.h"
 #include "../bits/minmax.h"
 #include "../cache.h"
+#include "../config.h"
 #include "../sha256/sha256.h"
 
 
@@ -277,7 +278,7 @@ void* scheduler_priority_worker(
         scheduler_priority_enter_job(scheduler, job_idx);
 
         const uint64_t answer =
-            reverse_sha256_x4(start, end, target_hash);
+            REVERSE_FUNC(start, end, target_hash);
 
         if (answer == SCHEDULER_NO_ANSWER_SENTINEL) {
             scheduler_priority_leave_job(scheduler, job_idx);

@@ -1,5 +1,6 @@
 #include "sched_linked_list.h"
 #include "../cache.h"
+#include "../config.h"
 #include "scheduler.h"
 
 #include "../sha256/sha256.h"
@@ -163,7 +164,7 @@ next_job:
         tempy;
     });
 
-    const uint64_t answer = reverse_sha256_x4(start, end, jhash);
+    const uint64_t answer = REVERSE_FUNC(start, end, jhash);
 
     if (answer != SCHEDULER_NO_ANSWER_SENTINEL) {
         job->answer = answer;

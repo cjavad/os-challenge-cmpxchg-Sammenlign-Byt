@@ -1,9 +1,10 @@
 #include "sched_rand.h"
 
+#include "../bits/futex.h"
 #include "../bits/minmax.h"
 #include "../bits/prng.h"
 #include "../cache.h"
-#include "../bits/futex.h"
+#include "../config.h"
 #include "../sha256/sha256.h"
 
 struct RandScheduler* scheduler_rand_create(
@@ -224,7 +225,7 @@ void* scheduler_rand_worker(
         }
 
         const uint64_t answer =
-            reverse_sha256_x4(task.start, task.end, task.hash);
+            REVERSE_FUNC(task.start, task.end, task.hash);
 
         if (answer == SCHEDULER_NO_ANSWER_SENTINEL) {
             continue;
