@@ -61,8 +61,8 @@ build: LFLAGS += -ggdb
 build: PPFLAGS += -DDEBUG
 build: link
 
-release: CFLAGS += -O3 -Wall -Wextra -flto=auto
-release: LFLAGS += -s -flto=auto
+release: CFLAGS += -O3 -Wall -Wextra
+release: LFLAGS += -s
 release: PPFLAGS += -DRELEASE
 release: link
 
@@ -93,4 +93,3 @@ $(DEPDIR)/%.d: $(SRCDIR)/%.c
 $(OBJDIR)/%.o:
 	@mkdir -p $(@D)
 	$(CC) $(IFLAGS) $(CFLAGS) $(PPFLAGS) -c $(patsubst $(OBJDIR)/%.o, $(SRCDIR)/%.c, $@) -o $@
-
