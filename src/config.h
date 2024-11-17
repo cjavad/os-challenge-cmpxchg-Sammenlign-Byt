@@ -1,7 +1,7 @@
 #pragma once
 
 #define WORKER_SET_AFFINITY           0
-#define WORKER_CONCURRENCY_EXTRA      1
+#define WORKER_CONCURRENCY_EXTRA      0
 #define WORKER_CONCURRENCY_MULTIPLIER 1
 
 #ifndef SCHEDULER_WAKER_TYPE
