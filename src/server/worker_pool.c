@@ -21,14 +21,12 @@ struct WorkerPool* worker_create_pool(
 
     fprintf(stderr, "Creating worker pool with %zu workers\n", size);
 
+#if WORKER_SET_AFFINITY
     const int core_count = worker_pool_get_concurrency();
     cpu_set_t cpuset;
+#endif
 
     for (size_t i = 0; i < size; i++) {
-        CPU_ZERO(&cpuset);
-        const int affinity = i % core_count;
-        CPU_SET(affinity, &cpuset);
-
         pthread_attr_t attr;
         struct sched_param param;
         param.sched_priority = 20;
@@ -37,8 +35,13 @@ struct WorkerPool* worker_create_pool(
         pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
         pthread_attr_setschedpolicy(&attr, SCHED_FIFO);
         pthread_attr_setschedparam(&attr, &param);
-        pthread_attr_setaffinity_np(&attr, sizeof(cpu_set_t), &cpuset);
 
+#if WORKER_SET_AFFINITY
+        CPU_ZERO(&cpuset);
+        const int affinity = i % core_count;
+        CPU_SET(affinity, &cpuset);
+        pthread_attr_setaffinity_np(&attr, sizeof(cpu_set_t), &cpuset);
+#endif
         pool->workers[i].scheduler = scheduler;
 
         pthread_create(

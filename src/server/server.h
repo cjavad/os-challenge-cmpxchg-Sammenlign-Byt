@@ -4,10 +4,6 @@
 #include "../scheduler/generic.h"
 #include <netinet/in.h>
 
-#ifndef WORKER_CONCURRENCY_MULTIPLIER
-#define WORKER_CONCURRENCY_MULTIPLIER 1
-#endif
-
 struct Server {
     int fd;
     struct sockaddr_in addr;

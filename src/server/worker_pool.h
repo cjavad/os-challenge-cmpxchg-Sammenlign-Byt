@@ -1,17 +1,24 @@
 #pragma once
 
+#include "../config.h"
 #include "../scheduler/scheduler.h"
 #include <pthread.h>
 #include <stdbool.h>
 
-struct WorkerState
-{
+#ifndef WORKER_CONCURRENCY_EXTRA
+#define WORKER_CONCURRENCY_EXTRA 0
+#endif
+
+#ifndef WORKER_CONCURRENCY_MULTIPLIER
+#define WORKER_CONCURRENCY_MULTIPLIER 1
+#endif
+
+struct WorkerState {
     pthread_t thread;
     struct SchedulerBase* scheduler;
 };
 
-struct WorkerPool
-{
+struct WorkerPool {
     struct SchedulerBase* scheduler;
     struct WorkerState* workers;
     size_t size;

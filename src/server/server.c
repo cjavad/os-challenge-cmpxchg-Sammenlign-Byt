@@ -77,7 +77,7 @@ void server_scheduler_init(
     // Spawn worker pool
     sched->scheduler = scheduler_create(sched->scheduler, default_cap);
     sched->worker_pool = worker_create_pool(
-        worker_pool_get_concurrency() * WORKER_CONCURRENCY_MULTIPLIER,
+        worker_pool_get_concurrency() * WORKER_CONCURRENCY_MULTIPLIER + WORKER_CONCURRENCY_EXTRA,
         (void*)sched->scheduler,
         scheduler_worker_thread(sched->scheduler)
     );
