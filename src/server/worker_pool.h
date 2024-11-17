@@ -2,6 +2,7 @@
 
 #include "../scheduler/scheduler.h"
 #include <pthread.h>
+#include <stdbool.h>
 
 struct WorkerState
 {
@@ -24,4 +25,4 @@ struct WorkerPool* worker_create_pool(
 
 void worker_destroy_pool(struct WorkerPool* pool);
 int worker_pool_get_concurrency();
-void worker_set_nice(int nice);
+bool worker_set_nice(int nice);

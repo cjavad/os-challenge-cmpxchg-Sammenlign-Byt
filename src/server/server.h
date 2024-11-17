@@ -1,17 +1,19 @@
 #pragma once
 
-#include <netinet/in.h>
-#include "../scheduler/generic.h"
 #include "../config.h"
+#include "../scheduler/generic.h"
+#include <netinet/in.h>
 
-struct Server
-{
+#ifndef WORKER_CONCURRENCY_MULTIPLIER
+#define WORKER_CONCURRENCY_MULTIPLIER 1
+#endif
+
+struct Server {
     int fd;
     struct sockaddr_in addr;
 };
 
-struct ServerScheduler
-{
+struct ServerScheduler {
     struct WorkerPool* worker_pool;
     SchedulerImpl* scheduler;
 };

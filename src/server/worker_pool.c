@@ -71,13 +71,20 @@ void worker_destroy_pool(
 
 int worker_pool_get_concurrency() { return (int)sysconf(_SC_NPROCESSORS_ONLN); }
 
-void worker_set_nice(const int nice) {
+bool worker_set_nice(
+    const int nice
+) {
     if (nice < -20 || nice > 19) {
         fprintf(stderr, "Invalid nice value %d\n", nice);
-        return;
+        return false;
     }
 
     if (setpriority(PRIO_PROCESS, 0, nice) != 0) {
         fprintf(stderr, "Failed to set nice value %d\n", nice);
+        return false;
     }
+
+    fprintf(stderr, "Set nice value to %d\n", nice);
+
+    return true;
 }
