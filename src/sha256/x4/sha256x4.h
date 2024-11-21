@@ -38,3 +38,17 @@ void sha256x4_fullyfused_asm(
     uint8_t hash[SHA256_DIGEST_LENGTH * 4],
     const uint8_t data[SHA256_INPUT_LENGTH * 4]
 );
+
+// Test functions
+
+uint64_t reverse_sha256x4_fullyfused(
+    uint64_t start,
+    uint64_t end,
+    const HashDigest target
+);
+
+uint64_t reverse_sha256x4_fullyfused_asm(
+    uint64_t start,
+    uint64_t end,
+    const HashDigest target
+);

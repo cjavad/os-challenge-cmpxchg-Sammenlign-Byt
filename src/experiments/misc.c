@@ -304,12 +304,19 @@ void test_all_sha256_results() {
 }
 
 int misc_main() {
-    // sha256_test();
-    test_all_sha256_results();
-    test_priority_heap();
-    test_spinlock();
-    test_page_allocator();
-    misc_pthread_waker_vs_pure_futex();
+    HashDigest target;
+    uint64_t actual = 7;
+    sha256_custom(target, (uint8_t*)&actual);
+
+    const uint64_t res = reverse_sha256x4_fullyfused(0, 15, target);
+
+    printf("res: %lu\n", res);
+
+    // test_all_sha256_results();
+    // test_priority_heap();
+    // test_spinlock();
+    // test_page_allocator();
+    // misc_pthread_waker_vs_pure_futex();
     return 0;
 }
 

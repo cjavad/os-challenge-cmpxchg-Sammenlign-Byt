@@ -1,5 +1,6 @@
 #pragma once
 
+#include "../sha256/x4/sha256x4.h"
 #include "../bits/spin.h"
 #include <stdint.h>
 
