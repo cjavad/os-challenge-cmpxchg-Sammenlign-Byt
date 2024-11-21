@@ -20,8 +20,6 @@
         D_BENCHMARK_END()                                                      \
     }
 
-//*/
-
 #define BENCHMARK_SHA256X4_ALL                                                 \
     BENCHMARK_SHA256X4(sha256x4_fullyfused_asm)                                \
     BENCHMARK_SHA256X4(sha256x4_optim)                                         \

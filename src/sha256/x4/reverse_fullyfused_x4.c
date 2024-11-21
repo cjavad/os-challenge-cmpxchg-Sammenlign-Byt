@@ -225,7 +225,7 @@ uint64_t reverse_sha256x4_fullyfused(
 
         __m128i test = _mm_cmpeq_epi32(e, h64e61);
 
-        if (_mm_testz_si128(test,test)) {
+        if (_mm_testz_si128(test, test)) {
             goto next;
         }
 
@@ -265,79 +265,22 @@ uint64_t reverse_sha256x4_fullyfused(
 
         // RIP 8 registers, at least no stack
 
-        // first half
-        {
-            __m128i tmp0 = _mm_unpacklo_epi32(a, b),
-                    tmp1 = _mm_unpackhi_epi32(a, b),
-                    tmp2 = _mm_unpacklo_epi32(c, d),
-                    tmp3 = _mm_unpackhi_epi32(c, d);
+        a = _mm_cmpeq_epi32(a, _mm_set1_epi32(((uint32_t*)target)[0]));
+        b = _mm_cmpeq_epi32(b, _mm_set1_epi32(((uint32_t*)target)[1]));
+        c = _mm_cmpeq_epi32(c, _mm_set1_epi32(((uint32_t*)target)[2]));
+        d = _mm_cmpeq_epi32(d, _mm_set1_epi32(((uint32_t*)target)[3]));
+        e = _mm_cmpeq_epi32(e, _mm_set1_epi32(((uint32_t*)target)[4]));
+        f = _mm_cmpeq_epi32(f, _mm_set1_epi32(((uint32_t*)target)[5]));
+        g = _mm_cmpeq_epi32(g, _mm_set1_epi32(((uint32_t*)target)[6]));
+        h = _mm_cmpeq_epi32(h, _mm_set1_epi32(((uint32_t*)target)[7]));
 
-            a = _mm_castps_si128(
-                _mm_movelh_ps(_mm_castsi128_ps(tmp0), _mm_castsi128_ps(tmp2))
-            );
-            b = _mm_castps_si128(
-                _mm_movehl_ps(_mm_castsi128_ps(tmp2), _mm_castsi128_ps(tmp0))
-            );
-            c = _mm_castps_si128(
-                _mm_movelh_ps(_mm_castsi128_ps(tmp1), _mm_castsi128_ps(tmp3))
-            );
-            d = _mm_castps_si128(
-                _mm_movehl_ps(_mm_castsi128_ps(tmp3), _mm_castsi128_ps(tmp1))
-            );
-        }
-        // second half
-        {
-            __m128i tmp0 = _mm_unpacklo_epi32(e, f),
-                    tmp1 = _mm_unpackhi_epi32(e, f),
-                    tmp2 = _mm_unpacklo_epi32(g, h),
-                    tmp3 = _mm_unpackhi_epi32(g, h);
+        uint32_t bm = _mm_movemask_ps(_mm_castsi128_ps(_mm_and_si128(
+            _mm_and_si128(_mm_and_si128(a, b), _mm_and_si128(c, d)),
+            _mm_and_si128(_mm_and_si128(e, f), _mm_and_si128(g, h))
+        )));
 
-            e = _mm_castps_si128(
-                _mm_movelh_ps(_mm_castsi128_ps(tmp0), _mm_castsi128_ps(tmp2))
-            );
-            f = _mm_castps_si128(
-                _mm_movehl_ps(_mm_castsi128_ps(tmp2), _mm_castsi128_ps(tmp0))
-            );
-            g = _mm_castps_si128(
-                _mm_movelh_ps(_mm_castsi128_ps(tmp1), _mm_castsi128_ps(tmp3))
-            );
-            h = _mm_castps_si128(
-                _mm_movehl_ps(_mm_castsi128_ps(tmp3), _mm_castsi128_ps(tmp1))
-            );
-        }
-
-        // TODO :: Optimize this.
-
-        // Compare hash 1: (a, e)
-        if (((uint64_t*)&a)[0] == ((uint64_t*)target)[0] &&
-            ((uint64_t*)&a)[1] == ((uint64_t*)target)[1] &&
-            ((uint64_t*)&e)[0] == ((uint64_t*)target)[2] &&
-            ((uint64_t*)&e)[1] == ((uint64_t*)target)[3]) {
-            return data[0];
-        }
-
-        // Compare hash 2: (b, f)
-        if (((uint64_t*)&b)[0] == ((uint64_t*)target)[0] &&
-            ((uint64_t*)&b)[1] == ((uint64_t*)target)[1] &&
-            ((uint64_t*)&f)[0] == ((uint64_t*)target)[2] &&
-            ((uint64_t*)&f)[1] == ((uint64_t*)target)[3]) {
-            return data[1];
-        }
-
-        // Compare hash 3: (c, g)
-        if (((uint64_t*)&c)[0] == ((uint64_t*)target)[0] &&
-            ((uint64_t*)&c)[1] == ((uint64_t*)target)[1] &&
-            ((uint64_t*)&g)[0] == ((uint64_t*)target)[2] &&
-            ((uint64_t*)&g)[1] == ((uint64_t*)target)[3]) {
-            return data[2];
-        }
-
-        // Compare hash 4: (d, h)
-        if (((uint64_t*)&d)[0] == ((uint64_t*)target)[0] &&
-            ((uint64_t*)&d)[1] == ((uint64_t*)target)[1] &&
-            ((uint64_t*)&h)[0] == ((uint64_t*)target)[2] &&
-            ((uint64_t*)&h)[1] == ((uint64_t*)target)[3]) {
-            return data[3];
+        if (bm) {
+            return data[__builtin_ctz(bm)];
         }
 
     next:

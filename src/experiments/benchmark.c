@@ -55,6 +55,43 @@ void benchmark_hash() {
     D_BENCHMARK_TIME_END("sha256 (all)")
 }
 
+#define BENCHMARK_REVERSE_ITERATIONS 1000
+#define BENCHMARK_REVERSE_FUNC(func)                                           \
+    {                                                                          \
+        printf("benchmarking %s\n", #func);                                    \
+        D_BENCHMARK_START(1, BENCHMARK_REVERSE_ITERATIONS)                     \
+        uint8_t target[SHA256_DIGEST_LENGTH] __attribute__((aligned(16)));     \
+        uint64_t data __attribute__((aligned(16))) = 100000;                   \
+        sha256_custom(target, (uint8_t*)&data);                                \
+        D_BENCHMARK_WARMUP(200) { (func)(1, 30000000, target); }               \
+        D_BENCHMARK_LOOP_START()                                               \
+        (func)(1, 30000000, target);                                           \
+        D_BENCHMARK_LOOP_END()                                                 \
+        D_BENCHMARK_END()                                                      \
+    }
+
+void benchmark_reverse() {
+    D_BENCHMARK_TIME_START()
+    BENCHMARK_REVERSE_FUNC(reverse_sha256x4_fullyfused_asm)
+    D_BENCHMARK_TIME_END("sha256 reverse x4 fullyfused asm")
+
+    D_BENCHMARK_TIME_START()
+    BENCHMARK_REVERSE_FUNC(reverse_sha256x4_fullyfused)
+    D_BENCHMARK_TIME_END("sha256 reverse x4 fullyfused")
+
+    D_BENCHMARK_TIME_START()
+    BENCHMARK_REVERSE_FUNC(reverse_sha256_x4)
+    D_BENCHMARK_TIME_END("sha256 reverse x4")
+
+    D_BENCHMARK_TIME_START()
+    BENCHMARK_REVERSE_FUNC(reverse_sha256_x4x2orx8)
+    D_BENCHMARK_TIME_END("sha256 reverse x4x2orx8")
+
+    D_BENCHMARK_TIME_START()
+    BENCHMARK_REVERSE_FUNC(reverse_sha256)
+    D_BENCHMARK_TIME_END("sha256 reverse")
+}
+
 void benchmark_reference_block_time(
     const struct ProtocolRequest* req
 ) {
@@ -327,6 +364,7 @@ void benchmark_manual_radix_tree() {
 }
 
 void benchmark() {
+    benchmark_reverse();
     benchmark_hash();
     benchmark_scheduler();
     benchmark_sha256_radix_tree_lookup();
