@@ -112,3 +112,23 @@ __attribute__((flatten)) uint64_t reverse_sha256_x4x2orx8(
 
     return 0;
 }
+
+static const uint32_t H_INIT[8] = {
+    0x6a09e667,
+    0xbb67ae85,
+    0x3c6ef372,
+    0xa54ff53a,
+    0x510e527f,
+    0x9b05688c,
+    0x1f83d9ab,
+    0x5be0cd19
+};
+
+inline void sha256_normalize(
+    HashDigest hash
+) {
+    for (int i = 0; i < 8; i++) {
+        ((uint32_t*)hash)[i] =
+            __builtin_bswap32(((uint32_t*)hash)[i]) - ((uint32_t*)H_INIT)[i];
+    }
+}

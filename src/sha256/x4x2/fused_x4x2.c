@@ -321,94 +321,6 @@ __attribute__((flatten)) void sha256x4x2_fused(
         );
     }
 
-    a = M128I_FUSE_PS(
-        _mm_add_epi32(
-            M256_LOWER_SI(a),
-            _mm_castps_si128(_mm_broadcast_ss((float*)&H[0]))
-        ),
-        _mm_add_epi32(
-            M256_UPPER_SI(a),
-            _mm_castps_si128(_mm_broadcast_ss((float*)&H[0]))
-        )
-    );
-
-    b = M128I_FUSE_PS(
-        _mm_add_epi32(
-            M256_LOWER_SI(b),
-            _mm_castps_si128(_mm_broadcast_ss((float*)&H[1]))
-        ),
-        _mm_add_epi32(
-            M256_UPPER_SI(b),
-            _mm_castps_si128(_mm_broadcast_ss((float*)&H[1]))
-        )
-    );
-
-    c = M128I_FUSE_PS(
-        _mm_add_epi32(
-            M256_LOWER_SI(c),
-            _mm_castps_si128(_mm_broadcast_ss((float*)&H[2]))
-        ),
-        _mm_add_epi32(
-            M256_UPPER_SI(c),
-            _mm_castps_si128(_mm_broadcast_ss((float*)&H[2]))
-        )
-    );
-
-    d = M128I_FUSE_PS(
-        _mm_add_epi32(
-            M256_LOWER_SI(d),
-            _mm_castps_si128(_mm_broadcast_ss((float*)&H[3]))
-        ),
-        _mm_add_epi32(
-            M256_UPPER_SI(d),
-            _mm_castps_si128(_mm_broadcast_ss((float*)&H[3]))
-        )
-    );
-
-    e = M128I_FUSE_PS(
-        _mm_add_epi32(
-            M256_LOWER_SI(e),
-            _mm_castps_si128(_mm_broadcast_ss((float*)&H[4]))
-        ),
-        _mm_add_epi32(
-            M256_UPPER_SI(e),
-            _mm_castps_si128(_mm_broadcast_ss((float*)&H[4]))
-        )
-    );
-
-    f = M128I_FUSE_PS(
-        _mm_add_epi32(
-            M256_LOWER_SI(f),
-            _mm_castps_si128(_mm_broadcast_ss((float*)&H[5]))
-        ),
-        _mm_add_epi32(
-            M256_UPPER_SI(f),
-            _mm_castps_si128(_mm_broadcast_ss((float*)&H[5]))
-        )
-    );
-
-    g = M128I_FUSE_PS(
-        _mm_add_epi32(
-            M256_LOWER_SI(g),
-            _mm_castps_si128(_mm_broadcast_ss((float*)&H[6]))
-        ),
-        _mm_add_epi32(
-            M256_UPPER_SI(g),
-            _mm_castps_si128(_mm_broadcast_ss((float*)&H[6]))
-        )
-    );
-
-    h = M128I_FUSE_PS(
-        _mm_add_epi32(
-            M256_LOWER_SI(h),
-            _mm_castps_si128(_mm_broadcast_ss((float*)&H[7]))
-        ),
-        _mm_add_epi32(
-            M256_UPPER_SI(h),
-            _mm_castps_si128(_mm_broadcast_ss((float*)&H[7]))
-        )
-    );
-
     __m256 tmp00 = _mm256_unpacklo_ps(a, b), tmp01 = _mm256_unpackhi_ps(a, b),
            tmp02 = _mm256_unpacklo_ps(c, d), tmp03 = _mm256_unpackhi_ps(c, d),
            tmp10 = _mm256_unpacklo_ps(e, f), tmp11 = _mm256_unpackhi_ps(e, f),
@@ -425,80 +337,78 @@ __attribute__((flatten)) void sha256x4x2_fused(
         r6 = _mm256_castps_si256(_mm256_shuffle_ps(tmp11, tmp13, 0b01000100)),
         r7 = _mm256_castps_si256(_mm256_shuffle_ps(tmp11, tmp13, 0b11101110));
 
-    __m128i mask = _mm_load_si128((__m128i*)byteswap_mask);
-
     // breaking stores up from 256 to 128 probably helps memory bandwith,
     // especially on 2012 CPU also, free swap
     _mm_store_si128(
         (__m128i*)&hash[64],
-        _mm_shuffle_epi8(_mm256_extractf128_si256(r0, 1), mask)
+        _mm256_extractf128_si256(r0, 1)
     );
     _mm_store_si128(
         (__m128i*)&hash[0],
-        _mm_shuffle_epi8(_mm256_castsi256_si128(r0), mask)
+        _mm256_castsi256_si128(r0)
     );
 
     _mm_store_si128(
         (__m128i*)&hash[80],
-        _mm_shuffle_epi8(_mm256_extractf128_si256(r4, 1), mask)
+        _mm256_extractf128_si256(r4, 1)
     );
     _mm_store_si128(
         (__m128i*)&hash[16],
-        _mm_shuffle_epi8(_mm256_castsi256_si128(r4), mask)
+        _mm256_castsi256_si128(r4)
     );
 
     _mm_store_si128(
         (__m128i*)&hash[96],
-        _mm_shuffle_epi8(_mm256_extractf128_si256(r1, 1), mask)
+        _mm256_extractf128_si256(r1, 1)
     );
     _mm_store_si128(
         (__m128i*)&hash[32],
-        _mm_shuffle_epi8(_mm256_castsi256_si128(r1), mask)
+        (_mm256_castsi256_si128(r1))
     );
 
     _mm_store_si128(
         (__m128i*)&hash[112],
-        _mm_shuffle_epi8(_mm256_extractf128_si256(r5, 1), mask)
+        _mm256_extractf128_si256(r5, 1)
     );
     _mm_store_si128(
         (__m128i*)&hash[48],
-        _mm_shuffle_epi8(_mm256_castsi256_si128(r5), mask)
+        (_mm256_castsi256_si128(r5))
     );
 
     _mm_store_si128(
         (__m128i*)&hash[192],
-        _mm_shuffle_epi8(_mm256_extractf128_si256(r2, 1), mask)
+        _mm256_extractf128_si256(r2, 1)
     );
     _mm_store_si128(
         (__m128i*)&hash[128],
-        _mm_shuffle_epi8(_mm256_castsi256_si128(r2), mask)
+        (_mm256_castsi256_si128(r2))
     );
 
     _mm_store_si128(
         (__m128i*)&hash[208],
-        _mm_shuffle_epi8(_mm256_extractf128_si256(r6, 1), mask)
+        (_mm256_extractf128_si256(r6, 1))
     );
     _mm_store_si128(
         (__m128i*)&hash[144],
-        _mm_shuffle_epi8(_mm256_castsi256_si128(r6), mask)
+        (_mm256_castsi256_si128(r6))
     );
 
     _mm_store_si128(
         (__m128i*)&hash[224],
-        _mm_shuffle_epi8(_mm256_extractf128_si256(r3, 1), mask)
+        (_mm256_extractf128_si256(r3, 1))
     );
     _mm_store_si128(
         (__m128i*)&hash[160],
-        _mm_shuffle_epi8(_mm256_castsi256_si128(r3), mask)
+        (_mm256_castsi256_si128(r3))
     );
 
     _mm_store_si128(
         (__m128i*)&hash[240],
-        _mm_shuffle_epi8(_mm256_extractf128_si256(r7, 1), mask)
+        (_mm256_extractf128_si256(r7, 1))
     );
     _mm_store_si128(
         (__m128i*)&hash[176],
-        _mm_shuffle_epi8(_mm256_castsi256_si128(r7), mask)
+        (_mm256_castsi256_si128(r7))
     );
 }
 #else

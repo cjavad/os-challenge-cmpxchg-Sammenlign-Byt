@@ -8,6 +8,7 @@ inline void protocol_request_to_le(
 ) {
     request->start = __builtin_bswap64(request->start);
     request->end = __builtin_bswap64(request->end);
+    sha256_normalize(request->hash);
 }
 
 inline void protocol_response_to_be(

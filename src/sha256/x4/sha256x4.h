@@ -34,11 +34,6 @@ void sha256x4_asm(
 
 // Remember to call these with aligned data!
 
-void sha256x4_cyclic_asm(
-    uint8_t hash[SHA256_DIGEST_LENGTH * 4],
-    const uint8_t data[SHA256_INPUT_LENGTH * 4]
-);
-
 void sha256x4_fullyfused_asm(
     uint8_t hash[SHA256_DIGEST_LENGTH * 4],
     const uint8_t data[SHA256_INPUT_LENGTH * 4]

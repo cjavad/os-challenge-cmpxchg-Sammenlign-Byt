@@ -72,12 +72,12 @@ __attribute__((flatten)) void sha256_optim(
         a = temp1 + temp2;
     }
 
-    ((uint32_t*)hash)[0] = __builtin_bswap32(a + 0x6a09e667);
-    ((uint32_t*)hash)[1] = __builtin_bswap32(b + 0xbb67ae85);
-    ((uint32_t*)hash)[2] = __builtin_bswap32(c + 0x3c6ef372);
-    ((uint32_t*)hash)[3] = __builtin_bswap32(d + 0xa54ff53a);
-    ((uint32_t*)hash)[4] = __builtin_bswap32(e + 0x510e527f);
-    ((uint32_t*)hash)[5] = __builtin_bswap32(f + 0x9b05688c);
-    ((uint32_t*)hash)[6] = __builtin_bswap32(g + 0x1f83d9ab);
-    ((uint32_t*)hash)[7] = __builtin_bswap32(h + 0x5be0cd19);
+    ((uint32_t*)hash)[0] = a;
+    ((uint32_t*)hash)[1] = b;
+    ((uint32_t*)hash)[2] = c;
+    ((uint32_t*)hash)[3] = d;
+    ((uint32_t*)hash)[4] = e;
+    ((uint32_t*)hash)[5] = f;
+    ((uint32_t*)hash)[6] = g;
+    ((uint32_t*)hash)[7] = h;
 }

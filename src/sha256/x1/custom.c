@@ -45,11 +45,9 @@ void sha256_custom(
 ) {
     uint32_t W[64];
 
-    uint32_t o[8]; // output state
     uint32_t s[8]; // internal state
 
     for (int i = 0; i < 8; i++) {
-        o[i] = H_INIT[i];
         s[i] = H_INIT[i];
     }
 
@@ -84,13 +82,8 @@ void sha256_custom(
         s[0] = T1 + T2;
     }
 
-    // Update the state
-    for (int i = 0; i < 8; i++) {
-        o[i] += s[i];
-    }
-
     // Output the final state (big endian)
     for (int i = 0; i < 8; i++) {
-        *(uint32_t*)(hash + i * 4) = __builtin_bswap32(o[i]);
+        *(uint32_t*)(hash + i * 4) = s[i];
     }
 }

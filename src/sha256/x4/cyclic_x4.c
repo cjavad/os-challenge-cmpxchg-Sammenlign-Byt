@@ -213,21 +213,10 @@ __attribute__((flatten)) void sha256x4_cyclic(
 
     // RIP 8 registers, at least no stack
 
-    a = _mm_add_epi32(a, _mm_castps_si128(BROADCAST_SS(H[0])));
-    b = _mm_add_epi32(b, _mm_castps_si128(BROADCAST_SS(H[1])));
-    c = _mm_add_epi32(c, _mm_castps_si128(BROADCAST_SS(H[2])));
-    d = _mm_add_epi32(d, _mm_castps_si128(BROADCAST_SS(H[3])));
-    e = _mm_add_epi32(e, _mm_castps_si128(BROADCAST_SS(H[4])));
-    f = _mm_add_epi32(f, _mm_castps_si128(BROADCAST_SS(H[5])));
-    g = _mm_add_epi32(g, _mm_castps_si128(BROADCAST_SS(H[6])));
-    h = _mm_add_epi32(h, _mm_castps_si128(BROADCAST_SS(H[7])));
-
     // trans pose ma trix ????
     // MATH REFERECNE ?????????
     // OMG im losing it right now
     // unpackhilomovhilo time
-
-    __m128i mask = _mm_load_si128((__m128i*)byteswap_mask);
 
     // first half
     {
@@ -270,17 +259,7 @@ __attribute__((flatten)) void sha256x4_cyclic(
         );
     }
 
-    // byteswap and store
-
-    a = _mm_shuffle_epi8(a, mask);
-    b = _mm_shuffle_epi8(b, mask);
-    c = _mm_shuffle_epi8(c, mask);
-    d = _mm_shuffle_epi8(d, mask);
-    e = _mm_shuffle_epi8(e, mask);
-    f = _mm_shuffle_epi8(f, mask);
-    g = _mm_shuffle_epi8(g, mask);
-    h = _mm_shuffle_epi8(h, mask);
-
+    // store
     _mm_store_si128((__m128i*)&hash[0], a);
     _mm_store_si128((__m128i*)&hash[16], e);
     _mm_store_si128((__m128i*)&hash[32], b);

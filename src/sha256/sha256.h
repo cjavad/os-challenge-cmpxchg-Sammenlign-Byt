@@ -18,3 +18,5 @@ uint64_t reverse_sha256_x4x2orx8(
     const HashDigest target
 );
 
+// Undo last step of sha256 function (byte swap and subtract initial hash)
+void sha256_normalize(HashDigest hash);

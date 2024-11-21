@@ -2,6 +2,11 @@
 #include "../bits/page_allocator.h"
 #include "../bits/priority_heap.h"
 #include "../bits/spin.h"
+#include "../sha256/sha256.h"
+#include "../sha256/x1/sha256x1.h"
+#include "../sha256/x4/sha256x4.h"
+#include "../sha256/x4x2/sha256x4x2.h"
+#include "../sha256/x8/sha256x8.h"
 
 #include <assert.h>
 #include <pthread.h>
@@ -205,7 +210,102 @@ void test_page_allocator() {
     assert(true);
 }
 
+bool test_sha256_compare(
+    const HashDigest a,
+    const HashDigest b
+) {
+    for (int i = 0; i < SHA256_DIGEST_LENGTH; i++) {
+        if (a[i] != b[i]) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+void test_all_sha256_results() {
+    HashDigest reference;
+
+    const uint8_t data[SHA256_INPUT_LENGTH * 8] = {0};
+
+    sha256_custom(reference, data);
+
+    uint8_t hashes[SHA256_DIGEST_LENGTH * 8] = {0};
+
+    sha256_optim(hashes, data);
+    assert(test_sha256_compare(reference, hashes));
+
+    sha256_fused(hashes, data);
+    assert(test_sha256_compare(reference, hashes));
+
+    sha256_fullyfused(hashes, data);
+    assert(test_sha256_compare(reference, hashes));
+
+    sha256x4_optim(hashes, data);
+    assert(test_sha256_compare(reference, hashes));
+    assert(test_sha256_compare(reference, &hashes[SHA256_DIGEST_LENGTH * 1]));
+    assert(test_sha256_compare(reference, &hashes[SHA256_DIGEST_LENGTH * 2]));
+    assert(test_sha256_compare(reference, &hashes[SHA256_DIGEST_LENGTH * 3]));
+
+    sha256x4_cyclic(hashes, data);
+    assert(test_sha256_compare(reference, hashes));
+    assert(test_sha256_compare(reference, &hashes[SHA256_DIGEST_LENGTH * 1]));
+    assert(test_sha256_compare(reference, &hashes[SHA256_DIGEST_LENGTH * 2]));
+    assert(test_sha256_compare(reference, &hashes[SHA256_DIGEST_LENGTH * 3]));
+
+    sha256x4_fused(hashes, data);
+    assert(test_sha256_compare(reference, hashes));
+    assert(test_sha256_compare(reference, &hashes[SHA256_DIGEST_LENGTH * 1]));
+    assert(test_sha256_compare(reference, &hashes[SHA256_DIGEST_LENGTH * 2]));
+    assert(test_sha256_compare(reference, &hashes[SHA256_DIGEST_LENGTH * 3]));
+
+    sha256x4_fullyfused(hashes, data);
+    assert(test_sha256_compare(reference, hashes));
+    assert(test_sha256_compare(reference, &hashes[SHA256_DIGEST_LENGTH * 1]));
+    assert(test_sha256_compare(reference, &hashes[SHA256_DIGEST_LENGTH * 2]));
+    assert(test_sha256_compare(reference, &hashes[SHA256_DIGEST_LENGTH * 3]));
+
+    sha256x4_fullyfused_asm(hashes, data);
+    assert(test_sha256_compare(reference, hashes));
+    assert(test_sha256_compare(reference, &hashes[SHA256_DIGEST_LENGTH * 1]));
+    assert(test_sha256_compare(reference, &hashes[SHA256_DIGEST_LENGTH * 2]));
+    assert(test_sha256_compare(reference, &hashes[SHA256_DIGEST_LENGTH * 3]));
+
+    sha256x4x2_optim(hashes, data);
+    assert(test_sha256_compare(reference, hashes));
+    assert(test_sha256_compare(reference, &hashes[SHA256_DIGEST_LENGTH * 1]));
+    assert(test_sha256_compare(reference, &hashes[SHA256_DIGEST_LENGTH * 2]));
+    assert(test_sha256_compare(reference, &hashes[SHA256_DIGEST_LENGTH * 3]));
+    assert(test_sha256_compare(reference, &hashes[SHA256_DIGEST_LENGTH * 4]));
+    assert(test_sha256_compare(reference, &hashes[SHA256_DIGEST_LENGTH * 5]));
+    assert(test_sha256_compare(reference, &hashes[SHA256_DIGEST_LENGTH * 6]));
+    assert(test_sha256_compare(reference, &hashes[SHA256_DIGEST_LENGTH * 7]));
+
+    sha256x4x2_fused(hashes, data);
+    assert(test_sha256_compare(reference, hashes));
+    assert(test_sha256_compare(reference, &hashes[SHA256_DIGEST_LENGTH * 1]));
+    assert(test_sha256_compare(reference, &hashes[SHA256_DIGEST_LENGTH * 2]));
+    assert(test_sha256_compare(reference, &hashes[SHA256_DIGEST_LENGTH * 3]));
+    assert(test_sha256_compare(reference, &hashes[SHA256_DIGEST_LENGTH * 4]));
+    assert(test_sha256_compare(reference, &hashes[SHA256_DIGEST_LENGTH * 5]));
+    assert(test_sha256_compare(reference, &hashes[SHA256_DIGEST_LENGTH * 6]));
+    assert(test_sha256_compare(reference, &hashes[SHA256_DIGEST_LENGTH * 7]));
+
+    /*sha256x8_optim(hashes, data);
+    assert(test_sha256_compare(reference, hashes));
+    assert(test_sha256_compare(reference, &hashes[SHA256_DIGEST_LENGTH * 1]));
+    assert(test_sha256_compare(reference, &hashes[SHA256_DIGEST_LENGTH * 2]));
+    assert(test_sha256_compare(reference, &hashes[SHA256_DIGEST_LENGTH * 3]));
+    assert(test_sha256_compare(reference, &hashes[SHA256_DIGEST_LENGTH * 4]));
+    assert(test_sha256_compare(reference, &hashes[SHA256_DIGEST_LENGTH * 5]));
+    assert(test_sha256_compare(reference, &hashes[SHA256_DIGEST_LENGTH * 6]));
+    assert(test_sha256_compare(reference, &hashes[SHA256_DIGEST_LENGTH * 7]));
+    */
+}
+
 int misc_main() {
+    // sha256_test();
+    test_all_sha256_results();
     test_priority_heap();
     test_spinlock();
     test_page_allocator();
