@@ -14,9 +14,9 @@ PPFLAGS = -D_GNU_SOURCE
 # include flags
 IFLAGS = -I$(INCDIR)
 # compile flags
-CFLAGS = -march=sandybridge -mtune=sandybridge -masm=intel -std=gnu11 -flto=auto -fwhole-program
+CFLAGS = -march=sandybridge -mtune=sandybridge -masm=intel -std=gnu11
 # linker flags
-LFLAGS = -lpthread -lrt -lm -flto=auto -fwhole-program
+LFLAGS = -lpthread -lrt -lm
 
 # build
 
