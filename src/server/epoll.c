@@ -4,7 +4,11 @@
 #include "worker_pool.h"
 #include <errno.h>
 #include <fcntl.h>
+#include <netinet/in.h>
+#include <netinet/tcp.h>
 #include <stdio.h>
+#include <string.h>
+#include <sys/socket.h>
 #include <unistd.h>
 
 void accept_client(
@@ -79,28 +83,28 @@ int epoll_server_poll(
 
         switch (data.type) {
 
-        // Accept new connection.
-        case SERVER_ACCEPT:
-            accept_client(ctx, &data);
-            break;
-        // Read from connection
-        case CLIENT_EVENT:
-            if (event->events & EPOLLIN) {
-                consume_request(ctx, &data);
-            } else if (event->events & EPOLLHUP) {
-                remove_client(ctx, &data);
-            }
+            // Accept new connection.
+            case SERVER_ACCEPT:
+                accept_client(ctx, &data);
+                break;
+            // Read from connection
+            case CLIENT_EVENT:
+                if (event->events & EPOLLIN) {
+                    consume_request(ctx, &data);
+                } else if (event->events & EPOLLHUP) {
+                    remove_client(ctx, &data);
+                }
 
-            break;
+                break;
 
-        default:
-            fprintf(
-                stderr,
-                "Unknown event: %d type: %d\n",
-                event->events,
-                data.type
-            );
-            break;
+            default:
+                fprintf(
+                    stderr,
+                    "Unknown event: %d type: %d\n",
+                    event->events,
+                    data.type
+                );
+                break;
         }
     }
 
@@ -145,6 +149,26 @@ void accept_client(
         return;
     }
 
+    {
+        int32_t optval = 1;
+        if (setsockopt(
+                client_fd,
+                IPPROTO_TCP,
+                TCP_NODELAY,
+                &optval,
+                sizeof(optval)
+            ) < 0) {
+            fprintf(
+                stderr,
+                "Failed to set cliend %d to nodelay: %s\n",
+                client_fd,
+                strerror(errno)
+            );
+            close(client_fd);
+            return;
+        }
+    }
+
     struct epoll_event ev = {0};
 
     // Handle CLIENT_EVENT and CLIENT_CLOSED events.
@@ -184,7 +208,11 @@ void consume_request(
         if (bytes_received == 0) {
             fprintf(stderr, "Received 0 bytes (perhaps closed)\n");
         } else if (bytes_received < 0) {
-            fprintf(stderr, "Failed to receive request (perhaps closed): %s\n", strerror(errno));
+            fprintf(
+                stderr,
+                "Failed to receive request (perhaps closed): %s\n",
+                strerror(errno)
+            );
         } else {
             fprintf(stderr, "Invalid request size: %lu\n", bytes_received);
         }
