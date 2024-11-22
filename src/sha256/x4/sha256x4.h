@@ -52,3 +52,9 @@ uint64_t reverse_sha256x4_fullyfused_asm(
     uint64_t end,
     const HashDigest target
 );
+
+uint64_t reverse_sha256x4_fullyfused_asm_2(
+    uint64_t start,
+    uint64_t end,
+    const HashDigest target
+);

@@ -1,13 +1,20 @@
 #include "sha256x4.h"
 #include <stdint.h>
 
+#include "impl_common.h"
 #include <emmintrin.h>
 #include <immintrin.h>
 #include <tmmintrin.h>
 
-#include "impl_common.h"
-
 #include <stdio.h>
+
+#define ROTR(x, n) (((x) >> (n)) | ((x) << (32 - (n))))
+
+// Inline SHA-256 functions
+#define Ch(x, y, z)  (((x) & (y)) ^ (~(x) & (z)))
+#define Maj(x, y, z) (((x) & (y)) ^ ((x) & (z)) ^ ((y) & (z)))
+#define Sigma0(x)    (ROTR(x, 2) ^ ROTR(x, 13) ^ ROTR(x, 22))
+#define Sigma1(x)    (ROTR(x, 6) ^ ROTR(x, 11) ^ ROTR(x, 25))
 
 uint64_t reverse_sha256x4_fullyfused(
     const uint64_t start,
@@ -15,7 +22,26 @@ uint64_t reverse_sha256x4_fullyfused(
     const HashDigest target
 ) {
     // byte of interest.
-    const __m128i h64e61 = _mm_set1_epi32(((uint32_t*)target)[7]);
+    const uint32_t* target_u32 = (const uint32_t*)target;
+
+    const uint32_t d63 =
+        target_u32[4] -
+        (target_u32[0] - (Sigma0(target_u32[1]) +
+                          Maj(target_u32[1], target_u32[2], target_u32[3])));
+
+    const uint32_t d62 =
+        target_u32[5] -
+        (target_u32[1] -
+         (Sigma0(target_u32[2]) + Maj(target_u32[2], target_u32[3], d63)));
+
+    const uint32_t d61 =
+        target_u32[6] - (target_u32[2] - (Sigma0(target_u32[3]) +
+                                          Maj(target_u32[3], d63, d62)));
+
+    const uint32_t d60 =
+        target_u32[7] - (target_u32[3] - (Sigma0(d63) + Maj(d63, d62, d61)));
+
+    const __m128i a64d63d62d61d60 = _mm_set1_epi32(d60);
 
     uint64_t data[4]
         __attribute__((aligned(64))) = {start, start + 1, start + 2, start + 3};
@@ -189,8 +215,8 @@ uint64_t reverse_sha256x4_fullyfused(
             COMPRESS_ROUND(t1, 31)
         }
 
-        // Round 32-60
-        for (uint32_t i = 16; i < 45; i++) {
+        // Round 32-56
+        for (uint32_t i = 16; i < 41; i++) {
             __m128i wi16 = _mm_load_si128(&w[i - 16]),
                     wi15 = _mm_load_si128(&w[i - 15]),
                     wi7 = _mm_load_si128(&w[i - 7]), wi2 = t0;
@@ -223,14 +249,14 @@ uint64_t reverse_sha256x4_fullyfused(
             a = _mm_add_epi32(temp1, temp2);
         }
 
-        __m128i test = _mm_cmpeq_epi32(e, h64e61);
+        __m128i test = _mm_cmpeq_epi32(a, a64d63d62d61d60);
 
         if (_mm_testz_si128(test, test)) {
             goto next;
         }
 
-        // Round 32-61
-        for (uint32_t i = 45; i < 48; i++) {
+        // 57 - 63
+        for (uint32_t i = 41; i < 48; i++) {
             __m128i wi16 = _mm_load_si128(&w[i - 16]),
                     wi15 = _mm_load_si128(&w[i - 15]),
                     wi7 = _mm_load_si128(&w[i - 7]), wi2 = t0;

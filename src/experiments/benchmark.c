@@ -76,6 +76,11 @@ void benchmark_reverse() {
     D_BENCHMARK_TIME_END("sha256 reverse x4 fullyfused asm")
 
     D_BENCHMARK_TIME_START()
+    BENCHMARK_REVERSE_FUNC(reverse_sha256x4_fullyfused_asm_2)
+    D_BENCHMARK_TIME_END("sha256 reverse x4 fullyfused asm 2")
+
+
+    D_BENCHMARK_TIME_START()
     BENCHMARK_REVERSE_FUNC(reverse_sha256x4_fullyfused)
     D_BENCHMARK_TIME_END("sha256 reverse x4 fullyfused")
 

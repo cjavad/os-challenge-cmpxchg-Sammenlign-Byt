@@ -305,10 +305,10 @@ void test_all_sha256_results() {
 
 int misc_main() {
     HashDigest target;
-    uint64_t actual = 2;
+    uint64_t actual = 1;
     sha256_custom(target, (uint8_t*)&actual);
 
-    const uint64_t res = reverse_sha256x4_fullyfused_asm(0, 15, target);
+    const uint64_t res = reverse_sha256x4_fullyfused_asm_2(0, 3, target);
 
     printf("res: %lu\n", res);
 

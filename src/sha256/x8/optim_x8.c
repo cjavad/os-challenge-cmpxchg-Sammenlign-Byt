@@ -165,9 +165,6 @@ static const uint8_t byteswap_mask0[16] __attribute__((aligned(16))
 static const uint8_t byteswap_mask1[16] __attribute__((aligned(16))
 ) = {7, 6, 5, 4, 15, 14, 13, 12, 3, 2, 1, 0, 11, 10, 9, 8};
 
-static const uint8_t byteswap_mask[16] __attribute__((aligned(16))
-) = {3, 2, 1, 0, 7, 6, 5, 4, 11, 10, 9, 8, 15, 14, 13, 12};
-
 static const uint32_t x80000000[4] __attribute__((aligned(16))
 ) = {0x80000000, 0x80000000, 0x80000000, 0x80000000};
 
